@@ -6590,10 +6590,13 @@ var ZoteroPane = new function()
 		var layoutSwitcher = document.getElementById("zotero-layout-switcher");
 		var itemsSplitter = document.getElementById("zotero-items-splitter");
 		var sidenav = document.getElementById("zotero-view-item-sidenav");
+		// DPZ: add new splitter
+		var dpItemSplitter = document.getElementById("zotero-dpAndItem-splitter");
 
 		if (Zotero.Prefs.get("layout") === "stacked") { // itemsPane above itemPane
 			layoutSwitcher.setAttribute("orient", "vertical");
 			itemsSplitter.setAttribute("orient", "vertical");
+			dpItemSplitter.setAttribute("orient", "vertical");
 			sidenav.classList.add("stacked");
 			this.itemPane.classList.add("stacked");
 			document.documentElement.classList.add("stacked");
@@ -6601,6 +6604,7 @@ var ZoteroPane = new function()
 		else {  // three-vertical-pane
 			layoutSwitcher.setAttribute("orient", "horizontal");
 			itemsSplitter.setAttribute("orient", "horizontal");
+			dpItemSplitter.setAttribute("orient", "horizontal");
 			sidenav.classList.remove("stacked");
 			this.itemPane.classList.remove("stacked");
 			document.documentElement.classList.remove("stacked");
@@ -6751,12 +6755,15 @@ var ZoteroPane = new function()
 		// Keep in sycn with abstracts/variables.scss > $min-width-collections-pane
 		const collectionsPaneMinWidth = collectionsPane.hasAttribute("collapsed") ? 0 : 200;
 		// Keep in sycn with abstracts/variables.scss > $min-width-item-pane
-		const itemPaneMinWidth = (isStackedMode || isItemPaneCollapsed) ? 0 : 320;
+		// DPZ: min width item pane
+	// Shorten from 320 to 240
+		const itemPaneMinWidth = (isStackedMode || isItemPaneCollapsed) ? 0 : 240;
 		const libraryItemPaneMinWidth = (isStackedMode || ZoteroPane.itemPane.collapsed) ? 0 : 320;
 		// Keep in sycn with abstracts/variables.scss > $width-sidenav
 		const sideNavMinWidth = isStackedMode ? 0 : 37;
 		// Keep in sycn with abstracts/variables.scss > $min-width-items-pane
-		const itemsPaneMinWidth = 370;
+		// DPZ: shorten from 370 to 320
+		const itemsPaneMinWidth = 320;
 
 		let fixedComponentWidth = collectionsPaneMinWidth + itemPaneMinWidth + sideNavMinWidth;
 

@@ -26,6 +26,7 @@
 "use strict";
 
 {
+	// DPZ04_4_Note: logic for header of item pane??
 	let htmlDoc = document.implementation.createHTMLDocument();
 	
 	class ItemPaneHeader extends ItemPaneSectionElementBase {

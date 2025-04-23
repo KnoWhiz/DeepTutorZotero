@@ -25,6 +25,7 @@
 
 
 {
+	// DPZ04_4_Note: central logic for item pane
 	class ItemPane extends XULElementBase {
 		content = MozXULElement.parseXULToFragment(`
 			<deck id="zotero-item-pane-content" class="zotero-item-pane-content" selectedIndex="0" flex="1">
@@ -105,6 +106,7 @@
 		}
 
 		render() {
+			Zotero.debug("item pane loading");
 			if (!this.data) return false;
 			let hideSidenav = false;
 			let renderStatus = false;
@@ -128,6 +130,7 @@
 			else {
 				renderStatus = this.renderMessage();
 			}
+			// DPZ04_4_Note: Item Pane hide strategy
 			this._sidenav.hidden = hideSidenav;
 			return renderStatus;
 		}
@@ -596,5 +599,6 @@
 			this._itemDetails.sidenav.toggleDefaultStatus(!isViewingItem);
 		}
 	}
+
 	customElements.define("item-pane", ItemPane);
 }

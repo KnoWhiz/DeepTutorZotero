@@ -28,6 +28,7 @@ class ItemPaneSectionElementBase extends XULElementBase {
 	get item() {
 		return this._item;
 	}
+	// DPZ04_4_Note: other functions for item pane, such as custom section?
 
 	set item(item) {
 		this._item = item;

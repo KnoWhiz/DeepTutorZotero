@@ -26,6 +26,7 @@
 "use strict";
 
 {
+	// DPZ_Note: looks like the search engine for files??
 	class SearchElementBase extends XULElementBase {
 		get stylesheets() {
 			return [

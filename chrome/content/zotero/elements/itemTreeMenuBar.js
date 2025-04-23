@@ -25,6 +25,7 @@
 
 
 class ItemTreeMenuBar extends XULElement {
+	// DPZ02_Note: file for items in view option at top
 	// Menu bar containing View options for manipulating the itemTree table
 	// (View > Columns, Sort By, Move Column).
 	// Added to windows without a menubar by ItemTree.init()

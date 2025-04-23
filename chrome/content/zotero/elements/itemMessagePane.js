@@ -24,6 +24,7 @@
 */
 
 {
+	// DPZ04_4_Note: This file is responsible for the messages content in case that no file is selected
 	class ItemMessagePane extends XULElementBase {
 		content = MozXULElement.parseXULToFragment(`
 			<html:div class="custom-head empty"></html:div>

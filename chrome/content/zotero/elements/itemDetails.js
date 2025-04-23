@@ -24,6 +24,7 @@
 */
 
 {
+	// DPZ04_4_Note: this file is responsible for the content in itempane
 	const waitFrame = async () => {
 		return waitNoLongerThan(new Promise((resolve) => {
 			requestAnimationFrame(resolve);

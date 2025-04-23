@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/app/modules/zotero-libreoffice-integration" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/app/modules/zotero-word-for-mac-integration" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/app/modules/zotero-word-for-mac-integration/build/tools/officeparser" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/app/modules/zotero-word-for-windows-integration" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/app/modules/zotero-word-for-windows-integration/build/tools/officeparser" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/chrome/content/zotero/locale/csl" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/chrome/content/zotero/xpcom/translate" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/chrome/content/zotero/xpcom/translate/modules/utilities" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/chrome/content/zotero/xpcom/translate/modules/utilities/resource/schema/global" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/chrome/content/zotero/xpcom/utilities" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/chrome/content/zotero/xpcom/utilities/resource/schema/global" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/note-editor" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/pdf-worker" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/pdf-worker/pdf.js" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/reader" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/reader/epubjs/epub.js" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/reader/pdfjs/pdf.js" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/resource/SingleFile" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/resource/schema/global" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/styles" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/translators" vcs="Git" />
+  </component>
+</project>

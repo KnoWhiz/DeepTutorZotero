@@ -104,6 +104,7 @@
 		}
 
 		render() {
+			Zotero.debug("Abstract Box loading");
 			if (!this.item) return;
 			if (this._isAlreadyRendered()) return;
 
@@ -198,5 +199,6 @@
 			this.save();
 		};
 	}
+
 	customElements.define("abstract-box", AbstractBox);
 }

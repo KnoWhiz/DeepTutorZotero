@@ -38,7 +38,7 @@
 	<!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd" > %brandDTD;
 	<!ENTITY % zoteroDTD SYSTEM "chrome://zotero/locale/zotero.dtd"> %zoteroDTD;
 ]>
-
+<!-- DPZ: starting main window settings -->
 <window id="main-window"
 		xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
 		windowtype="navigator:browser" 
@@ -206,8 +206,9 @@
 		<key id="key_sortCol8"/>
 		<key id="key_sortCol9"/>
 	</keyset>
-	
+
 	<vbox id="titlebar">
+		<!-- DPZ01: Topmost Icon Bar -->
 		<hbox class="titlebar-icon-container">
 			<html:div class="titlebar-icon"></html:div>
 		</hbox>
@@ -224,6 +225,7 @@
 					there is no way to change it after the initialization, only
 					the children can be modified. All non-menu nodes are ignored
 				-->
+				<!-- DPZ02: menu dropdowns at the top like Files, etc. -->
 				<menubar id="main-menubar"
 				style="border:0px;padding:0px;margin:0px;-moz-appearance:none">		
 					<!-- File menu -->
@@ -814,7 +816,8 @@
 				</menubar>
 			</toolbaritem>
 		</html:div>
-		
+
+		<!-- DPZ03: General Operation buttons -->
 		<hbox class="titlebar-buttonbox titlebar-color">
 			<toolbarbutton class="titlebar-button titlebar-min"
 				oncommand="window.minimize();"
@@ -840,7 +843,9 @@
 	</vbox>
 	
 	<!-- Keep in sync with Zotero.test conditional block in overlay.js -->
+	<!-- DPZ04: Main Pane -->
 	<hbox id="zotero-title-bar">
+		<!-- DPZ04_1: Top right toolbar and sync buttons -->
 		<div xmlns="http://www.w3.org/1999/xhtml" id="tab-bar-container" />
 		<hbox id="zotero-tabs-toolbar" class="zotero-toolbar" align="center">
 			<toolbarbutton id="zotero-tb-tabs-menu" class="zotero-tb-button" tabindex="-1" data-l10n-id="zotero-toolbar-tabs-menu" type="panel"
@@ -897,6 +902,7 @@
 	
 	<tooltip id="dynamic-tooltip" onpopupshowing="ZoteroPane.setDynamicTooltip(event)"></tooltip>
 	<!-- Global popupset for all context menus -->
+	<!-- DPZ: random popups -->
 	<popupset>
 		<!-- Library -->
 		<menupopup id="zotero-collectionmenu"
@@ -1075,7 +1081,7 @@
 			nomaxresults="true"
 		/>
 	</popupset>
-	
+
 	<hbox flex="1" id="browser">
 		<vbox id="appcontent" flex="1">
 			<stack id="zotero-pane-stack" flex="1">
@@ -1086,6 +1092,7 @@
 					<div id="zotero-tab-cover" class="hidden" xmlns="http://www.w3.org/1999/xhtml">
 						<label>&zotero.general.loading;</label>
 					</div>
+					<!-- DPZ04_3: all containers (not sure what they are, probably right-click popups)-->
 					<deck id="tabs-deck">
 						<vbox id="zotero-pane"
 							onkeydown="ZoteroPane_Local.handleKeyDown(event, this.id)"
@@ -1178,7 +1185,7 @@
 								</html:div>
 							</vbox>
 
-							
+							<!-- DPZ04_2: The side bar at left? -->
 							<hbox id="zotero-trees" flex="1">
 								<vbox id="zotero-collections-pane" zotero-persist="width">
 									<toolbar id="zotero-toolbar-collection-tree" tabindex="-1" class="zotero-toolbar toolbar toolbar-primary">
@@ -1230,7 +1237,8 @@
 									oncommand="ZoteroPane_Local.updateLayoutConstraints()">
 									<grippy id="zotero-collections-grippy"/>
 								</splitter>
-								
+
+								<!-- DPZ04_5: Items tree -->
 								<box id="zotero-layout-switcher" orient="horizontal" zotero-persist="orient">
 									<vbox id="zotero-items-pane-container">
 										<toolbar id="zotero-toolbar-item-tree" tabindex="-1" class="zotero-toolbar toolbar toolbar-primary">
@@ -1339,19 +1347,34 @@
 											</hbox>
 											
 										</toolbar>
+										<!-- DPZ04_4: item pane at right -->
 										<hbox id="zotero-items-pane" class="virtualized-table-container" flex="1" clickthrough="never">
 											<html:div id="zotero-items-tree"></html:div>
 										</hbox>
 									</vbox>
-									
-				
+
+
+
+
 									<splitter id="zotero-items-splitter" resizebefore="closest" resizeafter="closest" collapse="after" orient="horizontal" zotero-persist="state orient"
 										onmousemove="ZoteroPane.updateLayoutConstraints()"
 										oncommand="ZoteroPane.updateLayoutConstraints()">
 										<grippy id="zotero-items-grippy"/>
 									</splitter>
-				
+
+									<!-- Deeptutor Pane -->
+
+									<deep-tutor-pane id="deep-tutor-pane-real" zotero-persist="width height"/>
+
+									<splitter id="zotero-dpAndItem-splitter" resizebefore="closest" resizeafter="closest" collapse="after" orient="horizontal" zotero-persist="state orient"
+											  onmousemove="ZoteroPane.updateLayoutConstraints()"
+											  oncommand="ZoteroPane.updateLayoutConstraints()">
+										<grippy id="zotero-items-grippy"/>
+									</splitter>
+
+
 									<!-- itemPane.xul -->
+
 									<item-pane id="zotero-item-pane" zotero-persist="width height"/>
 								</box>
 							</hbox>
@@ -1373,6 +1396,7 @@
 					</splitter>
 		
 					<!-- contextPane -->
+					<!-- DPZ04_6: Context pane: hidden at the right side -->
 					<box id="zotero-context-pane" collapsed="true" zotero-persist="width">
 						<vbox flex="1" style="min-width: 0; min-height: 0;">
 							<box class="stacked-context-placeholder" flex="1"/>
@@ -1391,7 +1415,9 @@
 							</splitter>
 							<context-pane id="zotero-context-pane-inner" zotero-persist="height"></context-pane>
 						</vbox>
+
 						<item-pane-sidenav id="zotero-context-pane-sidenav" class="zotero-view-item-sidenav" hidden="true"/>
+
 					</box>
 				</hbox>
 				
