@@ -5,10 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="d90bc252-ba4f-4957-ad83-a27391844179" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/chrome/content/zotero/elements/DeepTutorPane.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/chrome/content/zotero/customElements.js" beforeDir="false" afterPath="$PROJECT_DIR$/chrome/content/zotero/customElements.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/chrome/content/zotero/zoteroPane.js" beforeDir="false" afterPath="$PROJECT_DIR$/chrome/content/zotero/zoteroPane.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/chrome/content/zotero/zoteroPane.xhtml" beforeDir="false" afterPath="$PROJECT_DIR$/chrome/content/zotero/zoteroPane.xhtml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chrome/content/zotero/elements/DeepTutorPane.js" beforeDir="false" afterPath="$PROJECT_DIR$/chrome/content/zotero/elements/DeepTutorPane.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -77,7 +75,7 @@
       <workItem from="1745436989754" duration="3818000" />
       <workItem from="1745445710001" duration="72000" />
       <workItem from="1745445805087" duration="175000" />
-      <workItem from="1745446233246" duration="884000" />
+      <workItem from="1745446233246" duration="6229000" />
     </task>
     <servers />
   </component>
