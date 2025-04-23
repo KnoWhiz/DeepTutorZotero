@@ -1343,9 +1343,16 @@
 											<html:div id="zotero-items-tree"></html:div>
 										</hbox>
 									</vbox>
-									
-				
+
 									<splitter id="zotero-items-splitter" resizebefore="closest" resizeafter="closest" collapse="after" orient="horizontal" zotero-persist="state orient"
+											  onmousemove="ZoteroPane.updateLayoutConstraints()"
+											  oncommand="ZoteroPane.updateLayoutConstraints()">
+										<grippy id="zotero-items-grippy"/>
+									</splitter>
+
+									<deep-tutor-pane id="deep-tutor-pane" zotero-persist="width height"/>
+				
+									<splitter id="zotero-deeptutor-splitter" resizebefore="closest" resizeafter="closest" collapse="after" orient="horizontal" zotero-persist="state orient"
 										onmousemove="ZoteroPane.updateLayoutConstraints()"
 										oncommand="ZoteroPane.updateLayoutConstraints()">
 										<grippy id="zotero-items-grippy"/>
