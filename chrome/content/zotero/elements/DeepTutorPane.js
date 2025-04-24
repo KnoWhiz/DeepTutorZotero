@@ -29,11 +29,9 @@
    ***** END LICENSE BLOCK *****
 */
 
-
-
-
 {
     // DPZ04_4_Note: central logic for item pane
+
     class DeepTutorPane extends XULElementBase {
         content = MozXULElement.parseXULToFragment(`
            <vbox id="chatbot-container" flex="1" style="padding: 10px; border: 1px solid red;">
@@ -60,6 +58,8 @@
             this._sendButton.addEventListener('click', () => this._handleSend());
             // Renders the class
             // this.appendChild(this.content);
+
+
             this.render();
         }
 
@@ -70,7 +70,7 @@
             this.initialized = true;
         }
 
-        _handleSend() {
+        async _handleSend() {
             // get the user input message, trim and attach user and message to append function
             const newMessage = this._abstractField.value.trim();
             if (!newMessage) return;
@@ -78,10 +78,35 @@
             // clean the edittext field
             this._abstractField.value = "";
 
+            const response = await fetch("https://api.openai.com/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Authorization": "Bearer YOUR_OPENAI_API_KEY",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    model: "gpt-4",
+                    messages: [
+                        { role: "system", content: "You are a helpful assistant." },
+                        { role: "user", content: newMessage }
+                    ]
+                })
+            });
+            let AIResponse = "No Response";
+            if (response.ok) {
+                try {
+                    AIResponse = await response.json();
+                } catch(err) {
+                    AIResponse = "No Response";
+                }
+                if (!AIResponse.error) {
+                    AIResponse = AIResponse.choices?.[0]?.message?.content || "No Response";
+                }
+            }
+            Zotero.debug(AIResponse);
+
             // mimic AI response
-            setTimeout(() => {
-                this._appendMessage("Chatbot", "Message Received");
-            }, 250);
+            this._appendMessage("Chatbot", AIResponse);
         }
 
         _appendMessage(sender, text) {
