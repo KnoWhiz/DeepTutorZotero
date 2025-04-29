@@ -77,6 +77,7 @@
             this._appendMessage("User", newMessage);
             // clean the edittext field
             this._abstractField.value = "";
+            let fileContent = await this._obtainPDFfile();
 
             const response = await fetch("https://api.openai.com/v1/chat/completions", {
                 method: "POST",
@@ -107,6 +108,7 @@
 
             // mimic AI response
             this._appendMessage("Chatbot", AIResponse);
+            this._appendMessage("File Content", fileContent);
         }
 
         _appendMessage(sender, text) {
@@ -119,6 +121,53 @@
             log.appendChild(updateMessage);
             // Scrolls the scroll box to the bottom
             log.scrollTop = log.scrollHeight;
+        }
+
+        async _obtainPDFfile() {
+            // Get selected items from the Zotero pane
+            const selectedItems = ZoteroPane.getSelectedItems();
+            if (!selectedItems.length) {
+                Zotero.debug("No items selected");
+                return [];
+            }
+
+            // Get all PDF attachments from selected items
+            const pdfAttachments = selectedItems.reduce((arr, item) => {
+                if (item.isPDFAttachment()) {
+                    return arr.concat([item]);
+                }
+                if (item.isRegularItem()) {
+                    return arr.concat(item.getAttachments()
+                        .map(x => Zotero.Items.get(x))
+                        .filter(x => x.isPDFAttachment()));
+                }
+                return arr;
+            }, []);
+
+            if (!pdfAttachments.length) {
+                Zotero.debug("No PDF attachments found in selected items");
+                return [];
+            }
+
+            // Process all PDF attachments in parallel and wait for all to complete
+            const fileContentList = await Promise.all(pdfAttachments.map(async (pdf) => {
+                const itemID = pdf.id;
+                const filePath = await pdf.getFilePathAsync();
+                Zotero.debug(`PDF ItemID: ${itemID}, Path: ${filePath}`);
+
+                try {
+                    const { text, extractedPages, totalPages } = await Zotero.PDFWorker.getFullText(itemID);
+                    Zotero.debug(`Extracted ${extractedPages} of ${totalPages} pages`);
+                    
+                    // Get first 100 characters of the text, or the whole text if it's shorter
+                    return text ? text.substring(0, 100) : "";
+                } catch (e) {
+                    Zotero.debug(`Error extracting text from PDF: ${e.message}`);
+                    return "";
+                }
+            }));
+
+            return fileContentList;
         }
     }
 
