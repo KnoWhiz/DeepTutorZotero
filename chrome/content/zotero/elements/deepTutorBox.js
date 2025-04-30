@@ -28,59 +28,189 @@ Experiment putting deeptutor chat box out
                    " />
                </hbox> 
 
-               <hbox style="
+               <vbox id="bottom-bar" style="
                    margin-top: auto;
-                   padding: 12px;
-                   background: white;
-                   border-radius: 8px;
-                   box-shadow: 0 -1px 3px rgba(0,0,0,0.1);
-               " align="center">
-               		<html:div class="body" style="flex: 1; margin-right: 12px;">
-					    <editable-text multiline="true" data-l10n-id="question-field" data-l10n-attrs="placeholder" style="
-                            width: 100%;
-                            padding: 8px 12px;
-                            border: 1px solid #495057;
-                            border-radius: 6px;
-                            background:rgb(131, 146, 126);
-                            color:rgb(26, 101, 176);
-                            min-height: 40px;
-                            max-height: 120px;
-                            overflow-y: auto;
-                        " />
-				    </html:div>
-                   <button id="upload-btn" label="Upload" style="
-                       padding: 6px 10px;
-                       background:rgb(44, 37, 172);
-                       color: rgb(41, 33, 196);
-                       border: none;
-                       border-radius: 4px;
-                       font-weight: 600;
-                       cursor: pointer;
-                       transition: background-color 0.2s;
-                       box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                       margin-right: 8px;
-                   " />
-                   <button id="send-btn" label="Send" style="
-                       padding: 6px 10px;
-                       background:rgb(44, 37, 172);
-                       color: rgb(41, 33, 196);
-                       border: none;
-                       border-radius: 4px;
-                       font-weight: 600;
-                       cursor: pointer;
-                       transition: background-color 0.2s;
-                       box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                   " />
-               </hbox>
+                   padding: 10px 10px 6px 10px;
+                   background: #e0e0e0;
+                   border-radius: 12px 12px 0 0;
+                   box-shadow: 0 -1px 3px rgba(0,0,0,0.08);
+                   display: flex;
+                   flex-direction: column;
+                   gap: 4px;
+               ">
+                   <!-- Top Section: Add Context Button -->
+                   <hbox style="width: 100%; align-items: center; margin-bottom: 2px;">
+                       <vbox style="position: relative;">
+                           <button id="add-context-btn" label="+ Add context" style="
+                               background: white;
+                               color: #222;
+                               border: none;
+                               border-radius: 4px;
+                               font-weight: 500;
+                               padding: 2px 7px;
+                               margin-right: 6px;
+                               cursor: pointer;
+                               font-size: 11px;
+                               min-width: 0;
+                               min-height: 0;
+                           " />
+                           <vbox id="context-popup" style="
+                               display: none;
+                               position: absolute;
+                               bottom: 26px;
+                               left: 0;
+                               background: #fff;
+                               border-radius: 8px;
+                               box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                               padding: 12px;
+                               z-index: 10;
+                               min-width: 140px;
+                           ">
+                               <button id="popup-upload-btn" label="Upload" style="
+                                   background: #2c25ac;
+                                   color: #fff;
+                                   border: none;
+                                   border-radius: 4px;
+                                   font-weight: 600;
+                                   padding: 4px 8px;
+                                   font-size: 11px;
+                                   cursor: pointer;
+                                   min-width: 0;
+                                   min-height: 0;
+                               " />
+                           </vbox>
+                       </vbox>
+                   </hbox>
+
+                   <!-- Middle Section: Text Input -->
+                   <hbox style="width: 100%; align-items: center; justify-content: center; margin-bottom: 2px;">
+                       <html:div class="body" style="flex: 1; max-width: 100%;">
+                           <editable-text multiline="true" data-l10n-id="question-field" data-l10n-attrs="placeholder" style="
+                               width: 100%;
+                               padding: 6px 10px;
+                               border: 1px solid #495057;
+                               border-radius: 6px;
+                               background: #fff;
+                               color: #1a65b0;
+                               min-height: 32px;
+                               max-height: 80px;
+                               font-size: 13px;
+                               overflow-y: auto;
+                           " />
+                       </html:div>
+                   </hbox>
+
+                   <!-- Bottom Section: Model, Image, Send Buttons -->
+                   <hbox style="width: 100%; align-items: center; justify-content: space-between;">
+                       <!-- Model Button and Popup at left -->
+                       <vbox style="position: relative;">
+                           <button id="model-btn" label="Model" style="
+                               background: #e0e0e0;
+                               color: #444;
+                               border: none;
+                               border-radius: 4px;
+                               font-weight: 500;
+                               padding: 2px 7px;
+                               margin-right: 4px;
+                               cursor: pointer;
+                               font-size: 11px;
+                               min-width: 0;
+                               min-height: 0;
+                           " />
+                           <vbox id="model-popup" style="
+                               display: none;
+                               position: absolute;
+                               bottom: 26px;
+                               left: 0;
+                               background: #fff;
+                               border-radius: 8px;
+                               box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                               padding: 18px 12px;
+                               z-index: 10;
+                               min-width: 180px;
+                               min-height: 60px;
+                           "></vbox>
+                       </vbox>
+
+                       <!-- Empty center -->
+                       <spacer flex="1" />
+
+                       <!-- Image and Send Buttons at right -->
+                       <hbox style="align-items: center; gap: 4px;">
+                           <vbox style="position: relative;">
+                               <button id="image-btn" style="
+                                   background: #e0e0e0;
+                                   border: none;
+                                   border-radius: 4px;
+                                   width: 24px;
+                                   height: 24px;
+                                   display: flex;
+                                   align-items: center;
+                                   justify-content: center;
+                                   cursor: pointer;
+                                   margin-right: 2px;
+                                   min-width: 0;
+                                   min-height: 0;
+                                   padding: 0;
+                               ">
+                                   <html:img src="chrome://zotero/skin/image-icon.svg" style="width: 14px; height: 14px;" />
+                               </button>
+                               <vbox id="image-popup" style="
+                                   display: none;
+                                   position: absolute;
+                                   bottom: 26px;
+                                   left: 0;
+                                   background: #fff;
+                                   border-radius: 8px;
+                                   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                                   padding: 8px 10px;
+                                   z-index: 10;
+                                   min-width: 70px;
+                                   min-height: 20px;
+                               "></vbox>
+                           </vbox>
+                           <button id="send-btn" style="
+                               background: #2c25ac;
+                               color: #fff;
+                               border: none;
+                               border-radius: 50%;
+                               width: 26px;
+                               height: 26px;
+                               display: flex;
+                               align-items: center;
+                               justify-content: center;
+                               cursor: pointer;
+                               font-size: 13px;
+                               min-width: 0;
+                               min-height: 0;
+                               padding: 0;
+                           ">
+                               <html:img src="chrome://zotero/skin/send-icon.svg" style="width: 13px; height: 13px;" />
+                           </button>
+                       </hbox>
+                   </hbox>
+               </vbox>
            </vbox>
         `);
 
         init() {
             this._abstractField = this.querySelector('editable-text');
             this._sendButton = this.querySelector('#send-btn');
-            this._uploadButton = this.querySelector('#upload-btn');
+            // Remove old upload button, add new popup upload
+            this._popupUploadButton = this.querySelector('#popup-upload-btn');
+            this._addContextBtn = this.querySelector('#add-context-btn');
+            this._contextPopup = this.querySelector('#context-popup');
+            this._modelBtn = this.querySelector('#model-btn');
+            this._modelPopup = this.querySelector('#model-popup');
+            this._imageBtn = this.querySelector('#image-btn');
+            this._imagePopup = this.querySelector('#image-popup');
+
             this._sendButton.addEventListener('click', () => this._handleSend());
-            this._uploadButton.addEventListener('click', () => this._handleUpload());
+            this._popupUploadButton.addEventListener('click', () => this._handleUpload());
+            this._addContextBtn.addEventListener('click', () => this._togglePopup(this._contextPopup));
+            this._modelBtn.addEventListener('click', () => this._togglePopup(this._modelPopup));
+            this._imageBtn.addEventListener('click', () => this._togglePopup(this._imagePopup));
+
             this.pdfDataList = [];
             this.render();
         }
@@ -225,6 +355,17 @@ Experiment putting deeptutor chat box out
             messageContainer.appendChild(messageBubble);
             log.appendChild(messageContainer);
             log.scrollTop = log.scrollHeight;
+        }
+
+        _togglePopup(popup) {
+            // Hide all popups first
+            [this._contextPopup, this._modelPopup, this._imagePopup].forEach(p => {
+                if (p && p !== popup) p.style.display = 'none';
+            });
+            // Toggle the selected popup
+            if (popup) {
+                popup.style.display = (popup.style.display === 'none' || !popup.style.display) ? 'block' : 'none';
+            }
         }
     }
     customElements.define("deep-tutor-box", DeepTutorBox);
