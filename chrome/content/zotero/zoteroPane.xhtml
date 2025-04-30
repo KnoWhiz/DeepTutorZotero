@@ -1231,7 +1231,7 @@
 									<grippy id="zotero-collections-grippy"/>
 								</splitter>
 								
-								<box id="zotero-layout-switcher" orient="horizontal" zotero-persist="orient">
+								<box id="zotero-layout-switcher" orient="horizontal" flex="1" zotero-persist="orient">
 									<vbox id="zotero-items-pane-container">
 										<toolbar id="zotero-toolbar-item-tree" tabindex="-1" class="zotero-toolbar toolbar toolbar-primary">
 											<hbox id="zotero-items-toolbar" align="center" flex="1">
@@ -1350,7 +1350,7 @@
 										<grippy id="zotero-items-grippy"/>
 									</splitter>
 
-									<deep-tutor-pane id="deep-tutor-pane" zotero-persist="width height"/>
+									<deep-tutor-pane id="deep-tutor-pane" flex="1" zotero-persist="width height"/>
 				
 									<splitter id="zotero-deeptutor-splitter" resizebefore="closest" resizeafter="closest" collapse="after" orient="horizontal" zotero-persist="state orient"
 										onmousemove="ZoteroPane.updateLayoutConstraints()"
