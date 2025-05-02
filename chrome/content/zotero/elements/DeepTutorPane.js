@@ -97,6 +97,10 @@
             });
         }
 
+        static get observedAttributes() {
+			return ['collapsed'];
+		}
+
         switchComponent(buttonId) {
             // Hide all components
             const components = this.querySelectorAll('#content-container > *');

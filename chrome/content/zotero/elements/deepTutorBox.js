@@ -129,7 +129,9 @@ Experiment putting deeptutor chat box out
                                z-index: 10;
                                min-width: 180px;
                                min-height: 60px;
-                           "></vbox>
+                           ">
+                               <model-selection id="model-selection-component"/>
+                           </vbox>
                        </vbox>
 
                        <!-- Empty center -->
@@ -204,6 +206,7 @@ Experiment putting deeptutor chat box out
             this._modelPopup = this.querySelector('#model-popup');
             this._imageBtn = this.querySelector('#image-btn');
             this._imagePopup = this.querySelector('#image-popup');
+            this._modelSelection = this.querySelector('#model-selection-component');
 
             this._sendButton.addEventListener('click', () => this._handleSend());
             this._popupUploadButton.addEventListener('click', () => this._handleUpload());
@@ -282,6 +285,10 @@ Experiment putting deeptutor chat box out
             this._appendMessage("User", newMessage);
             
             this._abstractField.value = "";
+
+            // Get model data
+            const modelData = this._modelSelection.getModelData();
+            this._appendMessage("Model Info", JSON.stringify(modelData, null, 2));
 
             // Use the stored PDF data
             const pdfContent = this.pdfDataList.map(pdf => pdf.content).join("\n\n");
