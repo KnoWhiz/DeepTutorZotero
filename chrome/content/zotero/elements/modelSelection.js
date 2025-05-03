@@ -34,6 +34,11 @@
                     <label value="Model Comment" style="font-weight: bold; margin-bottom: 4px;"/>
                     <editable-text id="model-comment" multiline="true" rows="3" style="width: 100%;"/>
                 </vbox>
+
+                <!-- Submit Button Section -->
+                <hbox style="justify-content: center; margin-top: 16px;">
+                    <button id="submit-btn" label="Submit" style="min-width: 120px;"/>
+                </hbox>
             </vbox>
         `);
 
@@ -44,6 +49,7 @@
             this._liteBtn = this.querySelector('#lite-btn');
             this._normalBtn = this.querySelector('#normal-btn');
             this._advancedBtn = this.querySelector('#advanced-btn');
+            this._submitBtn = this.querySelector('#submit-btn');
 
             // Initialize model type buttons
             this._selectedType = 'normal'; // Default selection
@@ -53,6 +59,9 @@
             this._liteBtn.addEventListener('click', () => this._handleTypeSelection('lite'));
             this._normalBtn.addEventListener('click', () => this._handleTypeSelection('normal'));
             this._advancedBtn.addEventListener('click', () => this._handleTypeSelection('advanced'));
+
+            // Add click handler for submit button
+            this._submitBtn.addEventListener('click', () => this.RegisterSubmit());
         }
 
         _handleTypeSelection(type) {
@@ -97,6 +106,16 @@
                 this._updateButtonStyles();
             }
             if (data.comment) this._modelComment.value = data.comment;
+        }
+
+        RegisterSubmit() {
+            const modelData = this.getModelData();
+            const event = new CustomEvent('RegisterReq', {
+                detail: modelData,
+                bubbles: true,
+                composed: true
+            });
+            this.dispatchEvent(event);
         }
     }
     customElements.define("model-selection", ModelSelection);

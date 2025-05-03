@@ -229,6 +229,7 @@ Experiment putting deeptutor chat box out
                 Zotero.debug("No items selected");
                 // update to empty if clicked with no selection
                 this.pdfDataList = [];
+                this._dispatchDataUpdate();
                 return;
             }
 
@@ -275,8 +276,20 @@ Experiment putting deeptutor chat box out
             // Filter out any null results and update pdfDataList
             this.pdfDataList = results.filter(result => result !== null);
             this._appendMessage("Upload Update", this.pdfDataList);
+            this._dispatchDataUpdate();
 
             Zotero.debug(`Successfully uploaded ${this.pdfDataList.length} PDFs`);
+        }
+
+        _dispatchDataUpdate() {
+            // Dispatch a custom event with the current data
+            const event = new CustomEvent('deepTutorDataUpdate', {
+                detail: {
+                    pdfDataList: this.pdfDataList
+                },
+                bubbles: true // Allow the event to bubble up to parent components
+            });
+            this.dispatchEvent(event);
         }
 
         async _handleSend() {
@@ -361,6 +374,56 @@ Experiment putting deeptutor chat box out
             messageBubble.appendChild(messageText);
             messageContainer.appendChild(messageBubble);
             log.appendChild(messageContainer);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        _updateMessages(messages) {
+            const log = this.querySelector('scrollbox');
+            // Clear existing content
+            while (log.firstChild) {
+                log.removeChild(log.firstChild);
+            }
+            
+            // Add all messages
+            messages.forEach(({sender, text}) => {
+                const messageContainer = document.createXULElement("hbox");
+                messageContainer.setAttribute("style", "margin: 8px 0; width: 100%;");
+                
+                const messageBubble = document.createXULElement("description");
+                const isUser = sender === "User";
+                
+                // Set bubble styling
+                messageBubble.setAttribute("style", `
+                    padding: 10px 15px;
+                    border-radius: 15px;
+                    max-width: 80%;
+                    word-wrap: break-word;
+                    background-color: ${isUser ? '#007AFF' : '#E9ECEF'};
+                    color: ${isUser ? 'white' : 'black'};
+                    margin-${isUser ? 'left' : 'right'}: auto;
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+                `);
+                
+                // Add sender name and message
+                const senderLabel = document.createXULElement("description");
+                senderLabel.setAttribute("style", `
+                    font-weight: bold;
+                    margin-bottom: 4px;
+                    display: block;
+                `);
+                senderLabel.textContent = sender;
+                
+                const messageText = document.createXULElement("description");
+                messageText.setAttribute("style", "display: block;");
+                messageText.textContent = text;
+                
+                messageBubble.appendChild(senderLabel);
+                messageBubble.appendChild(messageText);
+                messageContainer.appendChild(messageBubble);
+                log.appendChild(messageContainer);
+            });
+            
+            // Scroll to bottom
             log.scrollTop = log.scrollHeight;
         }
 

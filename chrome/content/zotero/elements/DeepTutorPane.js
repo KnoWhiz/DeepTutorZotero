@@ -30,8 +30,6 @@
 */
 
 {
-
-
     class DeepTutorPane extends XULElementBase {
         content = MozXULElement.parseXULToFragment(`
            <vbox id="main-container" flex="1" style="
@@ -46,8 +44,8 @@
                <hbox id="top-bar" style="margin-bottom: 12px; gap: 8px; align-items: center; background: #e9ecef; padding: 2px 6px; border-radius: 6px; width: fit-content; height: 28px;">
                    <button id="tab1-btn" label="Tab 1" style="min-width: 48px; background: #dedede; border: none; border-radius: 4px; padding: 2px 12px; font-size: 0.95em; margin-right: 2px; height: 22px;" />
                    <button id="tab2-btn" label="Tab 2" style="min-width: 48px; background: #dedede; border: none; border-radius: 4px; padding: 2px 12px; font-size: 0.95em; margin-right: 8px; height: 22px;" />
-                   <button id="add-tab-btn" label="+" style="background: none; border: none; font-size: 1em; margin-right: 4px; padding: 0 4px; min-width: 20px; height: 20px;" />
-                   <button id="reload-btn" label="\u21bb" style="background: none; border: none; font-size: 1em; margin-right: 4px; padding: 0 4px; min-width: 20px; height: 20px;" />
+                   <button id="model-btn" class="nav-button" label="+" style="background: none; border: none; font-size: 1em; margin-right: 4px; padding: 0 4px; min-width: 20px; height: 20px;" />
+                   <button id="history-btn" class="nav-button" label="\u21bb" style="background: none; border: none; font-size: 1em; margin-right: 4px; padding: 0 4px; min-width: 20px; height: 20px;" />
                    <button id="close-btn" label="\u2715" style="background: none; border: none; font-size: 1em; padding: 0 4px; min-width: 20px; height: 20px;" />
                </hbox>
                <description value="DeepTutor" style="
@@ -74,6 +72,8 @@
                    <deep-tutor-box id="tutor-component" style="height: 100%; width: 100%;" />
                    <deep-notes-box id="notes-component" style="height: 100%; width: 100%; display: none;" />
                    <deep-settings-box id="settings-component" style="height: 100%; width: 100%; display: none;" />
+                   <session-history-box id="history-component" style="height: 100%; width: 100%; display: none;" />
+                   <model-selection id="model-component" style="height: 100%; width: 100%; display: none;" />
                </vbox>
            </vbox>
         `);
@@ -81,6 +81,16 @@
         init() {
             this.render();
             this.setupEventListeners();
+            
+            // Get reference to the DeepTutorBox component
+            this._tutorBox = this.querySelector('#tutor-component');
+            
+            // Listen for data updates from DeepTutorBox
+            this._tutorBox.addEventListener('deepTutorDataUpdate', (event) => {
+                // Handle the data update
+                const { pdfDataList } = event.detail;
+                this._handleTutorDataUpdate(pdfDataList);
+            });
         }
 
         render() {
@@ -104,21 +114,31 @@
         switchComponent(buttonId) {
             // Hide all components
             const components = this.querySelectorAll('#content-container > *');
+            /*
             components.forEach(comp => {
                 comp.style.display = 'none';
             });
-
+            */
             // Show selected component
             const componentId = buttonId.replace('-btn', '-component');
             const selectedComponent = this.querySelector(`#${componentId}`);
+            let buttonChoice = 'open';
             if (selectedComponent) {
-                selectedComponent.style.display = 'block';
+                if (selectedComponent.style.display === 'block') {
+                    selectedComponent.style.display = 'none';
+                    buttonChoice = 'close';
+                } else {
+                    components.forEach(comp => {
+                        comp.style.display = 'none';
+                    });
+                    selectedComponent.style.display = 'block';
+                }
             }
 
             // Update button styles
             const buttons = this.querySelectorAll('.nav-button');
             buttons.forEach(btn => {
-                if (btn.id === buttonId) {
+                if (btn.id === buttonId && buttonChoice === 'open') {
                     btn.style.backgroundColor = '#e9ecef';
                     btn.style.fontWeight = '600';
                 } else {
@@ -126,6 +146,13 @@
                     btn.style.fontWeight = 'normal';
                 }
             });
+        }
+
+        _handleTutorDataUpdate(pdfDataList) {
+            // Handle the data update from DeepTutorBox
+            // You can store it, process it, or update the UI as needed
+            Zotero.debug(`Received PDF data update with ${pdfDataList.length} items`);
+            // Add your custom handling logic here
         }
     }
 
