@@ -2,6 +2,75 @@
 Experiment putting deeptutor chat box out
 */
 {
+    class DeepTutorSession {
+        constructor({
+            id = 123,
+            userId = 1234,
+            sessionName = new Date().toISOString(),
+            creationTime = new Date().toISOString(),
+            lastUpdatedTime = new Date().toISOString(),
+            type = 'default',
+            status = 'active',
+            statusTimeline = [],
+            documentIds = [],
+            generateHash = false
+        } = {}) {
+            this.id = id;
+            this.userId = userId;
+            this.sessionName = sessionName;
+            this.creationTime = creationTime;
+            this.lastUpdatedTime = lastUpdatedTime;
+            this.type = type;
+            this.status = status;
+            this.statusTimeline = statusTimeline;
+            this.documentIds = documentIds;
+            this.generateHash = generateHash;
+        }
+    
+        update() {
+            this.lastUpdatedTime = new Date().toISOString();
+        }
+    
+        toJSON() {
+            return {
+                id: this.id,
+                userId: this.userId,
+                sessionName: this.sessionName,
+                creationTime: this.creationTime,
+                lastUpdatedTime: this.lastUpdatedTime,
+                type: this.type,
+                status: this.status,
+                statusTimeline: this.statusTimeline,
+                documentIds: this.documentIds
+            };
+        }
+    }
+
+    class DeepTutorMessage {
+        constructor({ 
+            id = null, 
+            parentMessageId = null, 
+            userId = null, 
+            sessionId = null, 
+            subMessages = [], 
+            followUpQuestions = [], 
+            creationTime = new Date().toISOString(), 
+            lastUpdatedTime = new Date().toISOString(), 
+            status = 'active', 
+            role = 'user' 
+        } = {}) {
+            this.id = id;
+            this.parentMessageId = parentMessageId;
+            this.userId = userId;
+            this.sessionId = sessionId;
+            this.subMessages = subMessages;
+            this.followUpQuestions = followUpQuestions;
+            this.creationTime = creationTime;
+            this.lastUpdatedTime = lastUpdatedTime;
+            this.status = status;
+            this.role = role;
+        }
+    }
     class DeepTutorBox extends XULElementBase {
         // Add class attribute for storing PDF data
         // pdfDataList = [];
@@ -23,6 +92,7 @@ Experiment putting deeptutor chat box out
                        overflow-y: auto;
                        background: white;
                        height: 100%;
+                       max-height: 400px;
                        width: 100%;
                        box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
                    " />
@@ -216,6 +286,8 @@ Experiment putting deeptutor chat box out
 
             this.pdfDataList = [];
             this.render();
+
+            this.messages = [];
         }
 
         render() {
@@ -297,30 +369,22 @@ Experiment putting deeptutor chat box out
             if (!newMessage) return;
             this._appendMessage("User", newMessage);
             
+            // Create and store user message
+            const userMessage = new DeepTutorMessage({
+                subMessages: [newMessage],
+                role: 'user',
+                creationTime: new Date().toISOString(),
+                lastUpdatedTime: new Date().toISOString()
+            });
+            this.messages.push(userMessage);
+            
             this._abstractField.value = "";
 
             // Get model data
             const modelData = this._modelSelection.getModelData();
             this._appendMessage("Model Info", JSON.stringify(modelData, null, 2));
 
-            // Use the stored PDF data
-            const pdfContent = this.pdfDataList.map(pdf => pdf.content).join("\n\n");
-            this._appendMessage("Upload with User", pdfContent);
-            
-            const response = await fetch("https://api.openai.com/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                    "Authorization": "Bearer YOUR_OPENAI_API_KEY",
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    model: "gpt-4",
-                    messages: [
-                        { role: "system", content: "You are a helpful assistant." },
-                        { role: "user", content: `PDF Content:\n${pdfContent}\n\nUser Question: ${newMessage}` }
-                    ]
-                })
-            });
+            const response = await this._sendToAPI(newMessage);
             let AIResponse = "No Response";
             if (response.ok) {
                 try {
@@ -335,6 +399,43 @@ Experiment putting deeptutor chat box out
             Zotero.debug(AIResponse);
 
             this._appendMessage("Chatbot", AIResponse);
+            
+            // Create and store chatbot message
+            const chatbotMessage = new DeepTutorMessage({
+                subMessages: [AIResponse],
+                role: 'assistant',
+                creationTime: new Date().toISOString(),
+                lastUpdatedTime: new Date().toISOString()
+            });
+            this.messages.push(chatbotMessage);
+        }
+
+        async _sendToAPI(message) {
+            // Use the stored PDF data
+            const pdfContent = this.pdfDataList.map(pdf => pdf.content).join("\n\n");
+            this._appendMessage("Upload with User", pdfContent);
+            
+            const response = await fetch("https://api.openai.com/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Authorization": "Bearer YOUR_OPENAI_API_KEY",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    model: "gpt-4",
+                    messages: [
+                        { role: "system", content: "You are a helpful assistant." },
+                        { role: "user", content: `PDF Content:\n${pdfContent}\n\nUser Question: ${message}` }
+                    ]
+                })
+            });
+            return response;
+        }
+
+        async _sendAIQuestion(AIQuestion) {
+            this._abstractField.value = AIQuestion;
+            await this._handleSend();
+            this._abstractField.value = "";
         }
 
         _appendMessage(sender, text) {
@@ -423,6 +524,56 @@ Experiment putting deeptutor chat box out
                 log.appendChild(messageContainer);
             });
             
+            // Scroll to bottom
+            log.scrollTop = log.scrollHeight;
+        }
+
+        _LoadMessage(messages) {
+            const log = this.querySelector('scrollbox');
+            // Clear existing content
+            while (log.firstChild) {
+                log.removeChild(log.firstChild);
+            }
+
+            // Process each message object
+            this.messages = messages;
+            messages.forEach(message => {
+                // Process subMessages
+                if (message.subMessages && message.subMessages.length > 0) {
+                    message.subMessages.forEach(subMessage => {
+                        const sender = message.role === 'user' ? 'User' : 'Chatbot';
+                        this._appendMessage(sender, subMessage);
+                    });
+                }
+
+                // Process follow-up questions
+                if (message.followUpQuestions && message.followUpQuestions.length > 0) {
+                    const questionContainer = document.createXULElement("hbox");
+                    questionContainer.setAttribute("style", "margin: 8px 0; width: 100%; justify-content: center;");
+
+                    message.followUpQuestions.forEach(question => {
+                        const questionButton = document.createXULElement("button");
+                        questionButton.setAttribute("label", question);
+                        questionButton.setAttribute("style", `
+                            background: #2c25ac;
+                            color: white;
+                            border: none;
+                            border-radius: 4px;
+                            padding: 6px 12px;
+                            margin: 4px;
+                            cursor: pointer;
+                            font-size: 13px;
+                        `);
+                        questionButton.addEventListener('click', () => {
+                            this._sendAIQuestion(question);
+                        });
+                        questionContainer.appendChild(questionButton);
+                    });
+
+                    log.appendChild(questionContainer);
+                }
+            });
+
             // Scroll to bottom
             log.scrollTop = log.scrollHeight;
         }

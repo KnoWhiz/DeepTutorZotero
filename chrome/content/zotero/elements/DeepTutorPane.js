@@ -30,6 +30,76 @@
 */
 
 {
+    class DeepTutorSession {
+        constructor({
+            id = 123,
+            userId = 1234,
+            sessionName = new Date().toISOString(),
+            creationTime = new Date().toISOString(),
+            lastUpdatedTime = new Date().toISOString(),
+            type = 'default',
+            status = 'active',
+            statusTimeline = [],
+            documentIds = [],
+            generateHash = false
+        } = {}) {
+            this.id = id;
+            this.userId = userId;
+            this.sessionName = sessionName;
+            this.creationTime = creationTime;
+            this.lastUpdatedTime = lastUpdatedTime;
+            this.type = type;
+            this.status = status;
+            this.statusTimeline = statusTimeline;
+            this.documentIds = documentIds;
+            this.generateHash = generateHash;
+        }
+    
+        update() {
+            this.lastUpdatedTime = new Date().toISOString();
+        }
+    
+        toJSON() {
+            return {
+                id: this.id,
+                userId: this.userId,
+                sessionName: this.sessionName,
+                creationTime: this.creationTime,
+                lastUpdatedTime: this.lastUpdatedTime,
+                type: this.type,
+                status: this.status,
+                statusTimeline: this.statusTimeline,
+                documentIds: this.documentIds
+            };
+        }
+    }
+
+    class DeepTutorMessage {
+        constructor({ 
+            id = null, 
+            parentMessageId = null, 
+            userId = null, 
+            sessionId = null, 
+            subMessages = [], 
+            followUpQuestions = [], 
+            creationTime = new Date().toISOString(), 
+            lastUpdatedTime = new Date().toISOString(), 
+            status = 'active', 
+            role = 'user' 
+        } = {}) {
+            this.id = id;
+            this.parentMessageId = parentMessageId;
+            this.userId = userId;
+            this.sessionId = sessionId;
+            this.subMessages = subMessages;
+            this.followUpQuestions = followUpQuestions;
+            this.creationTime = creationTime;
+            this.lastUpdatedTime = lastUpdatedTime;
+            this.status = status;
+            this.role = role;
+        }
+    }
+
     class DeepTutorPane extends XULElementBase {
         content = MozXULElement.parseXULToFragment(`
            <vbox id="main-container" flex="1" style="
@@ -91,6 +161,152 @@
                 const { pdfDataList } = event.detail;
                 this._handleTutorDataUpdate(pdfDataList);
             });
+
+            // Listen for session selection from history
+            this.addEventListener('HistorySessionSelected', (event) => {
+                const sessionName = event.detail.sessionName;
+                let messages = this.sesNamToMes.get(sessionName);
+                if (!messages) {
+                    // If session doesn't exist in sesNamToMes, set sample messages
+                    messages = this.sampleMessages();
+                    this.sesNamToMes.set(sessionName, messages);
+                }
+                this.curSesName = sessionName;
+                this._tutorBox._LoadMessage(messages);
+            });
+
+            // Initialize session management attributes
+            this.curSesName = null;  // Current session name
+            this.sessions = []; // List of Session objects
+            this.sesNamToObj = new Map();  // Map of session names to Session objects
+            this.sesNamToMes = new Map();  // Map of session names to lists of Zotero.Message objects
+
+            // Load sessions
+            this.loadSession();
+        }
+
+        loadSession() {
+            // Create sample sessions
+            this.sampleSessions();
+
+            // Update sesNamToObj with session data
+            this.sessions.forEach(session => {
+                this.sesNamToObj.set(session.sessionName, session);
+            });
+
+            // Update session history box
+            this.updateSessionHistory();
+
+            // Handle component display based on sessions length
+            const components = this.querySelectorAll('#content-container > *');
+            if (this.sessions.length === 0) {
+                components.forEach(comp => {
+                    comp.style.display = 'none';
+                });
+                const modelComponent = this.querySelector('#model-component');
+                if (modelComponent) {
+                    modelComponent.style.display = 'block';
+                }
+            }
+        }
+
+        updateSessionHistory() {
+            // Get reference to the session history box
+            const sessionHistoryBox = this.querySelector('#history-component');
+            if (sessionHistoryBox) {
+                // Update the session list in the history box
+                sessionHistoryBox.updateSessionList(this.sessions);
+            }
+        }
+
+        sampleSessions() {
+            // Create three new Session objects
+            const session1 = new DeepTutorSession({
+                sessionName: "Session 1",
+                creationTime: new Date().toISOString(),
+                lastUpdatedTime: new Date().toISOString()
+            });
+            
+            const session2 = new DeepTutorSession({
+                sessionName: "Session 2",
+                creationTime: new Date().toISOString(),
+                lastUpdatedTime: new Date().toISOString()
+            });
+            
+            const session3 = new DeepTutorSession({
+                sessionName: "Session 3",
+                creationTime: new Date().toISOString(),
+                lastUpdatedTime: new Date().toISOString()
+            });
+
+            // Update sessions list
+            this.sessions = [session1, session2, session3];
+        }
+
+        sampleMessages() {
+            const messages = [
+                new DeepTutorMessage({
+                    id: "msg1",
+                    parentMessageId: null,
+                    userId: "user1",
+                    sessionId: "session1",
+                    subMessages: ["Can you help me understand the main concepts in this paper?"],
+                    followUpQuestions: [],
+                    creationTime: new Date().toISOString(),
+                    lastUpdatedTime: new Date().toISOString(),
+                    status: 'active',
+                    role: 'user'
+                }),
+                new DeepTutorMessage({
+                    id: "msg2",
+                    parentMessageId: "msg1",
+                    userId: "chatbot1",
+                    sessionId: "session1",
+                    subMessages: ["Of course! I'd be happy to help you understand the paper. Could you please share the title or key points you'd like me to focus on?"],
+                    followUpQuestions: ["Would you like me to explain the specific architecture they used?"],
+                    creationTime: new Date().toISOString(),
+                    lastUpdatedTime: new Date().toISOString(),
+                    status: 'active',
+                    role: 'chatbot'
+                }),
+                new DeepTutorMessage({
+                    id: "msg3",
+                    parentMessageId: "msg2",
+                    userId: "user1",
+                    sessionId: "session1",
+                    subMessages: ["The paper is about machine learning applications in healthcare. I'm particularly interested in the methodology section."],
+                    followUpQuestions: [],
+                    creationTime: new Date().toISOString(),
+                    lastUpdatedTime: new Date().toISOString(),
+                    status: 'active',
+                    role: 'user'
+                }),
+                new DeepTutorMessage({
+                    id: "msg4",
+                    parentMessageId: "msg3",
+                    userId: "chatbot1",
+                    sessionId: "session1",
+                    subMessages: ["I'll help you analyze the methodology section. The paper uses a deep learning approach with convolutional neural networks to process medical imaging data. Would you like me to explain the specific architecture they used?"],
+                    followUpQuestions: ["Would you like me to explain the specific architecture they used?"],
+                    creationTime: new Date().toISOString(),
+                    lastUpdatedTime: new Date().toISOString(),
+                    status: 'active',
+                    role: 'chatbot'
+                }),
+                new DeepTutorMessage({
+                    id: "msg5",
+                    parentMessageId: "msg4",
+                    userId: "user1",
+                    sessionId: "session1",
+                    subMessages: ["Sure!"],
+                    followUpQuestions: [],
+                    creationTime: new Date().toISOString(),
+                    lastUpdatedTime: new Date().toISOString(),
+                    status: 'active',
+                    role: 'user'
+                })
+            ];
+            return messages;
         }
 
         render() {
@@ -124,6 +340,13 @@
             const selectedComponent = this.querySelector(`#${componentId}`);
             let buttonChoice = 'open';
             if (selectedComponent) {
+                  // If switching away from tutor component, update sesNamToMes with current messages
+                if (componentId === 'tutor-component' && this.curSesName) {
+                    const messages = this._tutorBox.messages;
+                    if (messages) {
+                        this.sesNamToMes.set(this.curSesName, messages);
+                    }
+                }
                 if (selectedComponent.style.display === 'block') {
                     selectedComponent.style.display = 'none';
                     buttonChoice = 'close';

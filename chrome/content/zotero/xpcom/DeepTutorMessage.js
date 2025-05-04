@@ -1,5 +1,16 @@
 Zotero.Message = class {
-    constructor({ id, parentMessageId, userId, sessionId, subMessages, followUpQuestions, creationTime, lastUpdatedTime, status, role }) {
+    constructor({ 
+        id = null, 
+        parentMessageId = null, 
+        userId = null, 
+        sessionId = null, 
+        subMessages = [], 
+        followUpQuestions = [], 
+        creationTime = new Date().toISOString(), 
+        lastUpdatedTime = new Date().toISOString(), 
+        status = 'active', 
+        role = 'user' 
+    } = {}) {
         this.id = id;
         this.parentMessageId = parentMessageId;
         this.userId = userId;
