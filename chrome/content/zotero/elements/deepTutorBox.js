@@ -108,50 +108,6 @@ Experiment putting deeptutor chat box out
                    flex-direction: column;
                    gap: 4px;
                ">
-                   <!-- Top Section: Add Context Button -->
-                   <hbox style="width: 100%; align-items: center; margin-bottom: 2px;">
-                       <vbox style="position: relative;">
-                           <button id="add-context-btn" label="+ Add context" style="
-                               background: white;
-                               color: #222;
-                               border: none;
-                               border-radius: 4px;
-                               font-weight: 500;
-                               padding: 2px 7px;
-                               margin-right: 6px;
-                               cursor: pointer;
-                               font-size: 11px;
-                               min-width: 0;
-                               min-height: 0;
-                           " />
-                           <vbox id="context-popup" style="
-                               display: none;
-                               position: absolute;
-                               bottom: 26px;
-                               left: 0;
-                               background: #fff;
-                               border-radius: 8px;
-                               box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-                               padding: 12px;
-                               z-index: 10;
-                               min-width: 140px;
-                           ">
-                               <button id="popup-upload-btn" label="Upload" style="
-                                   background: #2c25ac;
-                                   color: #fff;
-                                   border: none;
-                                   border-radius: 4px;
-                                   font-weight: 600;
-                                   padding: 4px 8px;
-                                   font-size: 11px;
-                                   cursor: pointer;
-                                   min-width: 0;
-                                   min-height: 0;
-                               " />
-                           </vbox>
-                       </vbox>
-                   </hbox>
-
                    <!-- Middle Section: Text Input -->
                    <hbox style="width: 100%; align-items: center; justify-content: center; margin-bottom: 2px;">
                        <html:div class="body" style="flex: 1; max-width: 100%;">
@@ -268,10 +224,6 @@ Experiment putting deeptutor chat box out
         init() {
             this._abstractField = this.querySelector('editable-text');
             this._sendButton = this.querySelector('#send-btn');
-            // Remove old upload button, add new popup upload
-            this._popupUploadButton = this.querySelector('#popup-upload-btn');
-            this._addContextBtn = this.querySelector('#add-context-btn');
-            this._contextPopup = this.querySelector('#context-popup');
             this._modelBtn = this.querySelector('#model-btn');
             this._modelPopup = this.querySelector('#model-popup');
             this._imageBtn = this.querySelector('#image-btn');
@@ -279,8 +231,6 @@ Experiment putting deeptutor chat box out
             this._modelSelection = this.querySelector('#model-selection-component');
 
             this._sendButton.addEventListener('click', () => this._handleSend());
-            this._popupUploadButton.addEventListener('click', () => this._handleUpload());
-            this._addContextBtn.addEventListener('click', () => this._togglePopup(this._contextPopup));
             this._modelBtn.addEventListener('click', () => this._togglePopup(this._modelPopup));
             this._imageBtn.addEventListener('click', () => this._togglePopup(this._imagePopup));
 
@@ -288,6 +238,12 @@ Experiment putting deeptutor chat box out
             this.render();
 
             this.messages = [];
+
+            // Listen for PDF data updates from model selection
+            this._modelSelection.addEventListener('pdfDataUpdate', (e) => {
+                this.pdfDataList = e.detail.pdfDataList;
+                this._appendMessage("Upload Update", this.pdfDataList);
+            });
         }
 
         render() {
@@ -580,7 +536,7 @@ Experiment putting deeptutor chat box out
 
         _togglePopup(popup) {
             // Hide all popups first
-            [this._contextPopup, this._modelPopup, this._imagePopup].forEach(p => {
+            [this._modelPopup, this._imagePopup].forEach(p => {
                 if (p && p !== popup) p.style.display = 'none';
             });
             // Toggle the selected popup

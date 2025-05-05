@@ -130,11 +130,13 @@
         }
 
         updateSessionList(sessions) {
+            Zotero.debug(`SessionHistoryBox: Updating session list with ${sessions.length} sessions`);
             this.sessionList = sessions;
             this._updateSessionButtons();
         }
 
         _updateSessionButtons() {
+            Zotero.debug(`SessionHistoryBox: Updating buttons for ${this.sessionList.length} sessions`);
             // Clear existing buttons
             while (this._sessionList.firstChild) {
                 this._sessionList.removeChild(this._sessionList.firstChild);
@@ -142,8 +144,8 @@
 
             // Sort sessions by lastUpdatedTime
             const sortedSessions = [...this.sessionList].sort((a, b) => {
-                const timeA = a.lastUpdatedTime || 0;
-                const timeB = b.lastUpdatedTime || 0;
+                const timeA = new Date(a.lastUpdatedTime || 0).getTime();
+                const timeB = new Date(b.lastUpdatedTime || 0).getTime();
                 return timeB - timeA;
             });
 

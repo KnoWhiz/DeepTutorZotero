@@ -175,6 +175,14 @@
                 this._tutorBox._LoadMessage(messages);
             });
 
+            // Listen for RegisterReq event
+            this.addEventListener('RegisterReq', (event) => {
+                Zotero.debug(`DeepTutorPane: Received RegisterReq event with data: ${JSON.stringify(event.detail)}`);
+                const newSession = this.newEmptySession();
+                Zotero.debug(`DeepTutorPane: Created new session: ${JSON.stringify(newSession)}`);
+                this.updateSessionHistory();
+            });
+
             // Initialize session management attributes
             this.curSesName = null;  // Current session name
             this.sessions = []; // List of Session objects
@@ -213,6 +221,7 @@
         updateSessionHistory() {
             // Get reference to the session history box
             const sessionHistoryBox = this.querySelector('#history-component');
+            Zotero.debug(`DeepTutorPane: Updating session history. Found history box: ${!!sessionHistoryBox}`);
             if (sessionHistoryBox) {
                 // Update the session list in the history box
                 sessionHistoryBox.updateSessionList(this.sessions);
@@ -241,6 +250,16 @@
 
             // Update sessions list
             this.sessions = [session1, session2, session3];
+        }
+
+        newEmptySession() {
+            const session = new DeepTutorSession({
+                sessionName: "New Session",
+                creationTime: new Date().toISOString(),
+                lastUpdatedTime: new Date().toISOString()
+            });
+            this.sessions.push(session);
+            this.sesNamToObj.set(session.sessionName, session);
         }
 
         sampleMessages() {
