@@ -173,13 +173,22 @@
                 }
                 this.curSesName = sessionName;
                 this._tutorBox._LoadMessage(messages);
+                Zotero.debug(`DeepTutorPane: Loading messages for session: ${sessionName}`);
+                if (this.sesNamToObj.get(sessionName)) {
+                    let tempSes = this.sesNamToObj.get(sessionName);
+                    Zotero.debug(`DeepTutorPane: Loading attachments for session: ${sessionName}`);
+                    if (tempSes.documentIds.length > 0) {
+                        ZoteroPane.viewAttachment(tempSes.documentIds[0]);
+                        Zotero.debug(`DeepTutorPane: Viewing attachments for session: ${sessionName}`);
+                    }
+                }
             });
 
             // Listen for RegisterReq event
             this.addEventListener('RegisterReq', (event) => {
                 Zotero.debug(`DeepTutorPane: Received RegisterReq event with data: ${JSON.stringify(event.detail)}`);
-                const newSession = this.newEmptySession();
-                Zotero.debug(`DeepTutorPane: Created new session: ${JSON.stringify(newSession)}`);
+                const newSession = this.newEmptySession(event.detail.name, event.detail.fileList);
+                Zotero.debug(`DeepTutorPane: Created new session: ${JSON.stringify(newSession)} ${event.detail.name} ${JSON.stringify(event.detail.fileList)}`);
                 this.updateSessionHistory();
             });
 
@@ -252,11 +261,12 @@
             this.sessions = [session1, session2, session3];
         }
 
-        newEmptySession() {
+        newEmptySession(sessionName = "New Session", fileList = []) {
             const session = new DeepTutorSession({
-                sessionName: "New Session",
+                sessionName: sessionName,
                 creationTime: new Date().toISOString(),
-                lastUpdatedTime: new Date().toISOString()
+                lastUpdatedTime: new Date().toISOString(),
+                documentIds: fileList.map(file => file.id)
             });
             this.sessions.push(session);
             this.sesNamToObj.set(session.sessionName, session);
