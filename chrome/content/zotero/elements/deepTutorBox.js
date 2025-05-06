@@ -71,6 +71,36 @@ Experiment putting deeptutor chat box out
             this.role = role;
         }
     }
+
+    class SubMessage { 
+        constructor({
+            text = "",
+            image =  "",
+            audio = "",
+            contentType = Highlight,
+            creationTime = new Date().toISOString(),
+            sources = []
+        }) {
+            this.text = text;
+            this.image = image;
+            this.audio = audio;
+            this.contentType = contentType;
+            this.creationTime = creationTime;
+            this.sources = sources;
+        }
+    }
+
+    class MessageSource {
+        constructor({
+            index = 0,
+            page = 0,
+            referenceString = ""
+        }) {
+            this.index = index;
+            this.page = page;
+            this.referenceString = referenceString;
+        }
+    }
     class DeepTutorBox extends XULElementBase {
         // Add class attribute for storing PDF data
         // pdfDataList = [];
@@ -303,7 +333,20 @@ Experiment putting deeptutor chat box out
             
             // Filter out any null results and update pdfDataList
             this.pdfDataList = results.filter(result => result !== null);
-            this._appendMessage("Upload Update", this.pdfDataList);
+            
+            // Create a message object for the upload update
+            const uploadMessage = new DeepTutorMessage({
+                subMessages: [new SubMessage({
+                    text: JSON.stringify(this.pdfDataList, null, 2),
+                    contentType: 'text',
+                    creationTime: new Date().toISOString()
+                })],
+                role: 'system',
+                creationTime: new Date().toISOString(),
+                lastUpdatedTime: new Date().toISOString()
+            });
+            this._appendMessage("Upload Update", uploadMessage);
+            
             this._dispatchDataUpdate();
 
             Zotero.debug(`Successfully uploaded ${this.pdfDataList.length} PDFs`);
@@ -323,22 +366,36 @@ Experiment putting deeptutor chat box out
         async _handleSend() {
             const newMessage = this._abstractField.value.trim();
             if (!newMessage) return;
-            this._appendMessage("User", newMessage);
             
             // Create and store user message
             const userMessage = new DeepTutorMessage({
-                subMessages: [newMessage],
+                subMessages: [new SubMessage({
+                    text: newMessage,
+                    contentType: 'text',
+                    creationTime: new Date().toISOString()
+                })],
                 role: 'user',
                 creationTime: new Date().toISOString(),
                 lastUpdatedTime: new Date().toISOString()
             });
             this.messages.push(userMessage);
+            this._appendMessage("User", userMessage);
             
             this._abstractField.value = "";
 
             // Get model data
             const modelData = this._modelSelection.getModelData();
-            this._appendMessage("Model Info", JSON.stringify(modelData, null, 2));
+            const modelInfoMessage = new DeepTutorMessage({
+                subMessages: [new SubMessage({
+                    text: JSON.stringify(modelData, null, 2),
+                    contentType: 'text',
+                    creationTime: new Date().toISOString()
+                })],
+                role: 'system',
+                creationTime: new Date().toISOString(),
+                lastUpdatedTime: new Date().toISOString()
+            });
+            this._appendMessage("Model Info", modelInfoMessage);
 
             const response = await this._sendToAPI(newMessage);
             let AIResponse = "No Response";
@@ -354,22 +411,37 @@ Experiment putting deeptutor chat box out
             }
             Zotero.debug(AIResponse);
 
-            this._appendMessage("Chatbot", AIResponse);
-            
             // Create and store chatbot message
             const chatbotMessage = new DeepTutorMessage({
-                subMessages: [AIResponse],
+                subMessages: [new SubMessage({
+                    text: AIResponse,
+                    contentType: 'text',
+                    creationTime: new Date().toISOString()
+                })],
                 role: 'assistant',
                 creationTime: new Date().toISOString(),
                 lastUpdatedTime: new Date().toISOString()
             });
             this.messages.push(chatbotMessage);
+            this._appendMessage("Chatbot", chatbotMessage);
         }
 
         async _sendToAPI(message) {
             // Use the stored PDF data
             const pdfContent = this.pdfDataList.map(pdf => pdf.content).join("\n\n");
-            this._appendMessage("Upload with User", pdfContent);
+            
+            // Create a message object for the PDF content
+            const pdfMessage = new DeepTutorMessage({
+                subMessages: [new SubMessage({
+                    text: pdfContent,
+                    contentType: 'text',
+                    creationTime: new Date().toISOString()
+                })],
+                role: 'system',
+                creationTime: new Date().toISOString(),
+                lastUpdatedTime: new Date().toISOString()
+            });
+            this._appendMessage("Upload with User", pdfMessage);
             
             const response = await fetch("https://api.openai.com/v1/chat/completions", {
                 method: "POST",
@@ -394,91 +466,76 @@ Experiment putting deeptutor chat box out
             this._abstractField.value = "";
         }
 
-        _appendMessage(sender, text) {
+        _appendMessage(sender, message) {
             const log = this.querySelector('scrollbox');
-            const messageContainer = document.createXULElement("hbox");
-            messageContainer.setAttribute("style", "margin: 8px 0; width: 100%;");
             
-            const messageBubble = document.createXULElement("description");
-            const isUser = sender === "User";
-            
-            // Set bubble styling
-            messageBubble.setAttribute("style", `
-                padding: 10px 15px;
-                border-radius: 15px;
-                max-width: 80%;
-                word-wrap: break-word;
-                background-color: ${isUser ? '#007AFF' : '#E9ECEF'};
-                color: ${isUser ? 'white' : 'black'};
-                margin-${isUser ? 'left' : 'right'}: auto;
-                box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-            `);
-            
-            // Add sender name and message
-            const senderLabel = document.createXULElement("description");
-            senderLabel.setAttribute("style", `
-                font-weight: bold;
-                margin-bottom: 4px;
-                display: block;
-            `);
-            senderLabel.textContent = sender;
-            
-            const messageText = document.createXULElement("description");
-            messageText.setAttribute("style", "display: block;");
-            messageText.textContent = text;
-            
-            messageBubble.appendChild(senderLabel);
-            messageBubble.appendChild(messageText);
-            messageContainer.appendChild(messageBubble);
-            log.appendChild(messageContainer);
-            log.scrollTop = log.scrollHeight;
-        }
-
-        _updateMessages(messages) {
-            const log = this.querySelector('scrollbox');
-            // Clear existing content
-            while (log.firstChild) {
-                log.removeChild(log.firstChild);
+            // Process subMessages
+            if (message.subMessages && message.subMessages.length > 0) {
+                message.subMessages.forEach(subMessage => {
+                    const messageContainer = document.createXULElement("hbox");
+                    messageContainer.setAttribute("style", "margin: 8px 0; width: 100%;");
+                    
+                    const messageBubble = document.createXULElement("description");
+                    const isUser = sender === "User";
+                    
+                    // Set bubble styling
+                    messageBubble.setAttribute("style", `
+                        padding: 10px 15px;
+                        border-radius: 15px;
+                        max-width: 80%;
+                        word-wrap: break-word;
+                        background-color: ${isUser ? '#007AFF' : '#E9ECEF'};
+                        color: ${isUser ? 'white' : 'black'};
+                        margin-${isUser ? 'left' : 'right'}: auto;
+                        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+                    `);
+                    
+                    // Add sender name and message
+                    const senderLabel = document.createXULElement("description");
+                    senderLabel.setAttribute("style", `
+                        font-weight: bold;
+                        margin-bottom: 4px;
+                        display: block;
+                    `);
+                    senderLabel.textContent = sender;
+                    
+                    const messageText = document.createXULElement("description");
+                    messageText.setAttribute("style", "display: block;");
+                    messageText.textContent = subMessage.text;
+                    
+                    messageBubble.appendChild(senderLabel);
+                    messageBubble.appendChild(messageText);
+                    messageContainer.appendChild(messageBubble);
+                    log.appendChild(messageContainer);
+                });
             }
-            
-            // Add all messages
-            messages.forEach(({sender, text}) => {
-                const messageContainer = document.createXULElement("hbox");
-                messageContainer.setAttribute("style", "margin: 8px 0; width: 100%;");
-                
-                const messageBubble = document.createXULElement("description");
-                const isUser = sender === "User";
-                
-                // Set bubble styling
-                messageBubble.setAttribute("style", `
-                    padding: 10px 15px;
-                    border-radius: 15px;
-                    max-width: 80%;
-                    word-wrap: break-word;
-                    background-color: ${isUser ? '#007AFF' : '#E9ECEF'};
-                    color: ${isUser ? 'white' : 'black'};
-                    margin-${isUser ? 'left' : 'right'}: auto;
-                    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-                `);
-                
-                // Add sender name and message
-                const senderLabel = document.createXULElement("description");
-                senderLabel.setAttribute("style", `
-                    font-weight: bold;
-                    margin-bottom: 4px;
-                    display: block;
-                `);
-                senderLabel.textContent = sender;
-                
-                const messageText = document.createXULElement("description");
-                messageText.setAttribute("style", "display: block;");
-                messageText.textContent = text;
-                
-                messageBubble.appendChild(senderLabel);
-                messageBubble.appendChild(messageText);
-                messageContainer.appendChild(messageBubble);
-                log.appendChild(messageContainer);
-            });
+
+            // Process follow-up questions
+            if (message.followUpQuestions && message.followUpQuestions.length > 0) {
+                const questionContainer = document.createXULElement("hbox");
+                questionContainer.setAttribute("style", "margin: 8px 0; width: 100%; justify-content: center;");
+
+                message.followUpQuestions.forEach(question => {
+                    const questionButton = document.createXULElement("button");
+                    questionButton.setAttribute("label", question);
+                    questionButton.setAttribute("style", `
+                        background: #2c25ac;
+                        color: white;
+                        border: none;
+                        border-radius: 4px;
+                        padding: 6px 12px;
+                        margin: 4px;
+                        cursor: pointer;
+                        font-size: 13px;
+                    `);
+                    questionButton.addEventListener('click', () => {
+                        this._sendAIQuestion(question);
+                    });
+                    questionContainer.appendChild(questionButton);
+                });
+
+                log.appendChild(questionContainer);
+            }
             
             // Scroll to bottom
             log.scrollTop = log.scrollHeight;
@@ -494,40 +551,8 @@ Experiment putting deeptutor chat box out
             // Process each message object
             this.messages = messages;
             messages.forEach(message => {
-                // Process subMessages
-                if (message.subMessages && message.subMessages.length > 0) {
-                    message.subMessages.forEach(subMessage => {
-                        const sender = message.role === 'user' ? 'User' : 'Chatbot';
-                        this._appendMessage(sender, subMessage);
-                    });
-                }
-
-                // Process follow-up questions
-                if (message.followUpQuestions && message.followUpQuestions.length > 0) {
-                    const questionContainer = document.createXULElement("hbox");
-                    questionContainer.setAttribute("style", "margin: 8px 0; width: 100%; justify-content: center;");
-
-                    message.followUpQuestions.forEach(question => {
-                        const questionButton = document.createXULElement("button");
-                        questionButton.setAttribute("label", question);
-                        questionButton.setAttribute("style", `
-                            background: #2c25ac;
-                            color: white;
-                            border: none;
-                            border-radius: 4px;
-                            padding: 6px 12px;
-                            margin: 4px;
-                            cursor: pointer;
-                            font-size: 13px;
-                        `);
-                        questionButton.addEventListener('click', () => {
-                            this._sendAIQuestion(question);
-                        });
-                        questionContainer.appendChild(questionButton);
-                    });
-
-                    log.appendChild(questionContainer);
-                }
+                const sender = message.role === 'user' ? 'User' : 'Chatbot';
+                this._appendMessage(sender, message);
             });
 
             // Scroll to bottom

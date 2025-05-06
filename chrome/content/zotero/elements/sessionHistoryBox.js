@@ -68,6 +68,36 @@
             this.role = role;
         }
     }
+
+    class SubMessage { 
+        constructor({
+            text = "",
+            image =  "",
+            audio = "",
+            contentType = Highlight,
+            creationTime = new Date().toISOString(),
+            sources = []
+        }) {
+            this.text = text;
+            this.image = image;
+            this.audio = audio;
+            this.contentType = contentType;
+            this.creationTime = creationTime;
+            this.sources = sources;
+        }
+    }
+
+    class MessageSource {
+        constructor({
+            index = 0,
+            page = 0,
+            referenceString = ""
+        }) {
+            this.index = index;
+            this.page = page;
+            this.referenceString = referenceString;
+        }
+    }
     
     class SessionHistoryBox extends XULElementBase {
         constructor() {

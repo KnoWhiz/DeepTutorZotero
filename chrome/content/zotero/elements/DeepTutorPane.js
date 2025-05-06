@@ -100,6 +100,36 @@
         }
     }
 
+    class SubMessage { 
+        constructor({
+            text = "",
+            image =  "",
+            audio = "",
+            contentType = "text",
+            creationTime = new Date().toISOString(),
+            sources = []
+        }) {
+            this.text = text;
+            this.image = image;
+            this.audio = audio;
+            this.contentType = contentType;
+            this.creationTime = creationTime;
+            this.sources = sources;
+        }
+    }
+
+    class MessageSource {
+        constructor({
+            index = 0,
+            page = 0,
+            referenceString = ""
+        }) {
+            this.index = index;
+            this.page = page;
+            this.referenceString = referenceString;
+        }
+    }
+
     class DeepTutorPane extends XULElementBase {
         content = MozXULElement.parseXULToFragment(`
            <vbox id="main-container" flex="1" style="
@@ -279,7 +309,7 @@
                     parentMessageId: null,
                     userId: "user1",
                     sessionId: "session1",
-                    subMessages: ["Can you help me understand the main concepts in this paper?"],
+                    subMessages: [new SubMessage({ text: "Can you help me understand the main concepts in this paper?" })],
                     followUpQuestions: [],
                     creationTime: new Date().toISOString(),
                     lastUpdatedTime: new Date().toISOString(),
@@ -291,7 +321,7 @@
                     parentMessageId: "msg1",
                     userId: "chatbot1",
                     sessionId: "session1",
-                    subMessages: ["Of course! I'd be happy to help you understand the paper. Could you please share the title or key points you'd like me to focus on?"],
+                    subMessages: [new SubMessage({ text: "Of course! I'd be happy to help you understand the paper. Could you please share the title or key points you'd like me to focus on?" })],
                     followUpQuestions: ["Would you like me to explain the specific architecture they used?"],
                     creationTime: new Date().toISOString(),
                     lastUpdatedTime: new Date().toISOString(),
@@ -303,7 +333,7 @@
                     parentMessageId: "msg2",
                     userId: "user1",
                     sessionId: "session1",
-                    subMessages: ["The paper is about machine learning applications in healthcare. I'm particularly interested in the methodology section."],
+                    subMessages: [new SubMessage({ text: "The paper is about machine learning applications in healthcare. I'm particularly interested in the methodology section." })],
                     followUpQuestions: [],
                     creationTime: new Date().toISOString(),
                     lastUpdatedTime: new Date().toISOString(),
@@ -315,7 +345,7 @@
                     parentMessageId: "msg3",
                     userId: "chatbot1",
                     sessionId: "session1",
-                    subMessages: ["I'll help you analyze the methodology section. The paper uses a deep learning approach with convolutional neural networks to process medical imaging data. Would you like me to explain the specific architecture they used?"],
+                    subMessages: [new SubMessage({ text: "I'll help you analyze the methodology section. The paper uses a deep learning approach with convolutional neural networks to process medical imaging data. Would you like me to explain the specific architecture they used?" })],
                     followUpQuestions: ["Would you like me to explain the specific architecture they used?"],
                     creationTime: new Date().toISOString(),
                     lastUpdatedTime: new Date().toISOString(),
@@ -327,12 +357,42 @@
                     parentMessageId: "msg4",
                     userId: "user1",
                     sessionId: "session1",
-                    subMessages: ["Sure!"],
+                    subMessages: [new SubMessage({ text: "Sure!" })],
                     followUpQuestions: [],
                     creationTime: new Date().toISOString(),
                     lastUpdatedTime: new Date().toISOString(),
                     status: 'active',
                     role: 'user'
+                })
+            ];
+            return messages;
+        }
+
+        sampleMessages2() {
+            const messages = [
+                new DeepTutorMessage({
+                    id: "msg1",
+                    parentMessageId: null,
+                    userId: "user1",
+                    sessionId: "session1",
+                    subMessages: [new SubMessage({ text: "Can you help me understand the main concepts in this paper?" })],
+                    followUpQuestions: [],
+                    creationTime: new Date().toISOString(),
+                    lastUpdatedTime: new Date().toISOString(),
+                    status: 'active',
+                    role: 'user'
+                }),
+                new DeepTutorMessage({
+                    id: "msg2",
+                    parentMessageId: "msg1",
+                    userId: "chatbot1",
+                    sessionId: "session1",
+                    subMessages: [new SubMessage({ text: "Of course! I'd be happy to help you understand the paper. Could you please share the title or key points you'd like me to focus on?" })],
+                    followUpQuestions: ["Would you like me to explain the specific architecture they used?"],
+                    creationTime: new Date().toISOString(),
+                    lastUpdatedTime: new Date().toISOString(),
+                    status: 'active',
+                    role: 'chatbot'
                 })
             ];
             return messages;
