@@ -202,7 +202,9 @@
                     this.sesNamToMes.set(sessionName, messages);
                 }
                 this.curSesName = sessionName;
-                this._tutorBox._LoadMessage(messages);
+                const sessionObj = this.sesNamToObj.get(sessionName);
+                const documentIds = sessionObj?.documentIds || [];
+                this._tutorBox._LoadMessage(messages, documentIds);
                 Zotero.debug(`DeepTutorPane: Loading messages for session: ${sessionName}`);
                 if (this.sesNamToObj.get(sessionName)) {
                     let tempSes = this.sesNamToObj.get(sessionName);
@@ -321,7 +323,7 @@
                     parentMessageId: "msg1",
                     userId: "chatbot1",
                     sessionId: "session1",
-                    subMessages: [new SubMessage({ text: "Of course! I'd be happy to help you understand the paper. Could you please share the title or key points you'd like me to focus on?" })],
+                    subMessages: [new SubMessage({ text: "Of course! I'd be happy to help you understand the paper. Could you please share the title or key points you'd like me to focus on?", sources: [new MessageSource({ index: 0, page: 3, referenceString: "1.1" })]})],
                     followUpQuestions: ["Would you like me to explain the specific architecture they used?"],
                     creationTime: new Date().toISOString(),
                     lastUpdatedTime: new Date().toISOString(),
@@ -345,7 +347,7 @@
                     parentMessageId: "msg3",
                     userId: "chatbot1",
                     sessionId: "session1",
-                    subMessages: [new SubMessage({ text: "I'll help you analyze the methodology section. The paper uses a deep learning approach with convolutional neural networks to process medical imaging data. Would you like me to explain the specific architecture they used?" })],
+                    subMessages: [new SubMessage({ text: "I'll help you analyze the methodology section. The paper uses a deep learning approach with convolutional neural networks to process medical imaging data. Would you like me to explain the specific architecture they used?", sources: [new MessageSource({ index: 0, page: 4, referenceString: "Erwin’s actual decisions and the essence of his life goal all  contributed to the “human race,” namely the Eldian people." })] })],
                     followUpQuestions: ["Would you like me to explain the specific architecture they used?"],
                     creationTime: new Date().toISOString(),
                     lastUpdatedTime: new Date().toISOString(),

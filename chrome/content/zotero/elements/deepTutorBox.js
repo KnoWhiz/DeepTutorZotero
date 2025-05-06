@@ -268,6 +268,7 @@ Experiment putting deeptutor chat box out
             this.render();
 
             this.messages = [];
+            this.documentIds = [];
 
             // Listen for PDF data updates from model selection
             this._modelSelection.addEventListener('pdfDataUpdate', (e) => {
@@ -466,12 +467,49 @@ Experiment putting deeptutor chat box out
             this._abstractField.value = "";
         }
 
-        _appendMessage(sender, message) {
+        async _createHighlightAnnotation(attachmentId, page, referenceString) {
+            try {
+                Zotero.debug(`DeepTutorBox: Attempting to create highlight annotation for attachment ${attachmentId} on page ${page}`);
+                const attachment = Zotero.Items.get(attachmentId);
+                if (!attachment) {
+                    Zotero.debug(`DeepTutorBox: No attachment found for ID: ${attachmentId}`);
+                    return null;
+                }
+                Zotero.debug(`DeepTutorBox: Found attachment: ${attachment.getField('title')}`);
+
+                // Create annotation JSON
+                const annotationJSON = {
+                    key: Zotero.DataObjectUtilities.generateKey(),
+                    type: 'highlight',
+                    text: referenceString, // Empty text for now
+                    comment: "Optional comment",
+                    color: "#ffd400",
+                    pageLabel: page.toString(),
+                    sortIndex: "00001|000000|00000", // Add sortIndex
+                    position: {
+                        pageIndex: page - 1, // Convert to 0-based index
+                        rects: [[0.2, 0.2, 0.8, 0.3]] // Random valid area
+                    }
+                };
+                Zotero.debug(`DeepTutorBox: Creating highlight with JSON: ${JSON.stringify(annotationJSON)}`);
+
+                // Create annotation using saveFromJSON
+                const annotation = await Zotero.Annotations.saveFromJSON(attachment, annotationJSON);
+                Zotero.debug(`DeepTutorBox: Successfully created highlight annotation: ${annotation.id}`);
+                return annotation;
+            } catch (e) {
+                Zotero.debug(`DeepTutorBox: Error creating highlight annotation: ${e.message}`);
+                return null;
+            }
+        }
+
+        async _appendMessage(sender, message) {
             const log = this.querySelector('scrollbox');
             
             // Process subMessages
             if (message.subMessages && message.subMessages.length > 0) {
-                message.subMessages.forEach(subMessage => {
+                Zotero.debug(`DeepTutorBox: Processing ${message.subMessages.length} subMessages for ${sender}`);
+                for (const subMessage of message.subMessages) {
                     const messageContainer = document.createXULElement("hbox");
                     messageContainer.setAttribute("style", "margin: 8px 0; width: 100%;");
                     
@@ -505,13 +543,78 @@ Experiment putting deeptutor chat box out
                     
                     messageBubble.appendChild(senderLabel);
                     messageBubble.appendChild(messageText);
+
+                    // Handle sources if they exist
+                    if (subMessage.sources && subMessage.sources.length > 0) {
+                        Zotero.debug(`DeepTutorBox: Found ${subMessage.sources.length} sources in subMessage`);
+                        const sourcesContainer = document.createXULElement("hbox");
+                        sourcesContainer.setAttribute("style", "margin-top: 8px; gap: 8px; flex-wrap: wrap;");
+
+                        for (const source of subMessage.sources) {
+                            Zotero.debug(`DeepTutorBox: Processing source - index: ${source.index}, page: ${source.page}`);
+                            if (source.index >= 0 && source.index < this.documentIds.length) {
+                                const attachmentId = this.documentIds[source.index];
+                                Zotero.debug(`DeepTutorBox: Found valid attachment ID: ${attachmentId} for source index ${source.index}`);
+                                const annotation = await this._createHighlightAnnotation(attachmentId, source.page, source.referenceString);
+                                
+                                if (annotation) {
+                                    Zotero.debug(`DeepTutorBox: Created source button for annotation ${annotation.id}`);
+                                    const sourceButton = document.createXULElement("button");
+                                    sourceButton.setAttribute("label", `Source ${source.index + 1} (Page ${source.page})`);
+                                    sourceButton.setAttribute("style", `
+                                        background: #2c25ac;
+                                        color: white;
+                                        border: none;
+                                        border-radius: 4px;
+                                        padding: 4px 8px;
+                                        cursor: pointer;
+                                        font-size: 12px;
+                                    `);
+                                    sourceButton.addEventListener('click', async () => {
+                                        Zotero.debug(`DeepTutorBox: Source button clicked for attachment ${attachmentId}`);
+                                        // First view the attachment
+                                        ZoteroPane.viewAttachment(attachmentId);
+                                        // Then try to find and focus on the annotation
+                                        const attachment = Zotero.Items.get(attachmentId);
+                                        if (attachment) {
+                                            Zotero.debug(`DeepTutorBox: Found attachment, retrieving annotations`);
+                                            const annotations = await Zotero.Annotations.getAnnotationsForItem(attachment);
+                                            Zotero.debug(`DeepTutorBox: Found ${annotations.length} annotations`);
+                                            const highlight = annotations.find(a => 
+                                                a.type === 'highlight' && 
+                                                a.page === source.page
+                                            );
+                                            if (highlight) {
+                                                Zotero.debug(`DeepTutorBox: Found matching highlight annotation ${highlight.id}, focusing on it`);
+                                                Zotero.Annotations.focusAnnotation(highlight);
+                                            } else {
+                                                Zotero.debug(`DeepTutorBox: No matching highlight found for page ${source.page}`);
+                                            }
+                                        }
+                                    });
+                                    sourcesContainer.appendChild(sourceButton);
+                                } else {
+                                    Zotero.debug(`DeepTutorBox: Failed to create annotation for source index ${source.index}`);
+                                }
+                            } else {
+                                Zotero.debug(`DeepTutorBox: Invalid source index ${source.index} (documentIds length: ${this.documentIds.length})`);
+                            }
+                        }
+
+                        if (sourcesContainer.children.length > 0) {
+                            Zotero.debug(`DeepTutorBox: Adding ${sourcesContainer.children.length} source buttons to message`);
+                            messageBubble.appendChild(sourcesContainer);
+                        }
+                    }
+
                     messageContainer.appendChild(messageBubble);
                     log.appendChild(messageContainer);
-                });
+                }
             }
 
             // Process follow-up questions
             if (message.followUpQuestions && message.followUpQuestions.length > 0) {
+                Zotero.debug(`DeepTutorBox: Processing ${message.followUpQuestions.length} follow-up questions`);
                 const questionContainer = document.createXULElement("hbox");
                 questionContainer.setAttribute("style", "margin: 8px 0; width: 100%; justify-content: center;");
 
@@ -541,7 +644,9 @@ Experiment putting deeptutor chat box out
             log.scrollTop = log.scrollHeight;
         }
 
-        _LoadMessage(messages) {
+        async _LoadMessage(messages, documentIds) {
+            Zotero.debug(`DeepTutorBox: Loading ${messages.length} messages with ${documentIds?.length || 0} document IDs`);
+            this.documentIds = documentIds || [];
             const log = this.querySelector('scrollbox');
             // Clear existing content
             while (log.firstChild) {
@@ -550,10 +655,11 @@ Experiment putting deeptutor chat box out
 
             // Process each message object
             this.messages = messages;
-            messages.forEach(message => {
+            for (const message of messages) {
                 const sender = message.role === 'user' ? 'User' : 'Chatbot';
-                this._appendMessage(sender, message);
-            });
+                Zotero.debug(`DeepTutorBox: Processing message from ${sender}`);
+                await this._appendMessage(sender, message);
+            }
 
             // Scroll to bottom
             log.scrollTop = log.scrollHeight;
