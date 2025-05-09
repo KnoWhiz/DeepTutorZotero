@@ -225,6 +225,7 @@
             }
             this._originalFileList = pdfAttachments;
 
+
             // Process all PDFs concurrently using Promise.all
             const pdfProcessingPromises = pdfAttachments.map(async (pdf) => {
                 try {

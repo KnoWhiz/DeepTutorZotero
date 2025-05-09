@@ -202,12 +202,15 @@
         }
     }
 
+
     // MessageSource Interface (as a class for JavaScript)
+
     class MessageSource {
         constructor({
             index = 0,
             page = 0,
             referenceString = ""
+
         } = {}) {
             this.index = index;
             this.page = page;
@@ -488,6 +491,7 @@
             this.sesNamToMes = new Map();  // Map of session names to lists of Zotero.Message objects
             Zotero.debug(`DeepTutorPane: QQQQQ New session created, and we should change to the tutor component`);
 
+
             // Load sessions
             this.loadSession();
         }
@@ -507,6 +511,7 @@
             // Handle component display based on sessions length
             // questionable code: if session exist go to tutor component, else go to model component
             Zotero.debug(`DeepTutorPane: WWWWWWWWWWWWWW Loading sessions: ${this.sessions.length}`);
+
             const components = this.querySelectorAll('#content-container > *');
             if (this.sessions.length === 0) {
                 components.forEach(comp => {
@@ -1153,7 +1158,6 @@
                     await this.sampleSessions();
                     this.updateSessionHistory();
                 }
-
                 if (selectedComponent.style.display === 'block') {
                     selectedComponent.style.display = 'none';
                     buttonChoice = 'close';

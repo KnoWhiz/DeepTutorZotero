@@ -1,5 +1,4 @@
 {
-
         // Session Status Enum
     const SessionStatus = {
         CREATED: 'CREATED',
