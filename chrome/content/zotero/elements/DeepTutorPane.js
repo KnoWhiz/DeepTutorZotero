@@ -404,7 +404,7 @@
                         const documentIds = sessionObj?.documentIds || [];
                         Zotero.debug(`DeepTutorPane: Loading messages with ${documentIds.length} document IDs`);
                         
-                        await this._tutorBox._LoadMessage(messages, documentIds);
+                        await this._tutorBox._LoadMessage(messages, documentIds, sessionObj);
                         Zotero.debug(`DeepTutorPane: Messages loaded successfully`);
 
                         // Dispatch SessionIdUpdate event to DeepTutorBox
@@ -436,12 +436,23 @@
                                 const fileId = tempSes.metadata?.fileDocumentMap?.documentToFileId?.[documentId];
                                 if (fileId) {
                                     Zotero.debug(`DeepTutorPane: Viewing attachment with file ID: ${fileId}`);
-                                    ZoteroPane.viewAttachment(fileId);
+                                    // ZoteroPane.viewAttachment(fileId);
                                 } else {
                                     Zotero.debug(`DeepTutorPane: No file ID mapping found for document ID: ${documentId}`);
                                 }
                             }
                         }
+                        // transfer to tutor component if session exist
+                        Zotero.debug(`DeepTutorPane: Transferring to tutor component`);
+                        const components = this.querySelectorAll('#content-container > *');
+                        components.forEach(comp => {
+                            comp.style.display = 'none';
+                        });
+                        const tutorComponent = this.querySelector('#tutor-component');
+                        if (tutorComponent) {
+                            tutorComponent.style.display = 'block';
+                        }
+
                     } catch (error) {
                         Zotero.debug(`DeepTutorPane: Error in fetching messages: ${error.message}`);
                     }
@@ -456,6 +467,18 @@
                 const newSession = this.newEmptySession(event.detail);
                 Zotero.debug(`DeepTutorPane: Created new session: ${JSON.stringify(newSession)}`);
                 this.updateSessionHistory();
+
+                // Handle component display based on sessions length
+                // questionable code: if session exist go to tutor component, else go to model component
+                Zotero.debug(`DeepTutorPane: WWWWWWWWWWWWWW Loading sessions: ${this.sessions.length}`);
+                const components = this.querySelectorAll('#content-container > *');
+                components.forEach(comp => {
+                    comp.style.display = 'none';
+                });
+                const tutorComponent = this.querySelector('#tutor-component');
+                if (tutorComponent) {
+                    tutorComponent.style.display = 'block';
+                }
             });
 
             // Initialize session management attributes
@@ -463,6 +486,7 @@
             this.sessions = []; // List of Session objects
             this.sesNamToObj = new Map();  // Map of session names to Session objects
             this.sesNamToMes = new Map();  // Map of session names to lists of Zotero.Message objects
+            Zotero.debug(`DeepTutorPane: QQQQQ New session created, and we should change to the tutor component`);
 
             // Load sessions
             this.loadSession();
@@ -481,6 +505,8 @@
             this.updateSessionHistory();
 
             // Handle component display based on sessions length
+            // questionable code: if session exist go to tutor component, else go to model component
+            Zotero.debug(`DeepTutorPane: WWWWWWWWWWWWWW Loading sessions: ${this.sessions.length}`);
             const components = this.querySelectorAll('#content-container > *');
             if (this.sessions.length === 0) {
                 components.forEach(comp => {
@@ -489,6 +515,14 @@
                 const modelComponent = this.querySelector('#model-component');
                 if (modelComponent) {
                     modelComponent.style.display = 'block';
+                }
+            } else {
+                components.forEach(comp => {
+                    comp.style.display = 'none';
+                });
+                const tutorComponent = this.querySelector('#tutor-component');
+                if (tutorComponent) {
+                    tutorComponent.style.display = 'block';
                 }
             }
         }

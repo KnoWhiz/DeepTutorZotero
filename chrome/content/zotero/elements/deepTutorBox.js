@@ -289,6 +289,18 @@ Experiment putting deeptutor chat box out
                display: flex;
                flex-direction: column;
            ">
+               <description id="session-name" value="Session: None" style="
+                   font-size: 1em;
+                   color: #495057;
+                   margin-bottom: 4px;
+                   padding-left: 4px;
+               " />
+               <description id="file-name" value="File: None" style="
+                   font-size: 1em;
+                   color: #495057;
+                   margin-bottom: 16px;
+                   padding-left: 4px;
+               " />
                <hbox style="margin-bottom: 16px; width: 100%; height: calc(100% - 60px);" align="center"> 
                    <scrollbox id="chat-log" flex="1" orient="vertical" style="
                        border-radius: 8px;
@@ -446,6 +458,8 @@ Experiment putting deeptutor chat box out
             this.sessionId = null;
             this.userId = null;
             this.latestMessageId = null;  // Add property to track latest message ID
+            this.curDocumentFiles = [];
+            this.curSessionObj = null;
 
             // Initialize conversation object
             this._conversation = new Conversation({
@@ -466,7 +480,7 @@ Experiment putting deeptutor chat box out
             });
 
             // Listen for session ID updates from parent
-            this.addEventListener('SessionIdUpdate', (event) => {
+            this.addEventListener('SessionIdUpdate', async(event) => {
                 this.sessionId = event.detail.sessionId;
                 this._conversation.sessionId = this.sessionId;
                 Zotero.debug(`DeepTutorBox: Session ID updated to ${this.sessionId}`);
@@ -608,7 +622,7 @@ Experiment putting deeptutor chat box out
                 this._appendMessage("User", new DeepTutorMessage(userMessage));
                 
                 // Update conversation history and current message
-                // this._conversation.history = this.messages;
+                this._conversation.history = this.messages;
                 this._conversation.message = new DeepTutorMessage(userMessage);
                 
                 // Update latestMessageId
@@ -669,7 +683,7 @@ Experiment putting deeptutor chat box out
                 this._appendMessage("Chatbot", new DeepTutorMessage(tutorMessage));
 
                 // Update conversation history and current message
-                //this._conversation.history = this.messages;
+                this._conversation.history = this.messages;
                 this._conversation.message = new DeepTutorMessage(tutorMessage);
 
                 // Update latestMessageId to the tutor message
@@ -697,7 +711,7 @@ Experiment putting deeptutor chat box out
                 this._appendMessage("Chatbot", new DeepTutorMessage(errorMessage));
                 
                 // Update conversation history and current message
-                // this._conversation.history = this.messages;
+                this._conversation.history = this.messages;
                 this._conversation.message = new DeepTutorMessage(errorMessage);
             }
         }
@@ -758,54 +772,44 @@ Experiment putting deeptutor chat box out
                 });
                 const reader = response3.body.getReader();
                 const decoder = new TextDecoder();
+                let streamText = "";
 
                 // eslint-disable-next-line no-constant-condition
                 while (true) {
-          // eslint-disable-next-line no-await-in-loop
                     const { done, value } = await reader.read();
                     if (done) break;
                     const data = decoder.decode(value);
-          // Handle SSE data (split by \n\n)
-          // devlog('printdata:', data);
-          // data.split('\n\n').forEach((event) => {
-          //   devlog('event:', event);
-          //   const outputJson = `${event.slice(5)} `; // remove the data:
-          //   const output = outputJson.msg_content;
-          //   Zotero.debug('output:', output);
-          //   if (output.length > 0) {
-          //     setStreamText((prevText) => prevText + output);
-          //   }
-          // });
-
-          // data.split('\n\n').forEach((event) => {
-          //   devlog('event:', event);
-          //   if (event === '') {
-          //     setStreamText((prevText) => `${prevText}\n`);
-          //   }
-          //   let output = event;
-          //   if (event.indexOf('data:') === 0) {
-          //     output = `${event.slice(5)} `;
-          //   }
-          //   devlog('output:', output);
-          //   if (output.length > 0) {
-          //     setStreamText((prevText) => prevText + output);
-          //   }
-          // });
+                    
                     data.split('\n\n').forEach((event) => {
-                        Zotero.debug('event:', event);
+                        Zotero.debug('DeepTutorBox: Processing event:', event);
                         if (!event.startsWith('data:')) return;
 
                         const jsonStr = event.slice(5);
-                        Zotero.debug('jsonStr:', jsonStr);
+                        Zotero.debug('DeepTutorBox: Processing jsonStr:', jsonStr);
                         try {
                             const parsed = JSON.parse(jsonStr);
                             const output = parsed.msg_content;
-                            Zotero.debug('output:', output);
+                            Zotero.debug('DeepTutorBox: Processing output:', output);
                             if (output && output.length > 0) {
-                                setStreamText((prevText) => prevText + output);
+                                streamText += output;
+                                // Create a temporary message to display the stream
+                                const streamMessage = new DeepTutorMessage({
+                                    subMessages: [{
+                                        text: streamText,
+                                        contentType: ContentType.TEXT,
+                                        creationTime: new Date().toISOString(),
+                                        sources: []
+                                    }],
+                                    role: MessageRole.TUTOR,
+                                    creationTime: new Date().toISOString(),
+                                    lastUpdatedTime: new Date().toISOString(),
+                                    status: MessageStatus.UNVIEW
+                                });
+                                // Update the last message in the chat
+                                this._updateLastMessage(streamMessage);
                             }
                         } catch (error) {
-                            Zotero.debug('parse SSE data:', error);
+                            Zotero.debug('DeepTutorBox: Error parsing SSE data:', error);
                         }
                     });
                 }
@@ -824,19 +828,6 @@ Experiment putting deeptutor chat box out
                     Zotero.debug(`DeepTutorBox: Failed to fetch message history: ${errorText}`);
                     throw new Error(`Failed to fetch message history: ${historyResponse.status} ${historyResponse.statusText}`);
                 }
-
-                // const response = await historyResponse.json();
-                // Zotero.debug(`DeepTutorBox: Retrieved message history: ${JSON.stringify(response)}`);
-
-                // Zotero.debug(`DeepTutorBox: API response for input message: ${JSON.stringify(response)}`);
-
-                /*
-                if (!historyResponse.ok) {
-                    const errorText = await historyResponse.text();
-                    Zotero.debug(`DeepTutorBox: API error response: ${errorText}`);
-                    throw new Error(`API request failed: ${historyResponse.status} ${historyResponse.statusText}\nResponse: ${errorText}`);
-                }
-                */
 
                 const responseData = await historyResponse.json();
                 Zotero.debug(`DeepTutorBox: API response data: ${JSON.stringify(responseData)}`);
@@ -1014,7 +1005,7 @@ Experiment putting deeptutor chat box out
                     questionButton.setAttribute("label", question);
                     questionButton.setAttribute("style", `
                         background: #2c25ac;
-                        color: white;
+                        color: black;
                         border: none;
                         border-radius: 4px;
                         padding: 6px 12px;
@@ -1035,9 +1026,38 @@ Experiment putting deeptutor chat box out
             log.scrollTop = log.scrollHeight;
         }
 
-        async _LoadMessage(messages, documentIds) {
+        async _LoadMessage(messages, documentIds, sessionObj) {
             Zotero.debug(`DeepTutorBox: Loading ${messages.length} messages with ${documentIds?.length || 0} document IDs`);
             this.documentIds = documentIds || [];
+            this.curDocumentFiles = [];
+            this.curSessionObj = sessionObj;
+
+            // Update session info display
+            if (messages.length > 0) {
+                this._updateSessionInfo(messages[0].sessionId, documentIds);
+            }
+
+            for (const documentId of this.documentIds) {
+                let newDoc = await fetch(`https://api.staging.deeptutor.knowhiz.us/api/document/${documentId}`, {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                });
+
+                if (!newDoc.ok) {
+                    const errorText = await newDoc.text();
+                    Zotero.debug(`DeepTutorBox: Failed to fetch new session documents: ${errorText}`);
+                    throw new Error(`Failed to fetch new session documents: ${newDoc.status} ${newDoc.statusText}`);
+                }
+                const newDocData = await newDoc.json();
+                Zotero.debug(`DeepTutorBox: New session document: ${JSON.stringify(newDocData)}`);
+                this.curDocumentFiles.push(newDocData);
+            }
+
+            this._conversation.documentIds = this.curDocumentFiles.map(doc => doc.fileId);
+            this._conversation.storagePaths = this.curDocumentFiles.map(doc => doc.storagePath);
+            
             const log = this.querySelector('scrollbox');
             // Clear existing content
             while (log.firstChild) {
@@ -1060,7 +1080,7 @@ Experiment putting deeptutor chat box out
             Zotero.debug(`DeepTutorBox: Messages: ${JSON.stringify(messages)}`);
             
             // Update conversation history
-            // this._conversation.history = messages;
+            this._conversation.history = messages;
             
             for (const message of messages) {
                 const sender = message.role === 'user' ? 'User' : 'Chatbot';
@@ -1080,6 +1100,41 @@ Experiment putting deeptutor chat box out
             // Toggle the selected popup
             if (popup) {
                 popup.style.display = (popup.style.display === 'none' || !popup.style.display) ? 'block' : 'none';
+            }
+        }
+
+        _updateLastMessage(message) {
+            const log = this.querySelector('scrollbox');
+            // Remove the last message if it exists
+            if (log.lastChild) {
+                log.removeChild(log.lastChild);
+            }
+            // Append the updated message
+            this._appendMessage("Chatbot", message);
+        }
+
+        _updateSessionInfo(sessionId, documentIds) {
+            const sessionNameElement = this.querySelector('#session-name');
+            const fileNameElement = this.querySelector('#file-name');
+            
+            if (sessionNameElement && fileNameElement) {
+                // Update session name
+                if (this.curSessionObj) {
+                    sessionNameElement.value = `Session: ${this.curSessionObj?.sessionName || 'None'}`;
+                } else {
+                    sessionNameElement.value = 'Session: None';
+                }
+                
+                // Update file name if available
+                Zotero.debug(`DeepTutorBox: VVVVV Updating file name display. curDocumentFiles: ${JSON.stringify(this.curDocumentFiles)}`);
+                if (this.curDocumentFiles && this.curDocumentFiles.length > 0) {
+                    const fileName = this.curDocumentFiles[0].filename || 'None';
+                    Zotero.debug(`DeepTutorBox: GGGGGG Setting file name to: ${fileName}`);
+                    fileNameElement.value = `File: ${fileName}`;
+                } else {
+                    Zotero.debug(`DeepTutorBox: AAAAAAAAAAA No document files available, setting file name to None`);
+                    fileNameElement.value = 'File: None';
+                }
             }
         }
     }
