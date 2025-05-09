@@ -91,12 +91,16 @@
             this._map = new Map(); // Maps file name to document ID
             this._reverseMap = new Map(); // Maps document ID to file name
             this._fileIdMap = new Map(); // Maps document ID to original file ID
+            this._preSignedUrlDataMap = new Map(); // Maps document ID to preSignedUrlData
         }
 
-        addMapping(fileName, documentId, fileId) {
+        addMapping(fileName, documentId, fileId, preSignedUrlData) {
             this._map.set(fileName, documentId);
             this._reverseMap.set(documentId, fileName);
             this._fileIdMap.set(documentId, fileId);
+            if (preSignedUrlData) {
+                this._preSignedUrlDataMap.set(documentId, preSignedUrlData);
+            }
         }
 
         getDocumentId(fileName) {
@@ -146,7 +150,8 @@
             return {
                 fileToDocument: Object.fromEntries(this._map),
                 documentToFile: Object.fromEntries(this._reverseMap),
-                documentToFileId: Object.fromEntries(this._fileIdMap)
+                documentToFileId: Object.fromEntries(this._fileIdMap),
+                documentToPreSignedUrlData: Object.fromEntries(this._preSignedUrlDataMap)
             };
         }
     }
@@ -165,7 +170,7 @@
             status = MessageStatus.UNVIEW,
             role = MessageRole.USER
         } = {}) {
-            this.id = id;
+            this.id = null;  // Always set id to null
             this.parentMessageId = parentMessageId;
             this.userId = userId;
             this.sessionId = sessionId;
@@ -371,58 +376,74 @@
                 try {
                     Zotero.debug(`DeepTutorPane: HistorySessionSelected event received for session: ${event.detail.sessionName}`);
                     const sessionName = event.detail.sessionName;
-                    let messages = this.sesNamToMes.get(sessionName);
-                    Zotero.debug(`DeepTutorPane: Existing messages for session: ${messages ? 'found' : 'not found'}`);
-                    
-                    if (!messages) {
-                        Zotero.debug(`DeepTutorPane: Creating new messages for session: ${sessionName}`);
-                        messages = await this.sampleMessages();
-                        Zotero.debug(`DeepTutorPane: New messages created: ${JSON.stringify(messages)}`);
-                        this.sesNamToMes.set(sessionName, messages);
-                    }
-                    
-                    this.curSesName = sessionName;
                     const sessionObj = this.sesNamToObj.get(sessionName);
-                    const documentIds = sessionObj?.documentIds || [];
-                    Zotero.debug(`DeepTutorPane: Loading messages with ${documentIds.length} document IDs`);
                     
-                    await this._tutorBox._LoadMessage(messages, documentIds);
-                    Zotero.debug(`DeepTutorPane: Messages loaded successfully`);
+                    if (!sessionObj) {
+                        Zotero.debug(`DeepTutorPane: No session object found for: ${sessionName}`);
+                        return;
+                    }
 
-                    // Dispatch SessionIdUpdate event to DeepTutorBox
-                    if (sessionObj?.id) {
-                        const sessionIdEvent = new CustomEvent('SessionIdUpdate', {
-                            detail: { sessionId: sessionObj.id },
-                            bubbles: true
+                    Zotero.debug(`DeepTutorPane: Fetching messages for session: ${sessionName}`);
+                    try {
+                        const response = await fetch(`https://api.staging.deeptutor.knowhiz.us/api/message/bySession/${sessionObj.id}`, {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
                         });
-                        this._tutorBox.dispatchEvent(sessionIdEvent);
-                        Zotero.debug(`DeepTutorPane: Dispatched SessionIdUpdate event with ID: ${sessionObj.id}`);
 
-                        // Also dispatch UserIdUpdate event
-                        if (sessionObj.userId) {
-                            const userIdEvent = new CustomEvent('UserIdUpdate', {
-                                detail: { userId: sessionObj.userId },
+                        if (!response.ok) {
+                            throw new Error(`Failed to fetch messages: ${response.status} ${response.statusText}`);
+                        }
+
+                        const messages = await response.json();
+                        Zotero.debug(`DeepTutorPane: Successfully fetched ${messages.length} messages`);
+                        Zotero.debug(`DeepTutorPane: Messages content: ${JSON.stringify(messages)}`);
+                        
+                        this.curSesName = sessionName;
+                        const documentIds = sessionObj?.documentIds || [];
+                        Zotero.debug(`DeepTutorPane: Loading messages with ${documentIds.length} document IDs`);
+                        
+                        await this._tutorBox._LoadMessage(messages, documentIds);
+                        Zotero.debug(`DeepTutorPane: Messages loaded successfully`);
+
+                        // Dispatch SessionIdUpdate event to DeepTutorBox
+                        if (sessionObj?.id) {
+                            const sessionIdEvent = new CustomEvent('SessionIdUpdate', {
+                                detail: { sessionId: sessionObj.id },
                                 bubbles: true
                             });
-                            this._tutorBox.dispatchEvent(userIdEvent);
-                            Zotero.debug(`DeepTutorPane: Dispatched UserIdUpdate event with ID: ${sessionObj.userId}`);
-                        }
-                    }
-                    
-                    if (this.sesNamToObj.get(sessionName)) {
-                        let tempSes = this.sesNamToObj.get(sessionName);
-                        Zotero.debug(`DeepTutorPane: Loading attachments for session: ${sessionName}`);
-                        if (tempSes.documentIds.length > 0) {
-                            // Get the file ID from the mapping using the document ID
-                            const documentId = tempSes.documentIds[0];
-                            const fileId = tempSes.metadata?.fileDocumentMap?.documentToFileId?.[documentId];
-                            if (fileId) {
-                                Zotero.debug(`DeepTutorPane: Viewing attachment with file ID: ${fileId}`);
-                                ZoteroPane.viewAttachment(fileId);
-                            } else {
-                                Zotero.debug(`DeepTutorPane: No file ID mapping found for document ID: ${documentId}`);
+                            this._tutorBox.dispatchEvent(sessionIdEvent);
+                            Zotero.debug(`DeepTutorPane: Dispatched SessionIdUpdate event with ID: ${sessionObj.id}`);
+
+                            // Also dispatch UserIdUpdate event
+                            if (sessionObj.userId) {
+                                const userIdEvent = new CustomEvent('UserIdUpdate', {
+                                    detail: { userId: sessionObj.userId },
+                                    bubbles: true
+                                });
+                                this._tutorBox.dispatchEvent(userIdEvent);
+                                Zotero.debug(`DeepTutorPane: Dispatched UserIdUpdate event with ID: ${sessionObj.userId}`);
                             }
                         }
+                        
+                        if (this.sesNamToObj.get(sessionName)) {
+                            let tempSes = this.sesNamToObj.get(sessionName);
+                            Zotero.debug(`DeepTutorPane: Loading attachments for session: ${sessionName}`);
+                            if (tempSes.documentIds.length > 0) {
+                                // Get the file ID from the mapping using the document ID
+                                const documentId = tempSes.documentIds[0];
+                                const fileId = tempSes.metadata?.fileDocumentMap?.documentToFileId?.[documentId];
+                                if (fileId) {
+                                    Zotero.debug(`DeepTutorPane: Viewing attachment with file ID: ${fileId}`);
+                                    ZoteroPane.viewAttachment(fileId);
+                                } else {
+                                    Zotero.debug(`DeepTutorPane: No file ID mapping found for document ID: ${documentId}`);
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        Zotero.debug(`DeepTutorPane: Error in fetching messages: ${error.message}`);
                     }
                 } catch (error) {
                     Zotero.debug(`DeepTutorPane: Error in HistorySessionSelected handler: ${error.message}`);
@@ -619,10 +640,22 @@
                 // Handle file uploads if fileList exists
                 const uploadedDocumentIds = [];
                 if (eventDetail.fileList && eventDetail.fileList.length > 0) {
-                    for (const file of eventDetail.fileList) {
+                    for (const fileId of eventDetail.fileList) {
                         try {
+                            // Get the file object from Zotero
+                            const file = eventDetail.originalFileList.length > 0 ? eventDetail.originalFileList[0] : null;
+                            Zotero.debug(`DeepTutorPane: XXX Processing file: ${file}`);
+                            if (!file) {
+                                Zotero.debug(`DeepTutorPane: No file found for ID: ${fileId}`);
+                                continue;
+                            }
+
+                            // Get the file name
+                            const fileName = file.getField('title');
+                            Zotero.debug(`DeepTutorPane: Processing file: ${fileName}`);
+
                             // 1. Get pre-signed URL for the file
-                            const preSignedUrlResponse = await fetch(`https://api.staging.deeptutor.knowhiz.us/api/document/preSignedUrl/${userData.id}/${file.name}`, {
+                            const preSignedUrlResponse = await fetch(`https://api.staging.deeptutor.knowhiz.us/api/document/preSignedUrl/${userData.id}/${fileName}`, {
                                 method: 'GET',
                                 headers: {
                                     'Content-Type': 'application/json'
@@ -636,6 +669,19 @@
                             const preSignedUrlData = await preSignedUrlResponse.json();
                             Zotero.debug(`DeepTutorPane: Got pre-signed URL: ${JSON.stringify(preSignedUrlData)}`);
 
+                            // Store the preSignedUrlData in fileDocumentMap
+                            fileDocumentMap.addMapping(fileName, preSignedUrlData.documentId, fileId, preSignedUrlData);
+
+                            // Get the file as a Data URL and convert to Blob
+                            const dataURI = await file.attachmentDataURI;
+                            if (!dataURI) {
+                                throw new Error(`Failed to get file data for: ${fileName}`);
+                            }
+
+                            // Convert Data URL to Blob
+                            const response = await fetch(dataURI);
+                            const blob = await response.blob();
+
                             // 2. Upload file to Azure Blob Storage
                             const uploadResponse = await fetch(preSignedUrlData.preSignedUrl, {
                                 method: 'PUT',
@@ -643,21 +689,20 @@
                                     'x-ms-blob-type': 'BlockBlob',
                                     'Content-Type': 'application/pdf'
                                 },
-                                body: file
+                                body: blob
                             });
 
                             if (!uploadResponse.ok) {
                                 throw new Error(`Failed to upload file: ${uploadResponse.status} ${uploadResponse.statusText}`);
                             }
 
-                            Zotero.debug(`DeepTutorPane: File uploaded successfully: ${file.name}`);
+                            Zotero.debug(`DeepTutorPane: File uploaded successfully: ${fileName}`);
                             
                             // Add mapping between file, document ID, and original file ID
-                            fileDocumentMap.addMapping(file.name, preSignedUrlData.documentId, file.id);
                             uploadedDocumentIds.push(preSignedUrlData.documentId);
                             
                         } catch (fileError) {
-                            Zotero.debug(`DeepTutorPane: Error uploading file ${file.name}: ${fileError.message}`);
+                            Zotero.debug(`DeepTutorPane: Error uploading file ${fileId}: ${fileError.message}`);
                             // Continue with other files even if one fails
                             continue;
                         }
@@ -691,6 +736,96 @@
 
                 const createdSession = await sessionResponse.json();
                 Zotero.debug(`DeepTutorPane: Session created successfully: ${JSON.stringify(createdSession)}`);
+
+                const messageStart = {
+                    id: null,
+                    parentMessageId: null,
+                    userId: createdSession.userId,
+                    sessionId: createdSession.id,
+                    subMessages: [{
+                        text: "Can you give me a summary of this document?",
+                        image: null,
+                        audio: null,
+                        contentType: ContentType.TEXT,
+                        creationTime: new Date().toISOString(),
+                        sources: []
+                    }],
+                    followUpQuestions: [],
+                    creationTime: new Date().toISOString(),
+                    lastUpdatedTime: new Date().toISOString(),
+                    status: MessageStatus.UNVIEW,
+                    role: MessageRole.USER
+                };
+
+                Zotero.debug(`DeepTutorPane: Created initial message: ${JSON.stringify(messageStart)}`);
+                const response2 = await fetch("https://api.staging.deeptutor.knowhiz.us/api/message/create", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(messageStart)
+                });
+
+                if (!response2.ok) {
+                    const errorText = await response2.text();
+                    Zotero.debug(`DeepTutorPane: API error response: ${errorText}`);
+                    throw new Error(`API request failed: ${response2.status} ${response2.statusText}\nResponse: ${errorText}`);
+                }
+                const responseData2 = await response2.json();
+                Zotero.debug(`DeepTutorPane: API response for initial message: ${JSON.stringify(responseData2)}`);
+
+                Zotero.debug(`DeepTutorPane: KKKKK File names: ${fileDocumentMap.getAllFileNames()}`);
+                let startConversation = new Conversation({
+                    userId: createdSession.userId,
+                    sessionId: createdSession.id,
+                    ragSessionId: null,
+                    storagePaths: fileDocumentMap.getAllFileNames().map(fileName => {
+                        const documentId = fileDocumentMap.getDocumentId(fileName);
+                        return `tutor/materials/${documentId}/${fileName}`;
+                    }),
+                    history: [],
+                    message: responseData2,
+                    streaming: true,
+                    type: SessionType.LITE
+                });
+
+                Zotero.debug(`DeepTutorPane: Sending API request to: https://api.staging.deeptutor.knowhiz.us/api/chat/subscribe`);
+                Zotero.debug(`DeepTutorPane: Request body: ${JSON.stringify(startConversation)}`);
+                
+                const response3 = await fetch("https://api.staging.deeptutor.knowhiz.us/api/chat/subscribe", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(startConversation)
+                });
+
+                const reader = response3.body.getReader();
+                const decoder = new TextDecoder();
+                let streamText = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const data = decoder.decode(value);
+                    data.split('\n\n').forEach((event) => {
+                        Zotero.debug('DeepTutorPane: event:', event);
+                        if (!event.startsWith('data:')) return;
+        
+                        const jsonStr = event.slice(5);
+                        Zotero.debug('DeepTutorPane: jsonStr:', jsonStr);
+                        try {
+                            const parsed = JSON.parse(jsonStr);
+                            const output = parsed.msg_content;
+                            Zotero.debug('DeepTutorPane: output:', output);
+                            if (output && output.length > 0) {
+                                streamText += output;
+                            }
+                        } catch (error) {
+                            Zotero.debug('DeepTutorPane: parse SSE data:', error);
+                        }
+                    });
+                }
 
                 // Create local session object
                 const session = new DeepTutorSession({
@@ -781,7 +916,7 @@
 
                 // Create initial message
                 const initialMessage = {
-                    id: `msg_${Date.now()}`,
+                    id: null,
                     parentMessageId: null,
                     userId: currentSession.userId,
                     sessionId: currentSession.id,
@@ -808,7 +943,7 @@
                 // Create messages array with consistent structure
                 const messages = [
                     new DeepTutorMessage({
-                        id: initialMessage.id,
+                        id: null,
                         parentMessageId: initialMessage.parentMessageId,
                         userId: currentSession.userId,
                         sessionId: currentSession.id,
@@ -827,7 +962,7 @@
                         role: initialMessage.role
                     }),
                     new DeepTutorMessage({
-                        id: `msg_${Date.now() + 1}`,
+                        id: null,
                         parentMessageId: initialMessage.id,
                         userId: currentSession.userId,
                         sessionId: currentSession.id,
@@ -853,7 +988,7 @@
                 // Return default messages if API call fails
                 const defaultMessages = [
                     new DeepTutorMessage({
-                        id: `msg_${Date.now()}`,
+                        id: null,
                         parentMessageId: null,
                         userId: "67f5b836cb8bb15b67a1149e", // Default user ID
                         sessionId: "default_session",
@@ -872,7 +1007,7 @@
                         role: MessageRole.USER
                     }),
                     new DeepTutorMessage({
-                        id: `msg_${Date.now() + 1}`,
+                        id: null,
                         parentMessageId: `msg_${Date.now()}`,
                         userId: "67f5b836cb8bb15b67a1149e", // Default user ID
                         sessionId: "default_session",
@@ -899,7 +1034,7 @@
         sampleMessages2() {
             const messages = [
                 new DeepTutorMessage({
-                    id: "msg1",
+                    id: null,
                     parentMessageId: null,
                     userId: "user1",
                     sessionId: "session1",
@@ -911,7 +1046,7 @@
                     role: 'user'
                 }),
                 new DeepTutorMessage({
-                    id: "msg2",
+                    id: null,
                     parentMessageId: "msg1",
                     userId: "chatbot1",
                     sessionId: "session1",

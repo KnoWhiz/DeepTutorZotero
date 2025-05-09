@@ -137,7 +137,7 @@ Experiment putting deeptutor chat box out
             status = MessageStatus.UNVIEW,
             role = MessageRole.USER
         } = {}) {
-            this.id = id;
+            this.id = null;  // Always set id to null
             this.parentMessageId = parentMessageId;
             this.userId = userId;
             this.sessionId = sessionId;
@@ -447,6 +447,18 @@ Experiment putting deeptutor chat box out
             this.userId = null;
             this.latestMessageId = null;  // Add property to track latest message ID
 
+            // Initialize conversation object
+            this._conversation = new Conversation({
+                userId: null,
+                sessionId: null,
+                ragSessionId: null,
+                storagePaths: [],
+                history: [],
+                message: null,
+                streaming: true,
+                type: SessionType.BASIC
+            });
+
             // Listen for PDF data updates from model selection
             this._modelSelection.addEventListener('pdfDataUpdate', (e) => {
                 this.pdfDataList = e.detail.pdfDataList;
@@ -456,12 +468,14 @@ Experiment putting deeptutor chat box out
             // Listen for session ID updates from parent
             this.addEventListener('SessionIdUpdate', (event) => {
                 this.sessionId = event.detail.sessionId;
+                this._conversation.sessionId = this.sessionId;
                 Zotero.debug(`DeepTutorBox: Session ID updated to ${this.sessionId}`);
             });
 
             // Listen for user ID updates from parent
             this.addEventListener('UserIdUpdate', (event) => {
                 this.userId = event.detail.userId;
+                this._conversation.userId = this.userId;
                 Zotero.debug(`DeepTutorBox: User ID updated to ${this.userId}`);
             });
         }
@@ -568,7 +582,7 @@ Experiment putting deeptutor chat box out
                 // Create user message with proper structure
                 Zotero.debug(`DeepTutorBox: Send API Request with Session ID: ${this.sessionId} and User ID: ${this.userId}`);
                 const userMessage = {
-                    id: `msg_${Date.now()}`,
+                    id: null,
                     parentMessageId: this.latestMessageId,  // Use the latest message ID as parent
                     userId: this.userId,
                     sessionId: this.sessionId,
@@ -592,6 +606,10 @@ Experiment putting deeptutor chat box out
                 // Add user message to local messages array and display it
                 this.messages.push(new DeepTutorMessage(userMessage));
                 this._appendMessage("User", new DeepTutorMessage(userMessage));
+                
+                // Update conversation history and current message
+                // this._conversation.history = this.messages;
+                this._conversation.message = new DeepTutorMessage(userMessage);
                 
                 // Update latestMessageId
                 this.latestMessageId = userMessage.id;
@@ -627,17 +645,17 @@ Experiment putting deeptutor chat box out
 
                 // Create tutor message from API response
                 const tutorMessage = {
-                    id: `msg_${Date.now() + 1}`,
+                    id: null,
                     parentMessageId: userMessage.id,  // Link to the user message
                     userId: this.userId,
                     sessionId: this.sessionId,
                     subMessages: [{
-                        text: apiResponse?.text || "I apologize, but I couldn't process your request at this time.",
+                        text: apiResponse?.subMessages?.[0]?.text || "I apologize, but I couldn't process your request at this time.",
                         image: null,
                         audio: null,
                         contentType: ContentType.TEXT,
                         creationTime: new Date().toISOString(),
-                        sources: apiResponse?.sources || []
+                        sources: apiResponse?.subMessages?.[0]?.sources || []
                     }],
                     followUpQuestions: apiResponse?.followUpQuestions || [],
                     creationTime: new Date().toISOString(),
@@ -649,6 +667,10 @@ Experiment putting deeptutor chat box out
                 // Add tutor message to local messages array and display it
                 this.messages.push(new DeepTutorMessage(tutorMessage));
                 this._appendMessage("Chatbot", new DeepTutorMessage(tutorMessage));
+
+                // Update conversation history and current message
+                //this._conversation.history = this.messages;
+                this._conversation.message = new DeepTutorMessage(tutorMessage);
 
                 // Update latestMessageId to the tutor message
                 this.latestMessageId = tutorMessage.id;
@@ -673,6 +695,10 @@ Experiment putting deeptutor chat box out
                 };
                 this.messages.push(new DeepTutorMessage(errorMessage));
                 this._appendMessage("Chatbot", new DeepTutorMessage(errorMessage));
+                
+                // Update conversation history and current message
+                // this._conversation.history = this.messages;
+                this._conversation.message = new DeepTutorMessage(errorMessage);
             }
         }
 
@@ -698,10 +724,11 @@ Experiment putting deeptutor chat box out
                 };
                 this._appendMessage("Upload with User", new DeepTutorMessage(pdfMessage));
                 
-                Zotero.debug(`DeepTutorBox: Sending API request to: https://api.staging.deeptutor.knowhiz.us/api/message/create`);
-                Zotero.debug(`DeepTutorBox: Request body: ${JSON.stringify(message)}`);
+
                 
-                const response = await fetch("https://api.staging.deeptutor.knowhiz.us/api/message/create", {
+                // Comment out old API call
+                
+                const response2 = await fetch("https://api.staging.deeptutor.knowhiz.us/api/message/create", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
@@ -709,15 +736,115 @@ Experiment putting deeptutor chat box out
                     body: JSON.stringify(message)
                 });
 
-                if (!response.ok) {
-                    const errorText = await response.text();
+                if (!response2.ok) {
+                    const errorText = await response2.text();
                     Zotero.debug(`DeepTutorBox: API error response: ${errorText}`);
-                    throw new Error(`API request failed: ${response.status} ${response.statusText}\nResponse: ${errorText}`);
+                    throw new Error(`API request failed: ${response2.status} ${response2.statusText}\nResponse: ${errorText}`);
+                }
+                const responseData2 = await response2.json();
+
+                Zotero.debug(`DeepTutorBox: API response for input message: ${JSON.stringify(responseData2)}`);
+                
+                this._conversation.message = responseData2;
+                Zotero.debug(`DeepTutorBox: Sending API request to: https://api.staging.deeptutor.knowhiz.us/api/chat/subscribe`);
+                Zotero.debug(`DeepTutorBox: Request body: ${JSON.stringify(this._conversation)}`);
+                // New API call using conversation object
+                const response3 = await fetch("https://api.staging.deeptutor.knowhiz.us/api/chat/subscribe", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(this._conversation)
+                });
+                const reader = response3.body.getReader();
+                const decoder = new TextDecoder();
+
+                // eslint-disable-next-line no-constant-condition
+                while (true) {
+          // eslint-disable-next-line no-await-in-loop
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const data = decoder.decode(value);
+          // Handle SSE data (split by \n\n)
+          // devlog('printdata:', data);
+          // data.split('\n\n').forEach((event) => {
+          //   devlog('event:', event);
+          //   const outputJson = `${event.slice(5)} `; // remove the data:
+          //   const output = outputJson.msg_content;
+          //   Zotero.debug('output:', output);
+          //   if (output.length > 0) {
+          //     setStreamText((prevText) => prevText + output);
+          //   }
+          // });
+
+          // data.split('\n\n').forEach((event) => {
+          //   devlog('event:', event);
+          //   if (event === '') {
+          //     setStreamText((prevText) => `${prevText}\n`);
+          //   }
+          //   let output = event;
+          //   if (event.indexOf('data:') === 0) {
+          //     output = `${event.slice(5)} `;
+          //   }
+          //   devlog('output:', output);
+          //   if (output.length > 0) {
+          //     setStreamText((prevText) => prevText + output);
+          //   }
+          // });
+                    data.split('\n\n').forEach((event) => {
+                        Zotero.debug('event:', event);
+                        if (!event.startsWith('data:')) return;
+
+                        const jsonStr = event.slice(5);
+                        Zotero.debug('jsonStr:', jsonStr);
+                        try {
+                            const parsed = JSON.parse(jsonStr);
+                            const output = parsed.msg_content;
+                            Zotero.debug('output:', output);
+                            if (output && output.length > 0) {
+                                setStreamText((prevText) => prevText + output);
+                            }
+                        } catch (error) {
+                            Zotero.debug('parse SSE data:', error);
+                        }
+                    });
                 }
 
-                const responseData = await response.json();
+                // Fetch message history for the session
+                Zotero.debug(`DeepTutorBox: Fetching message history for session ${this.sessionId}`);
+                const historyResponse = await fetch(`https://api.staging.deeptutor.knowhiz.us/api/message/bySession/${this.sessionId}`, {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                });
+
+                if (!historyResponse.ok) {
+                    const errorText = await historyResponse.text();
+                    Zotero.debug(`DeepTutorBox: Failed to fetch message history: ${errorText}`);
+                    throw new Error(`Failed to fetch message history: ${historyResponse.status} ${historyResponse.statusText}`);
+                }
+
+                // const response = await historyResponse.json();
+                // Zotero.debug(`DeepTutorBox: Retrieved message history: ${JSON.stringify(response)}`);
+
+                // Zotero.debug(`DeepTutorBox: API response for input message: ${JSON.stringify(response)}`);
+
+                /*
+                if (!historyResponse.ok) {
+                    const errorText = await historyResponse.text();
+                    Zotero.debug(`DeepTutorBox: API error response: ${errorText}`);
+                    throw new Error(`API request failed: ${historyResponse.status} ${historyResponse.statusText}\nResponse: ${errorText}`);
+                }
+                */
+
+                const responseData = await historyResponse.json();
                 Zotero.debug(`DeepTutorBox: API response data: ${JSON.stringify(responseData)}`);
-                return responseData;
+                
+                // Get only the last message from the response
+                const lastMessage = responseData.length > 0 ? responseData[responseData.length - 2] : null;
+                Zotero.debug(`DeepTutorBox: Last message from history: ${JSON.stringify(lastMessage)}`);
+                return lastMessage;
 
             } catch (error) {
                 Zotero.debug(`DeepTutorBox: Error in _sendToAPI: ${error.message}`);
@@ -922,6 +1049,7 @@ Experiment putting deeptutor chat box out
             if (messages.length > 0) {
                 // Get sessionId from the first message
                 this.sessionId = messages[0].sessionId;
+                this._conversation.sessionId = this.sessionId;
                 Zotero.debug(`DeepTutorBox: Session ID set to ${this.sessionId} from loaded messages`);
                 
                 // Set latestMessageId to the last message's ID
@@ -930,6 +1058,10 @@ Experiment putting deeptutor chat box out
                 Zotero.debug(`DeepTutorBox: Latest message ID set to ${this.latestMessageId} from last loaded message`);
             }
             Zotero.debug(`DeepTutorBox: Messages: ${JSON.stringify(messages)}`);
+            
+            // Update conversation history
+            // this._conversation.history = messages;
+            
             for (const message of messages) {
                 const sender = message.role === 'user' ? 'User' : 'Chatbot';
                 Zotero.debug(`DeepTutorBox: Processing message from ${sender}`);
