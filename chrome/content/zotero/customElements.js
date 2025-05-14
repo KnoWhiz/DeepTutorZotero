@@ -78,7 +78,8 @@ Services.scriptloader.loadSubScript('chrome://zotero/content/elements/itemTreeMe
 		['deep-tutor-pane', 'chrome://zotero/content/elements/DeepTutorPane.js'],
 		['deep-tutor-box', 'chrome://zotero/content/elements/deepTutorBox.js'],
 		['model-selection', 'chrome://zotero/content/elements/modelSelection.js'],
-		['session-history-box', 'chrome://zotero/content/elements/sessionHistoryBox.js']
+		['session-history-box', 'chrome://zotero/content/elements/sessionHistoryBox.js'],
+		['deep-tutor-button', 'chrome://zotero/content/elements/DeepTutorButton.js']
 	]) {
 		customElements.setElementCreationCallback(tag, () => {
 			Services.scriptloader.loadSubScript(script, window);

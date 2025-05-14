@@ -23,9 +23,115 @@
 	***** END LICENSE BLOCK *****
 */
 
-const React = require('react');
-const ReactDOM = require('react-dom');
-const PropTypes = require('prop-types');
+import React from 'react';
+import ReactDOM from 'react-dom';
+import PropTypes from 'prop-types';
+import ModelSelection from './ModelSelection.js';
+import SessionHistory from './SessionHistory.js';
+
+const logoPath = 'chrome://zotero/content/DeepTutorMaterials/DPTLogo.png';
+
+const styles = {
+	container: {
+		display: 'flex',
+		flexDirection: 'column',
+		height: '100%',
+		width: '100%',
+		background: '#f8f9fa',
+		fontFamily: 'Roboto, Inter, Arial, sans-serif',
+	},
+	top: {
+		display: 'flex',
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'space-between',
+		padding: '6px 8px 3px 8px',
+		minHeight: '64px',
+		background: '#fff',
+		borderBottom: '1px solid #e9ecef',
+	},
+	logo: {
+		height: '32px',
+		width: 'auto',
+		display: 'block',
+	},
+	topRight: {
+		display: 'flex',
+		flexDirection: 'row',
+		gap: '12px',
+	},
+	fillerBox: {
+		width: '40px',
+		height: '20px',
+		background: '#0687E5',
+		borderRadius: '6px',
+	},
+	middle: {
+		flex: 1,
+		display: 'flex',
+		flexDirection: 'column',
+		alignItems: 'center',
+		justifyContent: 'center',
+		position: 'relative',
+		background: '#f8f9fa',
+		minHeight: 0,
+	},
+	paneList: {
+		width: '100%',
+		height: '100%',
+		display: 'flex',
+		flexDirection: 'column',
+		alignItems: 'center',
+		justifyContent: 'center',
+		position: 'relative',
+	},
+	bottom: {
+		display: 'flex',
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'space-between',
+		padding: '18px 32px 24px 32px',
+		background: '#fff',
+		borderTop: '1px solid #e9ecef',
+	},
+	bottomLeft: {
+		display: 'flex',
+		flexDirection: 'column',
+		gap: '8px',
+	},
+	textButton: {
+		background: 'none',
+		border: 'none',
+		color: '#0687E5',
+		fontWeight: 500,
+		fontSize: '1em',
+		fontFamily: 'Roboto, Inter, Arial, sans-serif',
+		cursor: 'pointer',
+		padding: 0,
+		margin: 0,
+		borderBottom: '2px solid #0687E5',
+		width: 'fit-content',
+		textAlign: 'left',
+	},
+	upgradeButton: {
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		height: '33px',
+		minWidth: '33px',
+		padding: '0 18px',
+		background: '#0687E5',
+		border: 'none',
+		borderRadius: '8px',
+		fontWeight: 600,
+		fontSize: '1em',
+		color: '#ffffff',
+		cursor: 'pointer',
+		boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+		transition: 'background 0.2s',
+		fontFamily: 'Roboto, Inter, Arial, sans-serif',
+	},
+};
 
 var DeepTutor = class DeepTutor extends React.Component {
 	/**
@@ -72,6 +178,9 @@ var DeepTutor = class DeepTutor extends React.Component {
 	
 	constructor(props) {
 		super(props);
+		this.state = {
+			currentPane: 'main', // placeholder for pane switching
+		};
 		this._initialized = false;
 		this._selection = null;
 		this._messages = [];
@@ -113,91 +222,75 @@ var DeepTutor = class DeepTutor extends React.Component {
 		this.props.onSwitchComponent(componentId);
 	}
 
+	// Placeholder for pane switching logic
+	switchPane = (pane) => {
+		this.setState({ currentPane: pane });
+	};
+
 	render() {
 		Zotero.debug("DPTDPTDEBUG!! DeepTutor render called");
 		
-		const styles = {
-			container: {
-				display: 'flex',
-				flexDirection: 'column',
-				height: '100%',
-				width: '100%',
-				backgroundColor: '#ffffff'
-			},
-			header: {
-				padding: '10px',
-				borderBottom: '1px solid #ccc',
-				display: 'flex',
-				justifyContent: 'space-between',
-				alignItems: 'center'
-			},
-			content: {
-				flex: 1,
-				overflow: 'auto',
-				padding: '10px'
-			},
-			messageList: {
-				display: 'flex',
-				flexDirection: 'column',
-				gap: '10px'
-			},
-			message: {
-				padding: '10px',
-				borderRadius: '5px',
-				backgroundColor: '#f0f0f0'
-			},
-			button: {
-				padding: '5px 10px',
-				margin: '0 5px',
-				border: '1px solid #ccc',
-				borderRadius: '3px',
-				backgroundColor: '#f8f8f8',
-				cursor: 'pointer'
-			},
-			input: {
-				width: '100%',
-				padding: '5px',
-				margin: '5px 0',
-				border: '1px solid #ccc',
-				borderRadius: '3px'
-			}
-		};
+		const placeholderSessions = [
+			{ id: 1, sessionName: 'Session 1', lastUpdatedTime: new Date().toISOString() },
+			{ id: 2, sessionName: 'Session 2', lastUpdatedTime: new Date(Date.now() - 10000000).toISOString() },
+		];
 
 		return (
 			<div style={styles.container}>
-				<div style={styles.header}>
-					<button style={styles.button} onClick={this.handleNewSession}>
-						New Session
-					</button>
-					<div>
-						<button style={styles.button} onClick={() => this.handleSwitchComponent('chat')}>
-							Chat
-						</button>
-						<button style={styles.button} onClick={() => this.handleSwitchComponent('history')}>
-							History
-						</button>
+				{/* Top Section */}
+				<div style={styles.top}>
+					<img src={logoPath} alt="DeepTutor Logo" style={styles.logo} />
+					<div style={styles.topRight}>
+						<div style={styles.fillerBox}></div>
+						<div style={styles.fillerBox}></div>
 					</div>
 				</div>
-				<div style={styles.content}>
-					{this._messages.length === 0 ? (
-						<div>{this.props.emptyMessage}</div>
-					) : (
-						<div style={styles.messageList}>
-							{this._messages.map((message, index) => (
-								<div key={index} style={styles.message}>
-									{message.text}
-								</div>
-							))}
-						</div>
-					)}
-					<input 
-						type="text" 
-						style={styles.input}
-						placeholder="Type your message..."
-					/>
-					<button style={styles.button} onClick={this.handleSendMessage}>
-						Send
+
+				{/* Temporary Component Button List */}
+				<div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', gap: 12, padding: '8px 0', background: '#f8f9fa', borderBottom: '1px solid #e9ecef' }}>
+					<button
+						style={{ padding: '6px 18px', borderRadius: 6, border: '1px solid #0687E5', background: this.state.currentPane === 'main' ? '#0687E5' : '#fff', color: this.state.currentPane === 'main' ? '#fff' : '#0687E5', fontWeight: 600, cursor: 'pointer', fontFamily: 'Roboto, Inter, Arial, sans-serif' }}
+						onClick={() => this.switchPane('main')}
+					>
+						Main
 					</button>
+					<button
+						style={{ padding: '6px 18px', borderRadius: 6, border: '1px solid #0687E5', background: this.state.currentPane === 'modelSelection' ? '#0687E5' : '#fff', color: this.state.currentPane === 'modelSelection' ? '#fff' : '#0687E5', fontWeight: 600, cursor: 'pointer', fontFamily: 'Roboto, Inter, Arial, sans-serif' }}
+						onClick={() => this.switchPane('modelSelection')}
+					>
+						Model Selection
+					</button>
+					<button
+						style={{ padding: '6px 18px', borderRadius: 6, border: '1px solid #0687E5', background: this.state.currentPane === 'sessionHistory' ? '#0687E5' : '#fff', color: this.state.currentPane === 'sessionHistory' ? '#fff' : '#0687E5', fontWeight: 600, cursor: 'pointer', fontFamily: 'Roboto, Inter, Arial, sans-serif' }}
+						onClick={() => this.switchPane('sessionHistory')}
+					>
+						Session History
+					</button>
+					<button
+						style={{ padding: '6px 18px', borderRadius: 6, border: '1px solid #0687E5', background: this.state.currentPane === 'other' ? '#0687E5' : '#fff', color: this.state.currentPane === 'other' ? '#fff' : '#0687E5', fontWeight: 600, cursor: 'pointer', fontFamily: 'Roboto, Inter, Arial, sans-serif' }}
+						onClick={() => this.switchPane('other')}
+					>
+						Other
+					</button>
+				</div>
+
+				{/* Middle Section: Pane List Holder */}
+				<div style={styles.middle}>
+					<div style={styles.paneList}>
+						{this.state.currentPane === 'main' && <div>Main Pane Placeholder</div>}
+						{this.state.currentPane === 'modelSelection' && <ModelSelection />}
+						{this.state.currentPane === 'sessionHistory' && <SessionHistory sessions={placeholderSessions} onSessionSelect={() => {}} />}
+						{this.state.currentPane === 'other' && <div>Other Pane Placeholder</div>}
+					</div>
+				</div>
+
+				{/* Bottom Section: Utility Buttons */}
+				<div style={styles.bottom}>
+					<div style={styles.bottomLeft}>
+						<button style={styles.textButton}>Feedback</button>
+						<button style={styles.textButton}>Profile</button>
+					</div>
+					<button style={styles.upgradeButton}>Upgrade</button>
 				</div>
 			</div>
 		);
