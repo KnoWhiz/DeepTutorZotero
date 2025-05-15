@@ -28,6 +28,276 @@ import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
 import ModelSelection from './ModelSelection.js';
 import SessionHistory from './SessionHistory.js';
+import DeepTutorChatBox from './DeepTutorChatBox.js';
+
+// Enums
+const SessionStatus = {
+	CREATED: 'CREATED',
+	READY: 'READY',
+	PROCESSING_ERROR: 'PROCESSING_ERROR',
+	FINAL_PROCESSING_ERROR: 'FINAL_PROCESSING_ERROR',
+	PROCESSING: 'PROCESSING',
+	DELETED: 'DELETED'
+};
+
+const SessionType = {
+	LITE: 'LITE',
+	BASIC: 'BASIC',
+	ADVANCED: 'ADVANCED'
+};
+
+const ContentType = {
+	THINK: 'THINK',
+	TEXT: 'TEXT',
+	IMAGE: 'IMAGE',
+	AUDIO: 'AUDIO'
+};
+
+const MessageStatus = {
+	UNVIEW: 'UNVIEW',
+	DELETED: 'DELETED',
+	VIEWED: 'VIEWED',
+	PROCESSING_ERROR: 'PROCESSING_ERROR'
+};
+
+const MessageRole = {
+	TUTOR: 'TUTOR',
+	USER: 'USER'
+};
+
+// Utility Classes
+class SessionStatusEvent {
+	constructor(effectiveTime, status) {
+		this.effectiveTime = effectiveTime;
+		this.status = status;
+	}
+}
+
+class PresignedUrl {
+	constructor(preSignedUrl, preSignedReadUrl) {
+		this.preSignedUrl = preSignedUrl;
+		this.preSignedReadUrl = preSignedReadUrl;
+	}
+}
+
+class FileDocumentMap {
+	constructor() {
+		this._map = new Map(); // Maps file name to document ID
+		this._reverseMap = new Map(); // Maps document ID to file name
+		this._fileIdMap = new Map(); // Maps document ID to original file ID
+		this._preSignedUrlDataMap = new Map(); // Maps document ID to preSignedUrlData
+	}
+
+	addMapping(fileName, documentId, fileId, preSignedUrlData) {
+		this._map.set(fileName, documentId);
+		this._reverseMap.set(documentId, fileName);
+		this._fileIdMap.set(documentId, fileId);
+		if (preSignedUrlData) {
+			this._preSignedUrlDataMap.set(documentId, preSignedUrlData);
+		}
+	}
+
+	getDocumentId(fileName) {
+		return this._map.get(fileName);
+	}
+
+	getFileName(documentId) {
+		return this._reverseMap.get(documentId);
+	}
+
+	getFileId(documentId) {
+		return this._fileIdMap.get(documentId);
+	}
+
+	getAllDocumentIds() {
+		return Array.from(this._map.values());
+	}
+
+	getAllFileNames() {
+		return Array.from(this._map.keys());
+	}
+
+	hasFile(fileName) {
+		return this._map.has(fileName);
+	}
+
+	hasDocument(documentId) {
+		return this._reverseMap.has(documentId);
+	}
+
+	removeMapping(fileName) {
+		const documentId = this._map.get(fileName);
+		if (documentId) {
+			this._map.delete(fileName);
+			this._reverseMap.delete(documentId);
+			this._fileIdMap.delete(documentId);
+		}
+	}
+
+	clear() {
+		this._map.clear();
+		this._reverseMap.clear();
+		this._fileIdMap.clear();
+	}
+
+	toJSON() {
+		return {
+			fileToDocument: Object.fromEntries(this._map),
+			documentToFile: Object.fromEntries(this._reverseMap),
+			documentToFileId: Object.fromEntries(this._fileIdMap),
+			documentToPreSignedUrlData: Object.fromEntries(this._preSignedUrlDataMap)
+		};
+	}
+}
+
+class Message {
+	constructor({
+		id = null,
+		parentMessageId = null,
+		userId = null,
+		sessionId = null,
+		subMessages = [],
+		followUpQuestions = [],
+		creationTime = new Date().toISOString(),
+		lastUpdatedTime = new Date().toISOString(),
+		status = MessageStatus.UNVIEW,
+		role = MessageRole.USER
+	} = {}) {
+		this.id = null;  // Always set id to null
+		this.parentMessageId = parentMessageId;
+		this.userId = userId;
+		this.sessionId = sessionId;
+		this.subMessages = subMessages;
+		this.followUpQuestions = followUpQuestions;
+		this.creationTime = creationTime;
+		this.lastUpdatedTime = lastUpdatedTime;
+		this.status = status;
+		this.role = role;
+	}
+}
+
+class SubMessage {
+	constructor({
+		text = null,
+		image = null,
+		audio = null,
+		contentType = ContentType.TEXT,
+		creationTime = new Date().toISOString(),
+		sources = []
+	} = {}) {
+		this.text = text;
+		this.image = image;
+		this.audio = audio;
+		this.contentType = contentType;
+		this.creationTime = creationTime;
+		this.sources = sources;
+	}
+}
+
+class MessageSource {
+	constructor({
+		index = 0,
+		page = 0,
+		referenceString = ""
+	} = {}) {
+		this.index = index;
+		this.page = page;
+		this.referenceString = referenceString;
+	}
+}
+
+class Conversation {
+	constructor({
+		userId = null,
+		sessionId = null,
+		ragSessionId = null,
+		storagePaths = [],
+		history = [],
+		message = null,
+		streaming = false,
+		type = SessionType.BASIC
+	} = {}) {
+		this.userId = userId;
+		this.sessionId = sessionId;
+		this.ragSessionId = ragSessionId;
+		this.storagePaths = storagePaths;
+		this.history = history;
+		this.message = message;
+		this.streaming = streaming;
+		this.type = type;
+	}
+}
+
+class DeepTutorSession {
+	constructor({
+		id = null,
+		userId = 1234,
+		sessionName = new Date().toISOString(),
+		creationTime = new Date().toISOString(),
+		lastUpdatedTime = new Date().toISOString(),
+		type = SessionType.BASIC,
+		status = SessionStatus.CREATED,
+		statusTimeline = [],
+		documentIds = [],
+		generateHash = null
+	} = {}) {
+		this.id = id;
+		this.userId = userId;
+		this.sessionName = sessionName;
+		this.creationTime = creationTime;
+		this.lastUpdatedTime = lastUpdatedTime;
+		this.type = type;
+		this.status = status;
+		this.statusTimeline = statusTimeline;
+		this.documentIds = documentIds;
+		this.generateHash = generateHash;
+	}
+
+	update() {
+		this.lastUpdatedTime = new Date().toISOString();
+	}
+
+	toJSON() {
+		return {
+			id: this.id,
+			userId: this.userId,
+			sessionName: this.sessionName,
+			creationTime: this.creationTime,
+			lastUpdatedTime: this.lastUpdatedTime,
+			type: this.type,
+			status: this.status,
+			statusTimeline: this.statusTimeline,
+			documentIds: this.documentIds,
+			generateHash: this.generateHash
+		};
+	}
+}
+
+class DeepTutorMessage {
+	constructor({ 
+		id = null, 
+		parentMessageId = null, 
+		userId = null, 
+		sessionId = null, 
+		subMessages = [], 
+		followUpQuestions = [], 
+		creationTime = new Date().toISOString(), 
+		lastUpdatedTime = new Date().toISOString(), 
+		status = 'active', 
+		role = 'user' 
+	} = {}) {
+		this.id = id;
+		this.parentMessageId = parentMessageId;
+		this.userId = userId;
+		this.sessionId = sessionId;
+		this.subMessages = subMessages;
+		this.followUpQuestions = followUpQuestions;
+		this.creationTime = creationTime;
+		this.lastUpdatedTime = lastUpdatedTime;
+		this.status = status;
+		this.role = role;
+	}
+}
 
 const logoPath = 'chrome://zotero/content/DeepTutorMaterials/DPTLogo.png';
 
@@ -75,6 +345,7 @@ const styles = {
 		position: 'relative',
 		background: '#f8f9fa',
 		minHeight: 0,
+		width: '100%',
 	},
 	paneList: {
 		width: '100%',
@@ -84,6 +355,7 @@ const styles = {
 		alignItems: 'center',
 		justifyContent: 'center',
 		position: 'relative',
+		padding: '0 16px',
 	},
 	bottom: {
 		display: 'flex',
@@ -179,7 +451,11 @@ var DeepTutor = class DeepTutor extends React.Component {
 	constructor(props) {
 		super(props);
 		this.state = {
-			currentPane: 'main', // placeholder for pane switching
+			currentPane: 'main',
+			sessions: [],
+			sesNamToObj: new Map(), // Map to store session name to session object mapping
+			isLoading: false,
+			error: null
 		};
 		this._initialized = false;
 		this._selection = null;
@@ -193,7 +469,9 @@ var DeepTutor = class DeepTutor extends React.Component {
 	componentDidMount() {
 		this._initialized = true;
 		this._loadingPromiseResolve();
-		Zotero.debug("DPTDPTDEBUG!! DeepTutor component mounted");
+		Zotero.debug("DeepTutor: Component mounted");
+		// Load sessions when component mounts
+		this.loadSession();
 	}
 
 	waitForLoad() {
@@ -227,14 +505,147 @@ var DeepTutor = class DeepTutor extends React.Component {
 		this.setState({ currentPane: pane });
 	};
 
-	render() {
-		Zotero.debug("DPTDPTDEBUG!! DeepTutor render called");
-		
-		const placeholderSessions = [
-			{ id: 1, sessionName: 'Session 1', lastUpdatedTime: new Date().toISOString() },
-			{ id: 2, sessionName: 'Session 2', lastUpdatedTime: new Date(Date.now() - 10000000).toISOString() },
-		];
+	async loadSession() {
+		try {
+			this.setState({ isLoading: true, error: null });
+			Zotero.debug("DeepTutor: Loading sessions...");
 
+			// Fetch user data using Zotero.HTTP.request
+			const userResponse = await Zotero.HTTP.request(
+				'GET',
+				'https://api.staging.deeptutor.knowhiz.us/api/users/byUserId/67f5b836cb8bb15b67a1149e',
+				{
+					headers: {
+						'Content-Type': 'application/json'
+					}
+				}
+			);
+			
+			if (userResponse.status !== 200) {
+				Zotero.debug(`DeepTutorPane: Failed to fetch user data. Status: ${userResponse.status}, StatusText: ${userResponse.statusText}`);
+				throw new Error(`Failed to fetch user: ${userResponse.status} ${userResponse.statusText}`);
+			}
+			
+			const userData = JSON.parse(userResponse.responseText);
+
+			// Fetch sessions using Zotero.HTTP.request
+			const response = await Zotero.HTTP.request(
+				'GET',
+				`https://api.staging.deeptutor.knowhiz.us/api/session/byUser/${userData.id}`,
+				{
+					headers: {
+						'Content-Type': 'application/json'
+					}
+				}
+			);
+
+			if (response.status !== 200) {
+				throw new Error(`Failed to fetch sessions: ${response.status}`);
+			}
+
+			const sessionsData = JSON.parse(response.responseText);
+			Zotero.debug(`DeepTutor: Fetched ${sessionsData.length} sessions`);
+
+			// Convert API data to DeepTutorSession objects
+			const sessions = sessionsData.map(sessionData => new DeepTutorSession(sessionData));
+
+			// Update session name to object mapping
+			const sesNamToObj = new Map();
+			sessions.forEach(session => {
+				sesNamToObj.set(session.sessionName, session);
+			});
+
+			// Update state with new sessions
+			this.setState({ 
+				sessions,
+				sesNamToObj,
+				isLoading: false
+			});
+
+			// If no sessions, switch to model selection pane
+			if (sessions.length === 0) {
+				this.switchPane('modelSelection');
+			} else {
+				// If sessions exist, switch to main pane
+				this.switchPane('main');
+			}
+
+			Zotero.debug(`DeepTutor: Successfully loaded ${sessions.length} sessions`);
+		} catch (error) {
+			Zotero.debug(`DeepTutor: Error loading sessions: ${error.message}`);
+			this.setState({ 
+				error: error.message,
+				isLoading: false
+			});
+		}
+	}
+
+	handleSessionSelect = async (sessionName) => {
+		try {
+			const session = this.state.sesNamToObj.get(sessionName);
+			if (!session) {
+				Zotero.debug(`DeepTutor: No session object found for: ${sessionName}`);
+				return;
+			}
+
+			Zotero.debug(`DeepTutor: Fetching messages for session: ${sessionName}`);
+			try {
+				const response = await Zotero.HTTP.request(
+					'GET',
+					`https://api.staging.deeptutor.knowhiz.us/api/message/bySession/${session.id}`,
+					{
+						headers: {
+							'Content-Type': 'application/json'
+						}
+					}
+				);
+
+				if (response.status !== 200) {
+					throw new Error(`Failed to fetch messages: ${response.status} ${response.statusText}`);
+				}
+
+				const messages = JSON.parse(response.responseText);
+				Zotero.debug(`DeepTutor: Successfully fetched ${messages.length} messages`);
+				Zotero.debug(`DeepTutor: Messages content: ${JSON.stringify(messages)}`);
+
+				// Update state with current session and messages
+				this.setState({
+					currentSession: session,
+					messages: messages,
+					documentIds: session.documentIds || []
+				});
+
+				// Switch to main pane
+				this.switchPane('main');
+
+				// Update DeepTutorChatBox through props
+				if (session.id) {
+					// Update session ID through props
+					if (this.props.onSessionIdUpdate) {
+						this.props.onSessionIdUpdate(session.id);
+						Zotero.debug(`DeepTutor: Updated session ID to ${session.id}`);
+					}
+
+					// Update user ID through props
+					if (session.userId && this.props.onUserIdUpdate) {
+						this.props.onUserIdUpdate(session.userId);
+						Zotero.debug(`DeepTutor: Updated user ID to ${session.userId}`);
+					}
+				}
+
+				Zotero.debug(`DeepTutor: Messages loaded successfully`);
+
+			} catch (error) {
+				Zotero.debug(`DeepTutor: Error in fetching messages: ${error.message}`);
+			}
+		} catch (error) {
+			Zotero.debug(`DeepTutor: Error in handleSessionSelect: ${error.message}`);
+		}
+	}
+
+	render() {
+		Zotero.debug("DeepTutor: Render called");
+		
 		return (
 			<div style={styles.container}>
 				{/* Top Section */}
@@ -247,27 +658,90 @@ var DeepTutor = class DeepTutor extends React.Component {
 				</div>
 
 				{/* Temporary Component Button List */}
-				<div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', gap: 12, padding: '8px 0', background: '#f8f9fa', borderBottom: '1px solid #e9ecef' }}>
+				<div style={{ 
+					display: 'flex', 
+					flexDirection: 'row', 
+					justifyContent: 'flex-start', 
+					gap: 12, 
+					padding: '8px 16px', 
+					background: '#f8f9fa', 
+					borderBottom: '1px solid #e9ecef',
+					overflowX: 'auto',
+					overflowY: 'hidden',
+					whiteSpace: 'nowrap',
+					scrollbarWidth: 'thin',
+					scrollbarColor: '#0687E5 #f8f9fa',
+					'&::-webkit-scrollbar': {
+						height: '6px',
+					},
+					'&::-webkit-scrollbar-track': {
+						background: '#f8f9fa',
+					},
+					'&::-webkit-scrollbar-thumb': {
+						background: '#0687E5',
+						borderRadius: '3px',
+					}
+				}}>
 					<button
-						style={{ padding: '6px 18px', borderRadius: 6, border: '1px solid #0687E5', background: this.state.currentPane === 'main' ? '#0687E5' : '#fff', color: this.state.currentPane === 'main' ? '#fff' : '#0687E5', fontWeight: 600, cursor: 'pointer', fontFamily: 'Roboto, Inter, Arial, sans-serif' }}
+						style={{ 
+							padding: '6px 18px', 
+							borderRadius: 6, 
+							border: '1px solid #0687E5', 
+							background: this.state.currentPane === 'main' ? '#0687E5' : '#fff', 
+							color: this.state.currentPane === 'main' ? '#fff' : '#0687E5', 
+							fontWeight: 600, 
+							cursor: 'pointer', 
+							fontFamily: 'Roboto, Inter, Arial, sans-serif',
+							flexShrink: 0
+						}}
 						onClick={() => this.switchPane('main')}
 					>
 						Main
 					</button>
 					<button
-						style={{ padding: '6px 18px', borderRadius: 6, border: '1px solid #0687E5', background: this.state.currentPane === 'modelSelection' ? '#0687E5' : '#fff', color: this.state.currentPane === 'modelSelection' ? '#fff' : '#0687E5', fontWeight: 600, cursor: 'pointer', fontFamily: 'Roboto, Inter, Arial, sans-serif' }}
+						style={{ 
+							padding: '6px 18px', 
+							borderRadius: 6, 
+							border: '1px solid #0687E5', 
+							background: this.state.currentPane === 'modelSelection' ? '#0687E5' : '#fff', 
+							color: this.state.currentPane === 'modelSelection' ? '#fff' : '#0687E5', 
+							fontWeight: 600, 
+							cursor: 'pointer', 
+							fontFamily: 'Roboto, Inter, Arial, sans-serif',
+							flexShrink: 0
+						}}
 						onClick={() => this.switchPane('modelSelection')}
 					>
 						Model Selection
 					</button>
 					<button
-						style={{ padding: '6px 18px', borderRadius: 6, border: '1px solid #0687E5', background: this.state.currentPane === 'sessionHistory' ? '#0687E5' : '#fff', color: this.state.currentPane === 'sessionHistory' ? '#fff' : '#0687E5', fontWeight: 600, cursor: 'pointer', fontFamily: 'Roboto, Inter, Arial, sans-serif' }}
+						style={{ 
+							padding: '6px 18px', 
+							borderRadius: 6, 
+							border: '1px solid #0687E5', 
+							background: this.state.currentPane === 'sessionHistory' ? '#0687E5' : '#fff', 
+							color: this.state.currentPane === 'sessionHistory' ? '#fff' : '#0687E5', 
+							fontWeight: 600, 
+							cursor: 'pointer', 
+							fontFamily: 'Roboto, Inter, Arial, sans-serif',
+							flexShrink: 0
+						}}
 						onClick={() => this.switchPane('sessionHistory')}
 					>
 						Session History
 					</button>
 					<button
-						style={{ padding: '6px 18px', borderRadius: 6, border: '1px solid #0687E5', background: this.state.currentPane === 'other' ? '#0687E5' : '#fff', color: this.state.currentPane === 'other' ? '#fff' : '#0687E5', fontWeight: 600, cursor: 'pointer', fontFamily: 'Roboto, Inter, Arial, sans-serif' }}
+						style={{ 
+							padding: '6px 18px', 
+							borderRadius: 6, 
+							border: '1px solid #0687E5', 
+							background: this.state.currentPane === 'other' ? '#0687E5' : '#fff', 
+							color: this.state.currentPane === 'other' ? '#fff' : '#0687E5', 
+							fontWeight: 600, 
+							cursor: 'pointer', 
+							fontFamily: 'Roboto, Inter, Arial, sans-serif',
+							flexShrink: 0
+						}}
 						onClick={() => this.switchPane('other')}
 					>
 						Other
@@ -277,9 +751,27 @@ var DeepTutor = class DeepTutor extends React.Component {
 				{/* Middle Section: Pane List Holder */}
 				<div style={styles.middle}>
 					<div style={styles.paneList}>
-						{this.state.currentPane === 'main' && <div>Main Pane Placeholder</div>}
+						{this.state.currentPane === 'main' && <DeepTutorChatBox 
+							ref={ref => this._tutorBox = ref}
+							onSessionIdUpdate={(sessionId) => {
+								Zotero.debug(`DeepTutor: Session ID updated to ${sessionId}`);
+							}}
+							onUserIdUpdate={(userId) => {
+								Zotero.debug(`DeepTutor: User ID updated to ${userId}`);
+							}}
+							messages={this.state.messages}
+							documentIds={this.state.documentIds}
+							currentSession={this.state.currentSession}
+						/>}
 						{this.state.currentPane === 'modelSelection' && <ModelSelection />}
-						{this.state.currentPane === 'sessionHistory' && <SessionHistory sessions={placeholderSessions} onSessionSelect={() => {}} />}
+						{this.state.currentPane === 'sessionHistory' && 
+							<SessionHistory 
+								sessions={this.state.sessions} 
+								onSessionSelect={this.handleSessionSelect}
+								isLoading={this.state.isLoading}
+								error={this.state.error}
+							/>
+						}
 						{this.state.currentPane === 'other' && <div>Other Pane Placeholder</div>}
 					</div>
 				</div>

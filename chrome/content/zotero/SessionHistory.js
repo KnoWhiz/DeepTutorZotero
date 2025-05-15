@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 
 const containerStyle = {
   padding: 16,
@@ -6,6 +7,7 @@ const containerStyle = {
   borderRadius: 8,
   boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
   height: '100%',
+  width: '85%',
   display: 'flex',
   flexDirection: 'column',
   fontFamily: 'Roboto, Inter, Arial, sans-serif',
@@ -58,13 +60,47 @@ const sessionButtonStyle = {
   transition: 'background-color 0.2s',
 };
 
-function SessionHistory({ sessions = [], onSessionSelect }) {
+const loadingStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  height: '100%',
+  color: '#666',
+  fontSize: 14,
+};
+
+const errorStyle = {
+  color: '#dc3545',
+  padding: 12,
+  background: '#fff',
+  borderRadius: 6,
+  margin: '8px 0',
+  fontSize: 13,
+};
+
+function SessionHistory({ sessions = [], onSessionSelect, isLoading = false, error = null }) {
   const [search, setSearch] = useState('');
 
   // Filter and sort sessions
   const filteredSessions = sessions
     .filter(s => !search || (s.sessionName || '').toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => new Date(b.lastUpdatedTime || 0) - new Date(a.lastUpdatedTime || 0));
+
+  if (isLoading) {
+    return (
+      <div style={containerStyle}>
+        <div style={loadingStyle}>Loading sessions...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={containerStyle}>
+        <div style={errorStyle}>Error: {error}</div>
+      </div>
+    );
+  }
 
   return (
     <div style={containerStyle}>
@@ -96,5 +132,16 @@ function SessionHistory({ sessions = [], onSessionSelect }) {
     </div>
   );
 }
+
+SessionHistory.propTypes = {
+  sessions: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.string,
+    sessionName: PropTypes.string,
+    lastUpdatedTime: PropTypes.string
+  })),
+  onSessionSelect: PropTypes.func,
+  isLoading: PropTypes.bool,
+  error: PropTypes.string
+};
 
 export default SessionHistory;
