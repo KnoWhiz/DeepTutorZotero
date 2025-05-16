@@ -302,15 +302,13 @@ const DeepTutorChatBox = ({
             Zotero.debug(`DeepTutorChatBox: Created user message: ${JSON.stringify(userMessage)}`);
 
             // Add user message to state and append to chatbox
-            setMessages(prev => [...prev, userMessage]);
             await _appendMessage("You", userMessage);
             setLatestMessageId(userMessage.id);
             setInputValue('');
 
-            // Update conversation
+            // Update conversation with only the new message
             setConversation(prev => ({
                 ...prev,
-                history: [...prev.history, userMessage],
                 message: userMessage
             }));
 
@@ -318,14 +316,12 @@ const DeepTutorChatBox = ({
             const response = await sendToAPI(userMessage);
             
             // Add bot response to messages and append to chatbox
-            setMessages(prev => [...prev, response]);
             await _appendMessage("DeepTutor", response);
             setLatestMessageId(response.id);
 
-            // Update conversation
+            // Update conversation with only the new response
             setConversation(prev => ({
                 ...prev,
-                history: [...prev.history, response],
                 message: response
             }));
 
@@ -353,7 +349,6 @@ const DeepTutorChatBox = ({
                 lastUpdatedTime: new Date().toISOString(),
                 status: MessageStatus.PROCESSING_ERROR
             };
-            setMessages(prev => [...prev, errorMessage]);
             await _appendMessage("DeepTutor", errorMessage);
         }
     };
@@ -402,32 +397,43 @@ const DeepTutorChatBox = ({
             Zotero.debug(`DeepTutorChatBox: API response for input message: ${JSON.stringify(responseData)}`);
             
             // Update conversation with response
+            Zotero.debug(`DeepTutorChatBox: Updating conversation state with response data includingg userId: ${userId}, sessionId: ${sessionId}, documentIds: ${documentIds}`);
             setConversation(prev => ({
                 ...prev,
-                message: responseData
+                userId: userId,
+                sessionId: sessionId,
+                documentIds: documentIds,
+                history: [...prev.history, responseData],
+                message: responseData,
+                streaming: true,
+                type: SessionType.BASIC
             }));
+            Zotero.debug(`DeepTutorChatBox: Conversation state updated successfully`);
 
             // Subscribe to chat stream
             Zotero.debug(`DeepTutorChatBox: Sending API request to: https://api.staging.deeptutor.knowhiz.us/api/chat/subscribe`);
             Zotero.debug(`DeepTutorChatBox: Request body: ${JSON.stringify(conversation)}`);
 
-            const streamResponse = await Zotero.HTTP.request(
-                'POST',
-                'https://api.staging.deeptutor.knowhiz.us/api/chat/subscribe',
-                {
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(conversation)
-                }
-            );
+            Zotero.debug(`XXXXXXXXXX DeepTutorChatBox: Attempting to use fetch for stream subscription`);
+            const streamResponse = await window.fetch('https://api.staging.deeptutor.knowhiz.us/api/chat/subscribe', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'text/event-stream'
+                },
+                body: JSON.stringify(conversation)
+            });
 
-            if (streamResponse.status !== 200) {
+            if (!streamResponse.ok) {
                 throw new Error(`Stream request failed: ${streamResponse.status}`);
             }
 
+            Zotero.debug(`XXXXXXXXXX DeepTutorChatBox: Starting stream processing with response status: ${streamResponse.status}`);
+            Zotero.debug(`XXXXXXXXXX DeepTutorChatBox: Checking streamResponse.body: ${streamResponse.body ? 'exists' : 'null'}`);
             const reader = streamResponse.body.getReader();
+            Zotero.debug(`XXXXXXXXXX DeepTutorChatBox: Reader object created: ${reader ? 'success' : 'failed'}`);
             const decoder = new TextDecoder();
+            Zotero.debug(`XXXXXXXXXX DeepTutorChatBox: Decoder object created: ${decoder ? 'success' : 'failed'}`);
             let streamText = "";
 
             while (true) {
@@ -515,6 +521,14 @@ const DeepTutorChatBox = ({
 
     const loadMessages = async (newMessages, newDocumentIds, sessionObj) => {
         Zotero.debug(`DeepTutorChatBox: Loading ${newMessages.length} messages with ${newDocumentIds?.length || 0} document IDs`);
+        
+        // Update session and user IDs early
+        if (sessionObj) {
+            Zotero.debug(`DeepTutorChatBox: Setting session ID to ${sessionObj.id} and user ID to ${sessionObj.userId}`);
+            setSessionId(sessionObj.id);
+            setUserId(sessionObj.userId);
+        }
+
         setDocumentIds(newDocumentIds || []);
         setCurDocumentFiles([]);
         setCurSessionObj(sessionObj);
@@ -555,6 +569,8 @@ const DeepTutorChatBox = ({
         // Update conversation state
         setConversation(prev => ({
             ...prev,
+            userId: sessionObj?.userId || null,
+            sessionId: sessionObj?.id || null,
             documentIds: newDocumentFiles.map(doc => doc.fileId),
             storagePaths: newDocumentFiles.map(doc => doc.storagePath),
             history: [] // Will be populated by _appendMessage
@@ -565,9 +581,7 @@ const DeepTutorChatBox = ({
 
         // Process and append each message
         if (newMessages.length > 0) {
-            setSessionId(newMessages[0].sessionId);
             setLatestMessageId(newMessages[newMessages.length - 1].id);
-            Zotero.debug(`DeepTutorChatBox: Session ID set to ${newMessages[0].sessionId} from loaded messages`);
             Zotero.debug(`DeepTutorChatBox: Latest message ID set to ${newMessages[newMessages.length - 1].id}`);
 
             // Append each message using _appendMessage
@@ -638,13 +652,13 @@ const DeepTutorChatBox = ({
                 }))
             };
 
-            // Update messages state with the new message
-            setMessages(prevMessages => [...prevMessages, processedMessage]);
+            // Update messages state with only the new message
+            setMessages(prev => [...prev, processedMessage]);
             
-            // Update conversation history
+            // Update conversation with only the new message
             setConversation(prev => ({
                 ...prev,
-                history: [...prev.history, processedMessage]
+                message: processedMessage
             }));
 
             // Scroll to bottom after message is added
@@ -705,6 +719,50 @@ const DeepTutorChatBox = ({
             } else {
                 Zotero.debug(`DeepTutorChatBox: No matching highlight found for page ${source.page}`);
             }
+        }
+    };
+
+    const handleQuestionClick = async (question) => {
+        // Set the input value to the question
+        setInputValue(question);
+        // Trigger send
+        await handleSend();
+        // Clear the input
+        setInputValue('');
+    };
+
+    const onNewSession = async (newSession) => {
+        try {
+            // Update userId and sessionId
+            setUserId(newSession.userId);
+            setSessionId(newSession.id);
+
+            // Create initial message
+            const initialMessage = {
+                id: null,
+                parentMessageId: null,
+                userId: newSession.userId,
+                sessionId: newSession.id,
+                subMessages: [{
+                    text: "Can you give me a summary of this document?",
+                    image: null,
+                    audio: null,
+                    contentType: ContentType.TEXT,
+                    creationTime: new Date().toISOString(),
+                    sources: []
+                }],
+                followUpQuestions: [],
+                creationTime: new Date().toISOString(),
+                lastUpdatedTime: new Date().toISOString(),
+                status: MessageStatus.UNVIEW,
+                role: MessageRole.USER
+            };
+
+            // Send initial message using existing sendToAPI function
+            await sendToAPI(initialMessage);
+
+        } catch (error) {
+            Zotero.debug(`DeepTutorChatBox: Error in onNewSession: ${error.message}`);
         }
     };
 

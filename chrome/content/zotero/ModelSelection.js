@@ -1,5 +1,22 @@
 import React, { useState } from 'react';
 
+// Session Status Enum
+const SessionStatus = {
+    CREATED: 'CREATED',
+    READY: 'READY',
+    PROCESSING_ERROR: 'PROCESSING_ERROR',
+    FINAL_PROCESSING_ERROR: 'FINAL_PROCESSING_ERROR',
+    PROCESSING: 'PROCESSING',
+    DELETED: 'DELETED'
+};
+
+// Session Type Enum
+const SessionType = {
+    LITE: 'LITE',
+    BASIC: 'BASIC',
+    ADVANCED: 'ADVANCED'
+};
+
 const buttonStyle = {
   background: '#2c25ac',
   color: '#fff',
@@ -74,9 +91,117 @@ function ModelSelection({ onSubmit }) {
     setSelectedType(type);
   };
 
-  const handleSubmit = () => {
-    if (onSubmit) {
-      onSubmit({ fileList, name: modelName, type: selectedType });
+  const handleSubmit = async () => {
+    if (!modelName.trim()) {
+      // Add error handling for empty model name
+      return;
+    }
+
+    try {
+      // Get user ID from API
+      const userResponse = await window.fetch('https://api.staging.deeptutor.knowhiz.us/api/users/byUserId/67f5b836cb8bb15b67a1149e', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!userResponse.ok) {
+        throw new Error(`Failed to fetch user: ${userResponse.status} ${userResponse.statusText}`);
+      }
+      
+      const userData = await userResponse.json();
+      console.log('Fetched user data:', userData);
+
+      // Handle file uploads if fileList exists
+      const uploadedDocumentIds = [];
+      if (fileList.length > 0) {
+        for (const file of fileList) {
+          try {
+            const fileName = file.name;
+            console.log('Processing file:', fileName);
+
+            // 1. Get pre-signed URL for the file
+            const preSignedUrlResponse = await window.fetch(
+              `https://api.staging.deeptutor.knowhiz.us/api/document/preSignedUrl/${userData.id}/${fileName}`,
+              {
+                method: 'GET',
+                headers: {
+                  'Content-Type': 'application/json'
+                }
+              }
+            );
+
+            if (!preSignedUrlResponse.ok) {
+              throw new Error(`Failed to get pre-signed URL: ${preSignedUrlResponse.status}`);
+            }
+
+            const preSignedUrlData = await preSignedUrlResponse.json();
+            console.log('Got pre-signed URL:', preSignedUrlData);
+
+            // 2. Upload file to Azure Blob Storage
+            const uploadResponse = await window.fetch(preSignedUrlData.preSignedUrl, {
+              method: 'PUT',
+              headers: {
+                'x-ms-blob-type': 'BlockBlob',
+                'Content-Type': 'application/pdf'
+              },
+              body: file
+            });
+
+            if (!uploadResponse.ok) {
+              throw new Error(`Failed to upload file: ${uploadResponse.status}`);
+            }
+
+            console.log('File uploaded successfully:', fileName);
+            uploadedDocumentIds.push(preSignedUrlData.documentId);
+            
+          } catch (fileError) {
+            console.error('Error uploading file:', fileError);
+            continue;
+          }
+        }
+      }
+
+      // Create session data
+      const sessionData = {
+        userId: userData.id,
+        sessionName: modelName || "New Session",
+        type: SessionType.BASIC,
+        status: SessionStatus.CREATED,
+        documentIds: uploadedDocumentIds,
+        creationTime: new Date().toISOString(),
+        lastUpdatedTime: new Date().toISOString(),
+        statusTimeline: [],
+        generateHash: null
+      };
+
+      Zotero.debug(`ModelSelection: Creating session with data: ${JSON.stringify(sessionData, null, 2)}`);
+
+      // Create session with uploaded files
+      const sessionResponse = await window.fetch('https://api.staging.deeptutor.knowhiz.us/api/session/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(sessionData)
+      });
+
+      if (!sessionResponse.ok) {
+        throw new Error(`Failed to create session: ${sessionResponse.status} ${sessionResponse.statusText}`);
+      }
+
+      const createdSession = await sessionResponse.json();
+      console.log('Session created successfully:', createdSession);
+
+      // Call onSubmit with the session ID
+      if (onSubmit) {
+        onSubmit(createdSession.id);
+      }
+
+    } catch (error) {
+      console.error('Error creating session:', error);
+      // Add error handling UI feedback here
     }
   };
 

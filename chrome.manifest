@@ -66,6 +66,3 @@ skin		zotero	default		chrome/skin/default/zotero/
 content scaffold             chrome/content/scaffold/
 locale  scaffold   en-US     chrome/locale/en-US/scaffold/
 skin    scaffold   default   chrome/skin/default/scaffold/
-
-# DPTLogo
-content zotero-DeepTutorMaterials chrome/content/zotero/DeepTutorMaterials/

@@ -763,7 +763,49 @@ var DeepTutor = class DeepTutor extends React.Component {
 							documentIds={this.state.documentIds}
 							currentSession={this.state.currentSession}
 						/>}
-						{this.state.currentPane === 'modelSelection' && <ModelSelection />}
+						{this.state.currentPane === 'modelSelection' && 
+							<ModelSelection 
+								onSubmit={async (sessionId) => {
+									try {
+										// Fetch session details
+										const response = await Zotero.HTTP.request(
+											'GET',
+											`https://api.staging.deeptutor.knowhiz.us/api/session/${sessionId}`,
+											{
+												headers: {
+													'Content-Type': 'application/json'
+												}
+											}
+										);
+
+										if (response.status !== 200) {
+											throw new Error(`Failed to fetch session: ${response.status}`);
+										}
+
+										const sessionData = JSON.parse(response.responseText);
+										const session = new DeepTutorSession(sessionData);
+
+										// Update state with new session
+										this.setState({
+											currentSession: session,
+											messages: [],
+											documentIds: session.documentIds || []
+										});
+
+										// Switch to main pane
+										this.switchPane('main');
+
+										// Call onNewSession on the tutor box
+										if (this._tutorBox) {
+											await this._tutorBox.onNewSession(session);
+										}
+
+									} catch (error) {
+										Zotero.debug(`DeepTutor: Error handling new session: ${error.message}`);
+									}
+								}}
+							/>
+						}
 						{this.state.currentPane === 'sessionHistory' && 
 							<SessionHistory 
 								sessions={this.state.sessions} 
