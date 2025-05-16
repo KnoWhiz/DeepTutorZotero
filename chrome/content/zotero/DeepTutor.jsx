@@ -300,6 +300,10 @@ class DeepTutorMessage {
 }
 
 const logoPath = 'chrome://zotero/content/DeepTutorMaterials/DPTLogo.png';
+const HistoryIconPath = 'chrome://zotero/content/DeepTutorMaterials/History.png';
+const PlusIconPath = 'chrome://zotero/content/DeepTutorMaterials/Plus.png';
+const FeedIconPath = 'chrome://zotero/content/DeepTutorMaterials/Feedback.png';
+const PersonIconPath = 'chrome://zotero/content/DeepTutorMaterials/Person.png';
 
 const styles = {
 	container: {
@@ -330,11 +334,26 @@ const styles = {
 		flexDirection: 'row',
 		gap: '12px',
 	},
-	fillerBox: {
+	iconButton: {
 		width: '40px',
-		height: '20px',
-		background: '#0687E5',
+		height: '40px',
+		background: '#F8F6F7',
+		border: 'none',
 		borderRadius: '6px',
+		cursor: 'pointer',
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		transition: 'background-color 0.2s ease',
+		padding: '8px',
+	},
+	iconButtonActive: {
+		background: '#D9D9D9',
+	},
+	iconImage: {
+		width: '24px',
+		height: '24px',
+		objectFit: 'contain',
 	},
 	middle: {
 		flex: 1,
@@ -372,18 +391,30 @@ const styles = {
 		gap: '8px',
 	},
 	textButton: {
-		background: 'none',
+		background: '#F8F6F7',
 		border: 'none',
 		color: '#0687E5',
 		fontWeight: 500,
 		fontSize: '1em',
-		fontFamily: 'Roboto, Inter, Arial, sans-serif',
+		fontFamily: 'Roboto, sans-serif',
 		cursor: 'pointer',
-		padding: 0,
+		padding: '4px 8px',
 		margin: 0,
-		borderBottom: '2px solid #0687E5',
+		borderRadius: '4px',
 		width: 'fit-content',
 		textAlign: 'left',
+		display: 'flex',
+		alignItems: 'center',
+		gap: '8px',
+		transition: 'background-color 0.2s ease',
+		':hover': {
+			background: '#D9D9D9'
+		}
+	},
+	buttonIcon: {
+		width: '16px',
+		height: '16px',
+		objectFit: 'contain',
 	},
 	upgradeButton: {
 		display: 'flex',
@@ -401,7 +432,7 @@ const styles = {
 		cursor: 'pointer',
 		boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
 		transition: 'background 0.2s',
-		fontFamily: 'Roboto, Inter, Arial, sans-serif',
+		fontFamily: 'Roboto, sans-serif',
 	},
 };
 
@@ -652,8 +683,32 @@ var DeepTutor = class DeepTutor extends React.Component {
 				<div style={styles.top}>
 					<img src={logoPath} alt="DeepTutor Logo" style={styles.logo} />
 					<div style={styles.topRight}>
-						<div style={styles.fillerBox}></div>
-						<div style={styles.fillerBox}></div>
+						<button
+							style={{
+								...styles.iconButton,
+								...(this.state.currentPane === 'sessionHistory' ? styles.iconButtonActive : {})
+							}}
+							onClick={() => this.switchPane('sessionHistory')}
+						>
+							<img 
+								src={HistoryIconPath}
+								alt="History" 
+								style={styles.iconImage}
+							/>
+						</button>
+						<button
+							style={{
+								...styles.iconButton,
+								...(this.state.currentPane === 'modelSelection' ? styles.iconButtonActive : {})
+							}}
+							onClick={() => this.switchPane('modelSelection')}
+						>
+							<img 
+								src={PlusIconPath}
+								alt="New Session" 
+								style={styles.iconImage}
+							/>
+						</button>
 					</div>
 				</div>
 
@@ -821,8 +876,14 @@ var DeepTutor = class DeepTutor extends React.Component {
 				{/* Bottom Section: Utility Buttons */}
 				<div style={styles.bottom}>
 					<div style={styles.bottomLeft}>
-						<button style={styles.textButton}>Feedback</button>
-						<button style={styles.textButton}>Profile</button>
+						<button style={styles.textButton}>
+							<img src={FeedIconPath} alt="Feedback" style={styles.buttonIcon} />
+							Feedback
+						</button>
+						<button style={styles.textButton}>
+							<img src={PersonIconPath} alt="Profile" style={styles.buttonIcon} />
+							Profile
+						</button>
 					</div>
 					<button style={styles.upgradeButton}>Upgrade</button>
 				</div>

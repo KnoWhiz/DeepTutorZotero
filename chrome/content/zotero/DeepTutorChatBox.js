@@ -40,19 +40,21 @@ const MessageRole = {
 const styles = {
     container: {
         padding: '16px',
-        background: '#f8f9fa',
+        background: '#F8F6F7',
         borderRadius: '8px',
         boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
         height: '100%',
         width: '85%',
         display: 'flex',
         flexDirection: 'column',
+        fontFamily: 'Roboto, sans-serif',
     },
     sessionInfo: {
         fontSize: '1em',
         color: '#495057',
         marginBottom: '4px',
         paddingLeft: '4px',
+        fontFamily: 'Roboto, sans-serif',
     },
     chatLog: {
         borderRadius: '8px',
@@ -64,26 +66,29 @@ const styles = {
         width: '100%',
         boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.1)',
         marginBottom: '16px',
+        fontFamily: 'Roboto, sans-serif',
     },
     bottomBar: {
         marginTop: 'auto',
         padding: '10px 10px 6px 10px',
-        background: '#e0e0e0',
+        background: '#F8F6F7',
         borderRadius: '12px 12px 0 0',
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
         display: 'flex',
         flexDirection: 'column',
         gap: '4px',
+        fontFamily: 'Roboto, sans-serif',
     },
     inputContainer: {
         width: '100%',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'space-between',
         marginBottom: '2px',
+        gap: '8px',
     },
     textInput: {
-        width: '100%',
+        flex: 1,
         padding: '6px 10px',
         border: '1px solid #495057',
         borderRadius: '6px',
@@ -93,56 +98,28 @@ const styles = {
         maxHeight: '80px',
         fontSize: '13px',
         overflowY: 'auto',
-    },
-    buttonContainer: {
-        width: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    modelButton: {
-        background: '#e0e0e0',
-        color: '#444',
-        border: 'none',
-        borderRadius: '4px',
-        fontWeight: 500,
-        padding: '2px 7px',
-        marginRight: '4px',
-        cursor: 'pointer',
-        fontSize: '11px',
-        minWidth: 0,
-        minHeight: 0,
-    },
-    imageButton: {
-        background: '#e0e0e0',
-        border: 'none',
-        borderRadius: '4px',
-        width: '24px',
-        height: '24px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'pointer',
-        marginRight: '2px',
-        minWidth: 0,
-        minHeight: 0,
-        padding: 0,
+        fontFamily: 'Roboto, sans-serif',
     },
     sendButton: {
-        background: '#2c25ac',
-        color: '#fff',
+        background: '#F8F6F7',
         border: 'none',
-        borderRadius: '50%',
-        width: '26px',
-        height: '26px',
+        borderRadius: '8px',
+        width: '44px',
+        height: '44px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         cursor: 'pointer',
-        fontSize: '13px',
-        minWidth: 0,
-        minHeight: 0,
-        padding: 0,
+        padding: '6px',
+        transition: 'background-color 0.2s ease',
+        ':hover': {
+            background: '#D9D9D9'
+        }
+    },
+    sendIcon: {
+        width: '28px',
+        height: '28px',
+        objectFit: 'contain',
     },
     messageContainer: {
         margin: '8px 0',
@@ -156,14 +133,20 @@ const styles = {
         boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
     },
     userMessage: {
-        backgroundColor: '#007AFF',
+        backgroundColor: '#0AE2FF',
         color: 'white',
         marginLeft: 'auto',
+        borderBottomRightRadius: '4px',
+        borderRadius: '16px',
+        fontWeight: 500,
     },
     botMessage: {
-        backgroundColor: '#E9ECEF',
-        color: 'black',
+        backgroundColor: '#F8F6F7',
+        color: '#212529',
         marginRight: 'auto',
+        borderBottomLeftRadius: '4px',
+        borderRadius: '16px',
+        fontWeight: 400,
     },
     senderLabel: {
         fontWeight: 'bold',
@@ -180,31 +163,50 @@ const styles = {
         flexWrap: 'wrap',
     },
     sourceButton: {
-        background: '#2c25ac',
+        background: '#0AE2FF',
         color: 'white',
         border: 'none',
-        borderRadius: '4px',
-        padding: '4px 8px',
+        borderRadius: '50%',
+        width: '32px',
+        height: '32px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 600,
+        fontSize: '14px',
         cursor: 'pointer',
-        fontSize: '12px',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+        padding: 0,
+        transition: 'background 0.2s',
     },
     questionContainer: {
         margin: '8px 0',
         width: '100%',
         display: 'flex',
         justifyContent: 'center',
+        gap: '12px',
+        flexWrap: 'wrap',
     },
     questionButton: {
-        background: '#2c25ac',
-        color: 'black',
-        border: 'none',
-        borderRadius: '4px',
-        padding: '6px 12px',
-        margin: '4px',
+        background: '#fff',
+        color: '#000',
+        border: '1.5px solid #0AE2FF',
+        borderRadius: '8px',
+        padding: '8px 28px',
+        minWidth: '220px',
+        minHeight: '32px',
+        fontWeight: 500,
+        fontSize: '15px',
         cursor: 'pointer',
-        fontSize: '13px',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+        transition: 'background 0.2s, border 0.2s',
+        margin: '4px 0',
+        textAlign: 'center',
+        fontFamily: 'Roboto, sans-serif',
     },
 };
+
+const SendIconPath = 'chrome://zotero/content/DeepTutorMaterials/Send.png';
 
 const DeepTutorChatBox = ({ 
     onSessionIdUpdate, 
@@ -850,14 +852,14 @@ const DeepTutorChatBox = ({
         },
         userMessage: {
             ...styles.userMessage,
-            backgroundColor: '#007AFF',
+            backgroundColor: '#0AE2FF',
             color: 'white',
             marginLeft: 'auto',
             borderBottomRightRadius: '4px'
         },
         botMessage: {
             ...styles.botMessage,
-            backgroundColor: '#E9ECEF',
+            backgroundColor: '#F8F6F7',
             color: '#212529',
             marginRight: 'auto',
             borderBottomLeftRadius: '4px'
@@ -888,46 +890,25 @@ const DeepTutorChatBox = ({
                 {messages.map((message, index) => renderMessage(message, index))}
             </div>
 
-            <div style={updatedStyles.bottomBar}>
-                <div style={updatedStyles.inputContainer}>
+            <div style={styles.bottomBar}>
+                <div style={styles.inputContainer}>
                     <textarea
-                        style={updatedStyles.textInput}
+                        style={styles.textInput}
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                         placeholder="Type your message..."
                         rows={1}
                     />
-                </div>
-
-                <div style={updatedStyles.buttonContainer}>
-                    <div>
-                        <button
-                            style={updatedStyles.modelButton}
-                            onClick={() => setShowModelPopup(!showModelPopup)}
-                        >
-                            Model
-                        </button>
-                        {showModelPopup && (
-                            <div style={{ position: 'absolute', bottom: '100%', left: 0 }}>
-                                {/* Model selection component */}
-                            </div>
-                        )}
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <button
-                            style={updatedStyles.imageButton}
-                            onClick={() => setShowImagePopup(!showImagePopup)}
-                        >
-                            <img src="chrome://zotero/skin/image-icon.svg" alt="Image" style={{ width: '14px', height: '14px' }} />
-                        </button>
-                        <button
-                            style={updatedStyles.sendButton}
-                            onClick={handleSend}
-                        >
-                            <img src="chrome://zotero/skin/send-icon.svg" alt="Send" style={{ width: '13px', height: '13px' }} />
-                        </button>
-                    </div>
+                    <button
+                        style={styles.sendButton}
+                        onClick={handleSend}
+                    >
+                        <img 
+                            src={SendIconPath}
+                            alt="Send" 
+                            style={styles.sendIcon}
+                        />
+                    </button>
                 </div>
             </div>
         </div>

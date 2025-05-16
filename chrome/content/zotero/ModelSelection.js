@@ -28,10 +28,11 @@ const buttonStyle = {
   cursor: 'pointer',
   minWidth: 0,
   minHeight: 0,
+  fontFamily: 'Roboto, sans-serif',
 };
 
 const fileButtonStyle = {
-  background: '#f8f9fa',
+  background: '#F8F6F7',
   border: '1px solid #e0e0e0',
   borderRadius: '4px',
   padding: '4px 8px',
@@ -40,6 +41,7 @@ const fileButtonStyle = {
   cursor: 'pointer',
   margin: '2px 0',
   display: 'flex',
+  fontFamily: 'Roboto, sans-serif',
 };
 
 const removeButtonStyle = {
@@ -207,7 +209,7 @@ function ModelSelection({ onSubmit }) {
 
   return React.createElement(
     'div',
-    { style: { display: 'flex', flexDirection: 'column', gap: 12, width: '100%', fontFamily: 'Roboto, Inter, Arial, sans-serif' } },
+    { style: { display: 'flex', flexDirection: 'column', gap: 12, width: '100%', fontFamily: 'Roboto, sans-serif', background: '#F8F6F7' } },
     // Upload Button Section
     React.createElement(
       'div',
