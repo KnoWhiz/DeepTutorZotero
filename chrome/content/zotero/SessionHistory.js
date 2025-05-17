@@ -3,9 +3,8 @@ import PropTypes from 'prop-types';
 
 const containerStyle = {
   padding: 16,
-  background: '#f8f9fa',
+  background: '#F2F2F2',
   borderRadius: 8,
-  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
   height: '100%',
   width: '85%',
   display: 'flex',
@@ -38,8 +37,7 @@ const sessionListStyle = {
   borderRadius: 8,
   padding: 8,
   overflowY: 'auto',
-  background: 'white',
-  boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.1)',
+  background: '#F2F2F2',
   flex: 1,
   display: 'flex',
   flexDirection: 'column',
@@ -50,14 +48,14 @@ const sessionButtonStyle = {
   width: '100%',
   padding: '8px 12px',
   margin: '4px 0',
-  background: '#f8f9fa',
-  border: '1px solid #e9ecef',
+  background: '#F2F2F2',
+  border: 'none',
   borderRadius: 6,
   textAlign: 'left',
   fontSize: 13,
   color: '#2c3e50',
   cursor: 'pointer',
-  transition: 'background-color 0.2s',
+  fontWeight: 700,
 };
 
 const loadingStyle = {

@@ -17,65 +17,183 @@ const SessionType = {
     ADVANCED: 'ADVANCED'
 };
 
-const buttonStyle = {
-  background: '#2c25ac',
-  color: '#fff',
-  border: 'none',
-  borderRadius: '4px',
-  fontWeight: 600,
-  padding: '4px 8px',
-  fontSize: '11px',
-  cursor: 'pointer',
-  minWidth: 0,
-  minHeight: 0,
-  fontFamily: 'Roboto, sans-serif',
-};
+const PEARL = '#F8F6F7';
+const SKY = '#0687E5';
+const LIGHT_GREY2 = '#DADCE0';
+const AQUA = '#0AE2FF';
 
-const fileButtonStyle = {
-  background: '#F8F6F7',
-  border: '1px solid #e0e0e0',
-  borderRadius: '4px',
-  padding: '4px 8px',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  cursor: 'pointer',
-  margin: '2px 0',
-  display: 'flex',
-  fontFamily: 'Roboto, sans-serif',
-};
-
-const removeButtonStyle = {
-  color: '#dc3545',
-  fontWeight: 'bold',
-  fontSize: '16px',
-  cursor: 'pointer',
-  padding: '0 4px',
-  background: 'none',
-  border: 'none',
-};
-
-const modelTypeButtonBase = {
-  flex: 1,
-  padding: '6px 0',
-  border: 'none',
-  borderRadius: '4px',
-  fontWeight: 600,
-  fontSize: '1em',
-  cursor: 'pointer',
-  background: '#e0e0e0',
-  color: '#444',
-};
-
-const selectedModelTypeButton = {
-  background: '#2c25ac',
-  color: '#fff',
+const styles = {
+  container: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 24,
+    width: '100%',
+    minHeight: '480px',
+    height: '100%',
+    background: '#FFFFFF',
+    fontFamily: 'Roboto, sans-serif',
+    borderRadius: 12,
+    boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+    padding: '32px 18px 24px 18px',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  title: {
+    background: 'linear-gradient(90deg, #0AE2FF 0%, #0687E5 100%)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    backgroundClip: 'text',
+    color: SKY, // fallback
+    fontWeight: 700,
+    fontSize: '1.35em',
+    textAlign: 'center',
+    marginBottom: 8,
+    letterSpacing: 0.2,
+  },
+  section: {
+    width: '100%',
+    maxWidth: 400,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+  },
+  label: {
+    fontWeight: 500,
+    color: '#292929',
+    marginBottom: 2,
+    fontSize: '1em',
+  },
+  input: {
+    width: '100%',
+    padding: '12px',
+    borderRadius: 8,
+    border: `1px solid ${LIGHT_GREY2}`,
+    background: PEARL,
+    fontSize: '1em',
+    fontFamily: 'Roboto, sans-serif',
+    outline: 'none',
+  },
+  searchArea: {
+    width: '100%',
+    maxWidth: 400,
+    background: PEARL,
+    borderRadius: 8,
+    border: `1px solid ${LIGHT_GREY2}`,
+    display: 'flex',
+    alignItems: 'center',
+    padding: '8px 12px',
+    margin: '8px 0',
+    fontSize: '1em',
+    color: '#292929',
+    gap: 8,
+  },
+  searchIcon: {
+    width: 18,
+    height: 18,
+    opacity: 0.6,
+  },
+  searchInput: {
+    flex: 1,
+    border: 'none',
+    outline: 'none',
+    background: 'transparent',
+    fontSize: '1em',
+    fontFamily: 'Roboto, sans-serif',
+    color: '#292929',
+  },
+  contextRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    width: '100%',
+    margin: '8px 0',
+  },
+  uploadButton: {
+    background: SKY,
+    color: '#fff',
+    border: 'none',
+    borderRadius: 8,
+    fontWeight: 600,
+    padding: '8px 18px',
+    fontSize: '1em',
+    cursor: 'pointer',
+    fontFamily: 'Roboto, sans-serif',
+    minWidth: 0,
+    minHeight: 0,
+  },
+  orText: {
+    color: '#888',
+    fontWeight: 500,
+    fontSize: '1em',
+    textAlign: 'center',
+    minWidth: 32,
+  },
+  dragArea: {
+    border: `1.5px dashed ${LIGHT_GREY2}`,
+    borderRadius: 12,
+    background: PEARL,
+    minHeight: 80,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#888',
+    fontSize: '1em',
+    margin: '8px 0',
+    width: '100%',
+    flexDirection: 'column',
+    gap: 6,
+  },
+  modelTypeRow: {
+    display: 'flex',
+    flexDirection: 'row',
+    gap: 8,
+    width: '100%',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  modelTypeButton: {
+    flex: 1,
+    padding: '12px 0',
+    border: 'none',
+    borderRadius: 8,
+    fontWeight: 700,
+    fontSize: '1em',
+    cursor: 'pointer',
+    background: LIGHT_GREY2,
+    color: '#292929',
+    transition: 'background 0.2s, color 0.2s',
+  },
+  modelTypeButtonSelected: {
+    background: SKY,
+    color: '#fff',
+    fontWeight: 700,
+  },
+  createButton: {
+    width: '100%',
+    maxWidth: 400,
+    margin: '32px auto 0 auto',
+    padding: '14px 0',
+    background: SKY,
+    color: '#fff',
+    fontWeight: 700,
+    fontSize: '1.1em',
+    border: 'none',
+    borderRadius: 10,
+    cursor: 'pointer',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+    fontFamily: 'Roboto, sans-serif',
+    letterSpacing: 0.2,
+    transition: 'background 0.2s',
+    display: 'block',
+  },
 };
 
 function ModelSelection({ onSubmit }) {
   const [fileList, setFileList] = useState([]);
   const [originalFileList, setOriginalFileList] = useState([]);
   const [modelName, setModelName] = useState('');
-  const [selectedType, setSelectedType] = useState('normal');
+  const [selectedType, setSelectedType] = useState('lite');
+  const [searchValue, setSearchValue] = useState('');
 
   // Get model data in the same format as XUL version
   const getModelData = () => {
@@ -290,98 +408,89 @@ function ModelSelection({ onSubmit }) {
     }
   };
 
-  return React.createElement(
-    'div',
-    { style: { display: 'flex', flexDirection: 'column', gap: 12, width: '100%', fontFamily: 'Roboto, sans-serif', background: '#F8F6F7' } },
-    // Upload Buttons Section
-    React.createElement(
-      'div',
-      { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 } },
-      React.createElement(
-        'label',
-        { style: buttonStyle },
-        'Upload',
-        React.createElement('input', { type: 'file', multiple: true, style: { display: 'none' }, onChange: handleFileUpload })
-      ),
-      React.createElement(
-        'button',
-        { style: buttonStyle, onClick: handleUpload2 },
-        'Upload2'
-      )
-    ),
-    // File List Section
-    React.createElement(
-      'div',
-      { style: { maxHeight: 100, border: '1px solid #e0e0e0', borderRadius: 4, background: 'white', padding: 4, overflowY: 'auto' } },
-      React.createElement(
-        'div',
-        { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
-        fileList.map(file =>
-          React.createElement(
-            'div',
-            { key: file.id, style: fileButtonStyle },
-            React.createElement('span', { style: { flex: 1, marginRight: 8 } }, file.name),
-            React.createElement('button', { style: removeButtonStyle, onClick: () => handleRemoveFile(file.id) }, '\u00D7')
-          )
-        )
-      )
-    ),
-    // Model Name Section
-    React.createElement(
-      'div',
-      { style: { display: 'flex', flexDirection: 'column' } },
-      React.createElement('label', { style: { fontWeight: 'bold', marginBottom: 4 } }, 'Model Name'),
-      React.createElement('input', {
-        type: 'text',
-        value: modelName,
-        onChange: e => setModelName(e.target.value),
-        style: { width: '100%', padding: '4px', borderRadius: 4, border: '1px solid #e0e0e0' }
-      })
-    ),
-    // Model Type Buttons
-    React.createElement(
-      'div',
-      { style: { display: 'flex', flexDirection: 'column' } },
-      React.createElement('label', { style: { fontWeight: 'bold', marginBottom: 4 } }, 'Model Type'),
-      React.createElement(
-        'div',
-        { style: { display: 'flex', gap: 8 } },
-        React.createElement(
-          'button',
-          {
-            style: Object.assign({}, modelTypeButtonBase, selectedType === 'lite' ? selectedModelTypeButton : {}),
-            onClick: () => handleTypeSelection('lite')
-          },
-          'Lite'
-        ),
-        React.createElement(
-          'button',
-          {
-            style: Object.assign({}, modelTypeButtonBase, selectedType === 'normal' ? selectedModelTypeButton : {}),
-            onClick: () => handleTypeSelection('normal')
-          },
-          'Normal'
-        ),
-        React.createElement(
-          'button',
-          {
-            style: Object.assign({}, modelTypeButtonBase, selectedType === 'advanced' ? selectedModelTypeButton : {}),
-            onClick: () => handleTypeSelection('advanced')
-          },
-          'Advanced'
-        )
-      )
-    ),
-    // Submit Button Section
-    React.createElement(
-      'div',
-      { style: { display: 'flex', justifyContent: 'center', marginTop: 16 } },
-      React.createElement(
-        'button',
-        { style: Object.assign({ minWidth: 120 }, buttonStyle), onClick: handleSubmit },
-        'Submit'
-      )
-    )
+  return (
+    <div style={styles.container}>
+      {/* Title Section */}
+      <div style={styles.title}>Create a new session</div>
+
+      {/* Name Section */}
+      <div style={styles.section}>
+        <label style={styles.label}>Name Your Session</label>
+        <input
+          type="text"
+          value={modelName}
+          onChange={e => setModelName(e.target.value)}
+          style={styles.input}
+          placeholder="Default Name According to the Paper Title"
+        />
+      </div>
+
+      {/* Context Section */}
+      <div style={styles.section}>
+        <label style={styles.label}>Add Context</label>
+        {/* Search Area */}
+        <div style={styles.searchArea}>
+          <svg style={styles.searchIcon} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="9" cy="9" r="7" stroke="#0687E5" strokeWidth="2" />
+            <line x1="14.2" y1="14.2" x2="18" y2="18" stroke="#0687E5" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          <input
+            style={styles.searchInput}
+            type="text"
+            value={searchValue}
+            onChange={e => setSearchValue(e.target.value)}
+            placeholder="Search for an Item"
+          />
+        </div>
+        <div style={styles.contextRow}>
+          <button style={styles.uploadButton}>Upload</button>
+          <span style={styles.orText}>or</span>
+          <button style={styles.uploadButton}>Upload2</button>
+        </div>
+        <div style={styles.dragArea}>
+          <span style={{fontSize: '1.2em', opacity: 0.7}}>📄</span>
+          Drag a file here
+        </div>
+      </div>
+
+      {/* Model Type Section */}
+      <div style={styles.section}>
+        <label style={styles.label}>Select Your Model</label>
+        <div style={styles.modelTypeRow}>
+          <button
+            style={{
+              ...styles.modelTypeButton,
+              ...(selectedType === 'lite' ? styles.modelTypeButtonSelected : {})
+            }}
+            onClick={() => handleTypeSelection('lite')}
+          >
+            LITE
+          </button>
+          <button
+            style={{
+              ...styles.modelTypeButton,
+              ...(selectedType === 'normal' ? styles.modelTypeButtonSelected : {})
+            }}
+            onClick={() => handleTypeSelection('normal')}
+          >
+            STANDARD
+          </button>
+          <button
+            style={{
+              ...styles.modelTypeButton,
+              ...(selectedType === 'advanced' ? styles.modelTypeButtonSelected : {})
+            }}
+            onClick={() => handleTypeSelection('advanced')}
+          >
+            ADVANCED
+          </button>
+        </div>
+      </div>
+      {/* Create Button at the bottom */}
+      <button style={styles.createButton} onClick={handleSubmit}>
+        Create
+      </button>
+    </div>
   );
 }
 
