@@ -73,20 +73,102 @@ const selectedModelTypeButton = {
 
 function ModelSelection({ onSubmit }) {
   const [fileList, setFileList] = useState([]);
+  const [originalFileList, setOriginalFileList] = useState([]);
   const [modelName, setModelName] = useState('');
   const [selectedType, setSelectedType] = useState('normal');
 
-  // Placeholder for file upload
+  // Get model data in the same format as XUL version
+  const getModelData = () => {
+    return {
+      fileList,
+      name: modelName,
+      type: selectedType,
+      originalFileList
+    };
+  };
+
+  // Handle file upload
   const handleFileUpload = (e) => {
     const files = Array.from(e.target.files);
-    setFileList(prev => [
-      ...prev,
-      ...files.map((file, idx) => ({ id: `${file.name}-${Date.now()}-${idx}`, name: file.name }))
-    ]);
+    const newFiles = files.map((file, idx) => ({ 
+      id: `${file.name}-${Date.now()}-${idx}`, 
+      name: file.name 
+    }));
+    setFileList(prev => [...prev, ...newFiles]);
+    setOriginalFileList(prev => [...prev, ...files]);
+  };
+
+  const handleUpload2 = async () => {
+    try {
+      Zotero.debug("ModelSelection: Starting Upload2 process");
+      const selectedItems = Zotero.getActiveZoteroPane().getSelectedItems();
+      if (!selectedItems.length) {
+        Zotero.debug("ModelSelection: No items selected");
+        return;
+      }
+
+      const pdfAttachments = selectedItems.reduce((arr, item) => {
+        if (item.isPDFAttachment()) {
+          return arr.concat([item]);
+        }
+        if (item.isRegularItem()) {
+          return arr.concat(item.getAttachments()
+            .map(x => Zotero.Items.get(x))
+            .filter(x => x.isPDFAttachment()));
+        }
+        return arr;
+      }, []);
+
+      if (!pdfAttachments.length) {
+        Zotero.debug("ModelSelection: No PDF attachments found in selected items");
+        return;
+      }
+
+      Zotero.debug(`ModelSelection: Found ${pdfAttachments.length} PDF attachments`);
+      
+      // Store original PDF attachments
+      setOriginalFileList(pdfAttachments);
+
+      // Process all PDFs concurrently using Promise.all
+      const pdfProcessingPromises = pdfAttachments.map(async (pdf) => {
+        try {
+          const { text } = await Zotero.PDFWorker.getFullText(pdf.id);
+          if (text) {
+            return {
+              id: pdf.id,
+              name: pdf.name,
+              content: text.substring(0, 200)
+            };
+          }
+          return null;
+        } catch (e) {
+          Zotero.debug(`ModelSelection: Error extracting text from PDF: ${e.message}`);
+          return null;
+        }
+      });
+
+      // Wait for all PDFs to be processed
+      const results = await Promise.all(pdfProcessingPromises);
+      
+      // Filter out any null results and update fileList
+      const validResults = results.filter(result => result !== null);
+      setFileList(prev => [
+        ...prev,
+        ...validResults.map(result => ({ 
+          id: result.id,
+          name: result.name
+        }))
+      ]);
+
+      Zotero.debug(`ModelSelection: Successfully processed ${validResults.length} PDFs`);
+    } catch (error) {
+      Zotero.debug(`ModelSelection: Error in handleUpload2: ${error.message}`);
+    }
   };
 
   const handleRemoveFile = (id) => {
     setFileList(prev => prev.filter(file => file.id !== id));
+    setOriginalFileList(prev => prev.filter(file => file.id !== id));
   };
 
   const handleTypeSelection = (type) => {
@@ -95,7 +177,7 @@ function ModelSelection({ onSubmit }) {
 
   const handleSubmit = async () => {
     if (!modelName.trim()) {
-      // Add error handling for empty model name
+      Zotero.debug("ModelSelection: Model name is required");
       return;
     }
 
@@ -113,15 +195,15 @@ function ModelSelection({ onSubmit }) {
       }
       
       const userData = await userResponse.json();
-      console.log('Fetched user data:', userData);
+      Zotero.debug('ModelSelection: Fetched user data:', userData);
 
       // Handle file uploads if fileList exists
       const uploadedDocumentIds = [];
       if (fileList.length > 0) {
-        for (const file of fileList) {
+        for (const file of originalFileList) {
           try {
             const fileName = file.name;
-            console.log('Processing file:', fileName);
+            Zotero.debug('ModelSelection: Processing file:', fileName);
 
             // 1. Get pre-signed URL for the file
             const preSignedUrlResponse = await window.fetch(
@@ -139,7 +221,7 @@ function ModelSelection({ onSubmit }) {
             }
 
             const preSignedUrlData = await preSignedUrlResponse.json();
-            console.log('Got pre-signed URL:', preSignedUrlData);
+            Zotero.debug('ModelSelection: Got pre-signed URL:', preSignedUrlData);
 
             // 2. Upload file to Azure Blob Storage
             const uploadResponse = await window.fetch(preSignedUrlData.preSignedUrl, {
@@ -155,11 +237,11 @@ function ModelSelection({ onSubmit }) {
               throw new Error(`Failed to upload file: ${uploadResponse.status}`);
             }
 
-            console.log('File uploaded successfully:', fileName);
+            Zotero.debug('ModelSelection: File uploaded successfully:', fileName);
             uploadedDocumentIds.push(preSignedUrlData.documentId);
             
           } catch (fileError) {
-            console.error('Error uploading file:', fileError);
+            Zotero.debug('ModelSelection: Error uploading file:', fileError);
             continue;
           }
         }
@@ -169,7 +251,9 @@ function ModelSelection({ onSubmit }) {
       const sessionData = {
         userId: userData.id,
         sessionName: modelName || "New Session",
-        type: SessionType.BASIC,
+        type: selectedType === 'lite' ? SessionType.LITE : 
+              selectedType === 'advanced' ? SessionType.ADVANCED : 
+              SessionType.BASIC,
         status: SessionStatus.CREATED,
         documentIds: uploadedDocumentIds,
         creationTime: new Date().toISOString(),
@@ -194,7 +278,7 @@ function ModelSelection({ onSubmit }) {
       }
 
       const createdSession = await sessionResponse.json();
-      console.log('Session created successfully:', createdSession);
+      Zotero.debug('ModelSelection: Session created successfully:', createdSession);
 
       // Call onSubmit with the session ID
       if (onSubmit) {
@@ -202,23 +286,27 @@ function ModelSelection({ onSubmit }) {
       }
 
     } catch (error) {
-      console.error('Error creating session:', error);
-      // Add error handling UI feedback here
+      Zotero.debug('ModelSelection: Error creating session:', error);
     }
   };
 
   return React.createElement(
     'div',
     { style: { display: 'flex', flexDirection: 'column', gap: 12, width: '100%', fontFamily: 'Roboto, sans-serif', background: '#F8F6F7' } },
-    // Upload Button Section
+    // Upload Buttons Section
     React.createElement(
       'div',
-      { style: { display: 'flex', alignItems: 'center', marginBottom: 2 } },
+      { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 } },
       React.createElement(
         'label',
         { style: buttonStyle },
         'Upload',
         React.createElement('input', { type: 'file', multiple: true, style: { display: 'none' }, onChange: handleFileUpload })
+      ),
+      React.createElement(
+        'button',
+        { style: buttonStyle, onClick: handleUpload2 },
+        'Upload2'
       )
     ),
     // File List Section

@@ -271,13 +271,15 @@ const DeepTutorChatBox = ({
         }
     }, [messages]);
 
-    const handleSend = async () => {
-        if (!inputValue.trim()) return;
+    const userSendMessage = async (messageString) => {
+        if (!messageString.trim()) return;
         setUserId('67f5b836cb8bb15b67a1149e');
+        Zotero.debug(`USERSENDMESSAGE DeepTutorChatBox: User ID: ${userId}, sessionId: ${sessionId}`);
 
         try {
             if (!sessionId) throw new Error("No active session ID");
             if (!userId) throw new Error("No active user ID");
+            Zotero.debug(`Show me messageString: ${messageString}`);
 
             // Create user message with proper structure
             Zotero.debug(`DeepTutorChatBox: Send API Request with Session ID: ${sessionId} and User ID: ${userId}`);
@@ -287,7 +289,7 @@ const DeepTutorChatBox = ({
                 userId: userId,
                 sessionId: sessionId,
                 subMessages: [{
-                    text: inputValue,
+                    text: messageString,
                     image: null,
                     audio: null,
                     contentType: ContentType.TEXT,
@@ -305,8 +307,8 @@ const DeepTutorChatBox = ({
 
             // Add user message to state and append to chatbox
             await _appendMessage("You", userMessage);
+            Zotero.debug(`1111111111 DeepTutorChatBox: last message in messages: ${JSON.stringify(messages[messages.length - 1])}`);
             setLatestMessageId(userMessage.id);
-            setInputValue('');
 
             // Update conversation with only the new message
             setConversation(prev => ({
@@ -318,7 +320,12 @@ const DeepTutorChatBox = ({
             const response = await sendToAPI(userMessage);
             
             // Add bot response to messages and append to chatbox
-            await _appendMessage("DeepTutor", response);
+            setMessages(prev => {
+                const newMessages = [...prev];
+                newMessages[newMessages.length - 1] = response;
+                return newMessages;
+            });
+            Zotero.debug(`2222222222 DeepTutorChatBox: last message in messages: ${JSON.stringify(messages[messages.length - 1])}`);
             setLatestMessageId(response.id);
 
             // Update conversation with only the new response
@@ -335,7 +342,7 @@ const DeepTutorChatBox = ({
             }
 
         } catch (error) {
-            Zotero.debug(`DeepTutorChatBox: Error in handleSend: ${error.message}`);
+            Zotero.debug(`DeepTutorChatBox: Error in userSendMessage: ${error.message}`);
             // Create error message
             const errorMessage = {
                 subMessages: [{
@@ -355,9 +362,15 @@ const DeepTutorChatBox = ({
         }
     };
 
+    const handleSend = async () => {
+        await userSendMessage(inputValue);
+        setInputValue('');
+    };
+
     const sendToAPI = async (message) => {
         try {
             // Use the stored PDF data
+            /*
             const pdfContent = pdfDataList.map(pdf => pdf.content).join("\n\n");
             
             // Create a message object for the PDF content
@@ -377,6 +390,7 @@ const DeepTutorChatBox = ({
             };
             setMessages(prev => [...prev, pdfMessage]);
 
+            */
             // Send message to API
             const response = await Zotero.HTTP.request(
                 'POST',
@@ -437,6 +451,23 @@ const DeepTutorChatBox = ({
             const decoder = new TextDecoder();
             Zotero.debug(`XXXXXXXXXX DeepTutorChatBox: Decoder object created: ${decoder ? 'success' : 'failed'}`);
             let streamText = "";
+
+            // Create initial empty message for TUTOR
+            const initialTutorMessage = {
+                subMessages: [{
+                    text: "",
+                    contentType: ContentType.TEXT,
+                    creationTime: new Date().toISOString(),
+                    sources: []
+                }],
+                role: MessageRole.TUTOR,
+                creationTime: new Date().toISOString(),
+                lastUpdatedTime: new Date().toISOString(),
+                status: MessageStatus.UNVIEW
+            };
+            
+            // Add the empty message to messages
+            setMessages(prev => [...prev, initialTutorMessage]);
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -527,8 +558,12 @@ const DeepTutorChatBox = ({
         // Update session and user IDs early
         if (sessionObj) {
             Zotero.debug(`DeepTutorChatBox: Setting session ID to ${sessionObj.id} and user ID to ${sessionObj.userId}`);
-            setSessionId(sessionObj.id);
-            setUserId(sessionObj.userId);
+            // Use Promise to ensure state updates complete
+            await new Promise(resolve => {
+                setSessionId(sessionObj.id);
+                setUserId(sessionObj.userId);
+                resolve();
+            });
         }
 
         setDocumentIds(newDocumentIds || []);
@@ -590,6 +625,16 @@ const DeepTutorChatBox = ({
             for (const message of newMessages) {
                 const sender = message.role === MessageRole.USER ? 'You' : 'DeepTutor';
                 await _appendMessage(sender, message);
+            }
+        } else {
+            Zotero.debug(`DeepTutorChatBox: No new messages to load`);
+            // Wait a bit to ensure state updates are complete
+            await new Promise(resolve => setTimeout(resolve, 400));
+            // Verify sessionId is set before sending message
+            if (sessionId) {
+                await userSendMessage("Can you give me a summary of this document?");
+            } else {
+                Zotero.debug(`OOOOOOOO DeepTutorChatBox: Cannot send initial message - sessionId is null`);
             }
         }
 
@@ -726,43 +771,19 @@ const DeepTutorChatBox = ({
 
     const handleQuestionClick = async (question) => {
         // Set the input value to the question
-        setInputValue(question);
+        Zotero.debug(`DeepTutorChatBox: Handling question click: ${question}`);
         // Trigger send
-        await handleSend();
-        // Clear the input
-        setInputValue('');
+        Zotero.debug(`DeepTutorChatBox: Triggering send`);
+        await userSendMessage(question);
     };
 
     const onNewSession = async (newSession) => {
         try {
+            Zotero.debug(`UUUUUUUUUUUUUUU DeepTutorChatBox: onNewSession: ${JSON.stringify(newSession)}`);
             // Update userId and sessionId
             setUserId(newSession.userId);
             setSessionId(newSession.id);
-
-            // Create initial message
-            const initialMessage = {
-                id: null,
-                parentMessageId: null,
-                userId: newSession.userId,
-                sessionId: newSession.id,
-                subMessages: [{
-                    text: "Can you give me a summary of this document?",
-                    image: null,
-                    audio: null,
-                    contentType: ContentType.TEXT,
-                    creationTime: new Date().toISOString(),
-                    sources: []
-                }],
-                followUpQuestions: [],
-                creationTime: new Date().toISOString(),
-                lastUpdatedTime: new Date().toISOString(),
-                status: MessageStatus.UNVIEW,
-                role: MessageRole.USER
-            };
-
-            // Send initial message using existing sendToAPI function
-            await sendToAPI(initialMessage);
-
+            await userSendMessage("Can you give me a summary of this document?");
         } catch (error) {
             Zotero.debug(`DeepTutorChatBox: Error in onNewSession: ${error.message}`);
         }
@@ -787,7 +808,7 @@ const DeepTutorChatBox = ({
                     </span>
                     {message.subMessages.map((subMessage, subIndex) => (
                         <div key={subIndex} style={styles.messageText}>
-                            {subMessage.text}
+                            {`[${index}] `}{subMessage.text}
                             {subMessage.sources && subMessage.sources.length > 0 && (
                                 <div style={styles.sourcesContainer}>
                                     {subMessage.sources.map((source, sourceIndex) => (
@@ -923,10 +944,6 @@ DeepTutorChatBox.propTypes = {
     currentSession: PropTypes.object
 };
 
-// Add _LoadMessage to the component's prototype
-DeepTutorChatBox._LoadMessage = DeepTutorChatBox._LoadMessage;
 
-// Add _appendMessage to the component's prototype
-DeepTutorChatBox._appendMessage = DeepTutorChatBox._appendMessage;
 
 export default DeepTutorChatBox;

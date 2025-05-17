@@ -840,20 +840,30 @@ var DeepTutor = class DeepTutor extends React.Component {
 										const sessionData = JSON.parse(response.responseText);
 										const session = new DeepTutorSession(sessionData);
 
+										// Create new Map with the new session
+										const newSesNamToObj = new Map(this.state.sesNamToObj);
+										newSesNamToObj.set(session.sessionName, session);
+
 										// Update state with new session
-										this.setState({
-											currentSession: session,
-											messages: [],
-											documentIds: session.documentIds || []
+										await new Promise(resolve => {
+											this.setState({
+												currentSession: session,
+												messages: [],
+												documentIds: session.documentIds || [],
+												sesNamToObj: newSesNamToObj,
+												sessions: [...this.state.sessions, session]
+											}, resolve);
 										});
+
+										// Call handleSessionSelect with the session name
+										Zotero.debug(`DeepTutor: Calling handleSessionSelect with session name: ${session.sessionName}`);
+										await this.handleSessionSelect(session.sessionName);
 
 										// Switch to main pane
 										this.switchPane('main');
 
 										// Call onNewSession on the tutor box
-										if (this._tutorBox) {
-											await this._tutorBox.onNewSession(session);
-										}
+										Zotero.debug(`DeepTutor: Attempting to call onNewSession on tutor box`);
 
 									} catch (error) {
 										Zotero.debug(`DeepTutor: Error handling new session: ${error.message}`);
