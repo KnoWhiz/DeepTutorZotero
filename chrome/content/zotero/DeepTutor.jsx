@@ -29,6 +29,8 @@ import PropTypes from 'prop-types';
 import ModelSelection from './ModelSelection.js';
 import SessionHistory from './SessionHistory.js';
 import DeepTutorChatBox from './DeepTutorChatBox.js';
+import DeepTutorWelcomePane from './DeepTutorWelcomePane.js';
+import DeepTutorSignIn from './DeepTutorSignIn.js';
 
 // Enums
 const SessionStatus = {
@@ -790,16 +792,32 @@ var DeepTutor = class DeepTutor extends React.Component {
 							padding: '6px 18px', 
 							borderRadius: 6, 
 							border: '1px solid #0687E5', 
-							background: this.state.currentPane === 'other' ? '#0687E5' : '#fff', 
-							color: this.state.currentPane === 'other' ? '#fff' : '#0687E5', 
+							background: this.state.currentPane === 'welcome' ? '#0687E5' : '#fff', 
+							color: this.state.currentPane === 'welcome' ? '#fff' : '#0687E5', 
 							fontWeight: 600, 
 							cursor: 'pointer', 
 							fontFamily: 'Roboto, Inter, Arial, sans-serif',
 							flexShrink: 0
 						}}
-						onClick={() => this.switchPane('other')}
+						onClick={() => this.switchPane('welcome')}
 					>
-						Other
+						Welcome
+					</button>
+					<button
+						style={{ 
+							padding: '6px 18px', 
+							borderRadius: 6, 
+							border: '1px solid #0687E5', 
+							background: this.state.currentPane === 'signIn' ? '#0687E5' : '#fff', 
+							color: this.state.currentPane === 'signIn' ? '#fff' : '#0687E5', 
+							fontWeight: 600, 
+							cursor: 'pointer', 
+							fontFamily: 'Roboto, Inter, Arial, sans-serif',
+							flexShrink: 0
+						}}
+						onClick={() => this.switchPane('signIn')}
+					>
+						Sign In
 					</button>
 				</div>
 
@@ -879,7 +897,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 								error={this.state.error}
 							/>
 						}
-						{this.state.currentPane === 'other' && <div>Other Pane Placeholder</div>}
+						{this.state.currentPane === 'welcome' && <DeepTutorWelcomePane onWelcomeSignIn={() => this.switchPane('signIn')} />}
+						{this.state.currentPane === 'signIn' && <DeepTutorSignIn />}
 					</div>
 				</div>
 
