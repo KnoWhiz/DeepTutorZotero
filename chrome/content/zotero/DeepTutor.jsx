@@ -31,6 +31,8 @@ import SessionHistory from './SessionHistory.js';
 import DeepTutorChatBox from './DeepTutorChatBox.js';
 import DeepTutorWelcomePane from './DeepTutorWelcomePane.js';
 import DeepTutorSignIn from './DeepTutorSignIn.js';
+import DeepTutorSignUp from './DeepTutorSignUp.js';
+import DeepTutorUpgradePremium from './DeepTutorUpgradePremium.js';
 
 // Enums
 const SessionStatus = {
@@ -819,6 +821,38 @@ var DeepTutor = class DeepTutor extends React.Component {
 					>
 						Sign In
 					</button>
+					<button
+						style={{ 
+							padding: '6px 18px', 
+							borderRadius: 6, 
+							border: '1px solid #0687E5', 
+							background: this.state.currentPane === 'signUp' ? '#0687E5' : '#fff', 
+							color: this.state.currentPane === 'signUp' ? '#fff' : '#0687E5', 
+							fontWeight: 600, 
+							cursor: 'pointer', 
+							fontFamily: 'Roboto, Inter, Arial, sans-serif',
+							flexShrink: 0
+						}}
+						onClick={() => this.switchPane('signUp')}
+					>
+						Sign Up
+					</button>
+					<button
+						style={{ 
+							padding: '6px 18px', 
+							borderRadius: 6, 
+							border: '1px solid #0687E5', 
+							background: this.state.currentPane === 'upgrade' ? '#0687E5' : '#fff', 
+							color: this.state.currentPane === 'upgrade' ? '#fff' : '#0687E5', 
+							fontWeight: 600, 
+							cursor: 'pointer', 
+							fontFamily: 'Roboto, Inter, Arial, sans-serif',
+							flexShrink: 0
+						}}
+						onClick={() => this.switchPane('upgrade')}
+					>
+						Upgrade
+					</button>
 				</div>
 
 				{/* Middle Section: Pane List Holder */}
@@ -899,6 +933,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 						}
 						{this.state.currentPane === 'welcome' && <DeepTutorWelcomePane onWelcomeSignIn={() => this.switchPane('signIn')} />}
 						{this.state.currentPane === 'signIn' && <DeepTutorSignIn />}
+						{this.state.currentPane === 'signUp' && <DeepTutorSignUp onSignUpSignIn={() => this.switchPane('signIn')} />}
+						{this.state.currentPane === 'upgrade' && <DeepTutorUpgradePremium />}
 					</div>
 				</div>
 
@@ -914,7 +950,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 							Profile
 						</button>
 					</div>
-					<button style={styles.upgradeButton}>Upgrade</button>
+					<button style={styles.upgradeButton} onClick={() => this.switchPane('upgrade')}>Upgrade</button>
 				</div>
 			</div>
 		);
