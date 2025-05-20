@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 // Session Status Enum
 const SessionStatus = {
@@ -142,6 +142,11 @@ const styles = {
     width: '100%',
     flexDirection: 'column',
     gap: 6,
+    transition: 'border-color 0.2s, background 0.2s',
+  },
+  dragAreaActive: {
+    borderColor: SKY,
+    background: '#F0F9FF',
   },
   modelTypeRow: {
     display: 'flex',
@@ -186,6 +191,92 @@ const styles = {
     transition: 'background 0.2s',
     display: 'block',
   },
+  searchContainer: {
+    position: 'relative',
+    width: '100%',
+  },
+  searchPopup: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    maxHeight: '200px',
+    overflowY: 'auto',
+    background: '#FFFFFF',
+    border: `1px solid ${LIGHT_GREY2}`,
+    borderRadius: 8,
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    zIndex: 1000,
+    marginTop: 4,
+  },
+  searchItem: {
+    padding: '8px 12px',
+    cursor: 'pointer',
+    fontSize: '0.9em',
+    color: '#292929',
+    transition: 'background 0.2s',
+    '&:hover': {
+      background: PEARL,
+    },
+  },
+  searchItemSelected: {
+    background: PEARL,
+  },
+  noResults: {
+    padding: '8px 12px',
+    color: '#888',
+    fontSize: '0.9em',
+    textAlign: 'center',
+  },
+  fileListButton: {
+    background: SKY,
+    color: '#fff',
+    border: 'none',
+    borderRadius: 8,
+    fontWeight: 600,
+    padding: '8px 18px',
+    fontSize: '1em',
+    cursor: 'pointer',
+    fontFamily: 'Roboto, sans-serif',
+    minWidth: 0,
+    minHeight: 0,
+  },
+  fileListPopup: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
+    width: '300px',
+    maxHeight: '300px',
+    overflowY: 'auto',
+    background: '#FFFFFF',
+    border: `1px solid ${LIGHT_GREY2}`,
+    borderRadius: 8,
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    zIndex: 1000,
+    marginTop: 4,
+    padding: '8px',
+  },
+  fileListItem: {
+    padding: '8px',
+    borderBottom: `1px solid ${LIGHT_GREY2}`,
+    fontSize: '0.9em',
+    color: '#292929',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  fileListRemove: {
+    color: '#ff4444',
+    cursor: 'pointer',
+    fontSize: '1.2em',
+    padding: '0 4px',
+  },
+  fileListEmpty: {
+    padding: '8px',
+    color: '#888',
+    fontSize: '0.9em',
+    textAlign: 'center',
+  },
 };
 
 function ModelSelection({ onSubmit }) {
@@ -194,6 +285,105 @@ function ModelSelection({ onSubmit }) {
   const [modelName, setModelName] = useState('');
   const [selectedType, setSelectedType] = useState('lite');
   const [searchValue, setSearchValue] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const [attachmentNames, setAttachmentNames] = useState([]);
+  const [filteredAttachments, setFilteredAttachments] = useState([]);
+  const [showSearchPopup, setShowSearchPopup] = useState(false);
+  const [showFileList, setShowFileList] = useState(false);
+
+  // Add debug logging for fileList changes
+  useEffect(() => {
+    Zotero.debug(`ModelSelection: fileList updated - length: ${fileList.length}`);
+    fileList.forEach((file, index) => {
+      Zotero.debug(`ModelSelection: fileList[${index}] - id: ${file.id}, name: ${file.name}`);
+    });
+  }, [fileList]);
+
+  // Load attachment names when component mounts
+  useEffect(() => {
+    const loadAttachmentNames = async () => {
+      try {
+        Zotero.debug("BBBBB: Loading attachment names");
+        const libraryID = Zotero.Libraries.userLibraryID;
+        Zotero.debug(`BBBBB: Using library ID: ${libraryID}`);
+        
+        const items = await Zotero.Items.getAll(libraryID);
+        Zotero.debug(`BBBBB: Found ${items.length} total items`);
+        
+        const attachments = items.reduce((arr, item) => {
+          if (item.isAttachment() && item.isPDFAttachment()) {
+            const fileName = item.getField('title') || item.name || item.attachmentFilename;
+            Zotero.debug(`BBBBB: Found PDF attachment: ${fileName}`);
+            return arr.concat([{ id: item.id, name: fileName }]);
+          }
+          if (item.isRegularItem()) {
+            return arr.concat(
+              item.getAttachments()
+                .map(x => Zotero.Items.get(x))
+                .filter(x => x.isPDFAttachment())
+                .map(x => ({ 
+                  id: x.id, 
+                  name: x.getField('title') || x.name || x.attachmentFilename 
+                }))
+            );
+          }
+          return arr;
+        }, []);
+        
+        Zotero.debug(`BBBBB: Found ${attachments.length} PDF attachments`);
+        setAttachmentNames(attachments);
+      } catch (error) {
+        Zotero.debug(`BBBBB: Error loading attachment names: ${error.message}`);
+        Zotero.debug(`BBBBB: Error stack: ${error.stack}`);
+      }
+    };
+
+    loadAttachmentNames();
+  }, []);
+
+  // Filter attachments when search value changes
+  useEffect(() => {
+    if (!searchValue.trim()) {
+      setFilteredAttachments([]);
+      setShowSearchPopup(false);
+      return;
+    }
+
+    const searchTerm = searchValue.toLowerCase();
+    const filtered = attachmentNames.filter(attachment => 
+      attachment.name.toLowerCase().includes(searchTerm)
+    );
+    
+    Zotero.debug(`BBBBB: Filtered ${filtered.length} attachments for search term: ${searchTerm}`);
+    setFilteredAttachments(filtered);
+    setShowSearchPopup(true);
+  }, [searchValue, attachmentNames]);
+
+  const handleSearchItemClick = async (attachment) => {
+    try {
+      Zotero.debug(`BBBBB: Selected attachment: ${attachment.name}`);
+      const item = Zotero.Items.get(attachment.id);
+      
+      if (!item.isPDFAttachment()) {
+        Zotero.debug(`BBBBB: Item is not a PDF attachment: ${attachment.name}`);
+        return;
+      }
+
+      // Add to fileList with correct name property
+      const fileName = item.getField('title') || item.name || item.attachmentFilename;
+      Zotero.debug(`BBBBB: Using file name: ${fileName}`);
+      setFileList(prev => [...prev, { id: item.id, name: fileName }]);
+      setOriginalFileList(prev => [...prev, item]);
+      
+      // Clear search
+      setSearchValue('');
+      setShowSearchPopup(false);
+      
+      Zotero.debug(`BBBBB: Added attachment to fileList: ${fileName}`);
+    } catch (error) {
+      Zotero.debug(`BBBBB: Error handling search item click: ${error.message}`);
+    }
+  };
 
   // Get model data in the same format as XUL version
   const getModelData = () => {
@@ -252,9 +442,11 @@ function ModelSelection({ onSubmit }) {
         try {
           const { text } = await Zotero.PDFWorker.getFullText(pdf.id);
           if (text) {
+            const fileName = pdf.getField('title') || pdf.name || pdf.attachmentFilename;
+            Zotero.debug(`NNNNN ModelSelection: Using file name: ${fileName}`);
             return {
               id: pdf.id,
-              name: pdf.name,
+              name: fileName,
               content: text.substring(0, 200)
             };
           }
@@ -408,6 +600,125 @@ function ModelSelection({ onSubmit }) {
     }
   };
 
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+    
+    Zotero.debug("BBBBB: DragOver event triggered");
+    Zotero.debug(`BBBBB: Available dataTransfer types: ${e.dataTransfer.types.join(', ')}`);
+    
+    // Check if we have Zotero items being dragged
+    if (e.dataTransfer.types.includes('zotero/item')) {
+      e.dataTransfer.dropEffect = 'copy';
+      Zotero.debug("BBBBB: Setting dropEffect to 'copy' for Zotero items");
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    Zotero.debug("BBBBB: DragLeave event triggered");
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    Zotero.debug("BBBBB: Drop event triggered");
+
+    try {
+      // Handle Zotero items being dropped
+      if (e.dataTransfer.types.includes('zotero/item')) {
+        Zotero.debug("BBBBB: Found 'zotero/item' in dataTransfer types");
+        const itemIDs = e.dataTransfer.getData('zotero/item').split(',');
+        Zotero.debug(`BBBBB: Retrieved itemIDs: ${itemIDs.join(', ')}`);
+        
+        const items = Zotero.Items.get(itemIDs);
+        Zotero.debug(`BBBBB: Retrieved ${items.length} items from Zotero.Items.get`);
+        
+        const pdfAttachments = items.reduce((arr, item) => {
+          if (item.isPDFAttachment()) {
+            Zotero.debug(`BBBBB: Found direct PDF attachment: ${item.name}`);
+            return arr.concat([item]);
+          }
+          if (item.isRegularItem()) {
+            const attachments = item.getAttachments()
+              .map(x => Zotero.Items.get(x))
+              .filter(x => x.isPDFAttachment());
+            if (attachments.length) {
+              Zotero.debug(`BBBBB: Found ${attachments.length} PDF attachments in regular item: ${item.name}`);
+            }
+            return arr.concat(attachments);
+          }
+          return arr;
+        }, []);
+
+        if (!pdfAttachments.length) {
+          Zotero.debug("BBBBB: No PDF attachments found in dropped items");
+          return;
+        }
+
+        Zotero.debug(`BBBBB: Found ${pdfAttachments.length} total PDF attachments from dropped items`);
+        Zotero.debug(`BBBBB: Current fileList length before update: ${fileList.length}`);
+        
+        // Store original PDF attachments
+        setOriginalFileList(pdfAttachments);
+        Zotero.debug("BBBBB: Updated originalFileList with PDF attachments");
+
+        // Process all PDFs concurrently using Promise.all
+        const pdfProcessingPromises = pdfAttachments.map(async (pdf) => {
+          try {
+            Zotero.debug(`BBBBB: Processing PDF: ${pdf.name}`);
+            const { text } = await Zotero.PDFWorker.getFullText(pdf.id);
+            if (text) {
+              const fileName = pdf.getField('title') || pdf.name || pdf.attachmentFilename;
+              Zotero.debug(`BBBBBF: Successfully extracted text from PDF: ${fileName}`);
+              return {
+                id: pdf.id,
+                name: fileName,
+                content: text.substring(0, 200)
+              };
+            }
+            Zotero.debug(`BBBBB: No text extracted from PDF: ${pdf.name}`);
+            return null;
+          } catch (e) {
+            Zotero.debug(`BBBBB: Error extracting text from PDF ${pdf.name}: ${e.message}`);
+            return null;
+          }
+        });
+
+        // Wait for all PDFs to be processed
+        const results = await Promise.all(pdfProcessingPromises);
+        Zotero.debug(`BBBBB: Completed processing ${results.length} PDFs`);
+        
+        // Filter out any null results and update fileList
+        const validResults = results.filter(result => result !== null);
+        Zotero.debug(`BBBBB: Found ${validResults.length} valid results after processing`);
+        
+        setFileList(prev => {
+          const newList = [
+            ...prev,
+            ...validResults.map(result => ({ 
+              id: result.id,
+              name: result.name
+            }))
+          ];
+          Zotero.debug(`BBBBB: Updated fileList length: ${newList.length}`);
+          return newList;
+        });
+
+        Zotero.debug(`BBBBB: Successfully processed ${validResults.length} PDFs from dropped items`);
+      } else {
+        Zotero.debug("BBBBB: No 'zotero/item' found in dataTransfer types");
+      }
+    } catch (error) {
+      Zotero.debug(`BBBBB: Error handling dropped items: ${error.message}`);
+      Zotero.debug(`BBBBB: Error stack: ${error.stack}`);
+    }
+  };
+
   return (
     <div style={styles.container}>
       {/* Title Section */}
@@ -429,25 +740,80 @@ function ModelSelection({ onSubmit }) {
       <div style={styles.section}>
         <label style={styles.label}>Add Context</label>
         {/* Search Area */}
-        <div style={styles.searchArea}>
-          <svg style={styles.searchIcon} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="9" cy="9" r="7" stroke="#0687E5" strokeWidth="2" />
-            <line x1="14.2" y1="14.2" x2="18" y2="18" stroke="#0687E5" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-          <input
-            style={styles.searchInput}
-            type="text"
-            value={searchValue}
-            onChange={e => setSearchValue(e.target.value)}
-            placeholder="Search for an Item"
-          />
+        <div style={styles.searchContainer}>
+          <div style={styles.searchArea}>
+            <svg style={styles.searchIcon} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="9" cy="9" r="7" stroke="#0687E5" strokeWidth="2" />
+              <line x1="14.2" y1="14.2" x2="18" y2="18" stroke="#0687E5" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+            <input
+              style={styles.searchInput}
+              type="text"
+              value={searchValue}
+              onChange={e => setSearchValue(e.target.value)}
+              placeholder="Search for an Item"
+            />
+          </div>
+          {showSearchPopup && (
+            <div style={styles.searchPopup}>
+              {filteredAttachments.length > 0 ? (
+                filteredAttachments.map(attachment => (
+                  <div
+                    key={attachment.id}
+                    style={styles.searchItem}
+                    onClick={() => handleSearchItemClick(attachment)}
+                  >
+                    {attachment.name}
+                  </div>
+                ))
+              ) : (
+                <div style={styles.noResults}>No matching attachments found</div>
+              )}
+            </div>
+          )}
         </div>
         <div style={styles.contextRow}>
           <button style={styles.uploadButton}>Upload</button>
           <span style={styles.orText}>or</span>
           <button style={styles.uploadButton}>Upload2</button>
+          <span style={styles.orText}>or</span>
+          <div style={{ position: 'relative' }}>
+            <button 
+              style={styles.fileListButton}
+              onClick={() => setShowFileList(!showFileList)}
+            >
+              File List
+            </button>
+            {showFileList && (
+              <div style={styles.fileListPopup}>
+                {fileList.length > 0 ? (
+                  fileList.map(file => (
+                    <div key={file.id} style={styles.fileListItem}>
+                      <span>{file.name}</span>
+                      <span 
+                        style={styles.fileListRemove}
+                        onClick={() => handleRemoveFile(file.id)}
+                      >
+                        ×
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div style={styles.fileListEmpty}>No files selected</div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-        <div style={styles.dragArea}>
+        <div 
+          style={{
+            ...styles.dragArea,
+            ...(isDragging ? styles.dragAreaActive : {})
+          }}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           <span style={{fontSize: '1.2em', opacity: 0.7}}>📄</span>
           Drag a file here
         </div>
