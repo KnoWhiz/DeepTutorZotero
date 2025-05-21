@@ -33,6 +33,12 @@ import DeepTutorWelcomePane from './DeepTutorWelcomePane.js';
 import DeepTutorSignIn from './DeepTutorSignIn.js';
 import DeepTutorSignUp from './DeepTutorSignUp.js';
 import DeepTutorUpgradePremium from './DeepTutorUpgradePremium.js';
+import { 
+	getUserById, 
+	getSessionsByUserId, 
+	getMessagesBySessionId,
+	getSessionById 
+} from './api/libs/api';
 
 // Enums
 const SessionStatus = {
@@ -545,40 +551,11 @@ var DeepTutor = class DeepTutor extends React.Component {
 			this.setState({ isLoading: true, error: null });
 			Zotero.debug("DeepTutor: Loading sessions...");
 
-			// Fetch user data using Zotero.HTTP.request
-			const userResponse = await Zotero.HTTP.request(
-				'GET',
-				'https://api.staging.deeptutor.knowhiz.us/api/users/byUserId/67f5b836cb8bb15b67a1149e',
-				{
-					headers: {
-						'Content-Type': 'application/json'
-					}
-				}
-			);
+			// Fetch user data using centralized API
+			const userData = await getUserById('67f5b836cb8bb15b67a1149e');
 			
-			if (userResponse.status !== 200) {
-				Zotero.debug(`DeepTutorPane: Failed to fetch user data. Status: ${userResponse.status}, StatusText: ${userResponse.statusText}`);
-				throw new Error(`Failed to fetch user: ${userResponse.status} ${userResponse.statusText}`);
-			}
-			
-			const userData = JSON.parse(userResponse.responseText);
-
-			// Fetch sessions using Zotero.HTTP.request
-			const response = await Zotero.HTTP.request(
-				'GET',
-				`https://api.staging.deeptutor.knowhiz.us/api/session/byUser/${userData.id}`,
-				{
-					headers: {
-						'Content-Type': 'application/json'
-					}
-				}
-			);
-
-			if (response.status !== 200) {
-				throw new Error(`Failed to fetch sessions: ${response.status}`);
-			}
-
-			const sessionsData = JSON.parse(response.responseText);
+			// Fetch sessions using centralized API
+			const sessionsData = await getSessionsByUserId(userData.id);
 			Zotero.debug(`DeepTutor: Fetched ${sessionsData.length} sessions`);
 
 			// Convert API data to DeepTutorSession objects
@@ -625,21 +602,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 
 			Zotero.debug(`DeepTutor: Fetching messages for session: ${sessionName}`);
 			try {
-				const response = await Zotero.HTTP.request(
-					'GET',
-					`https://api.staging.deeptutor.knowhiz.us/api/message/bySession/${session.id}`,
-					{
-						headers: {
-							'Content-Type': 'application/json'
-						}
-					}
-				);
-
-				if (response.status !== 200) {
-					throw new Error(`Failed to fetch messages: ${response.status} ${response.statusText}`);
-				}
-
-				const messages = JSON.parse(response.responseText);
+				const messages = await getMessagesBySessionId(session.id);
 				Zotero.debug(`DeepTutor: Successfully fetched ${messages.length} messages`);
 				Zotero.debug(`DeepTutor: Messages content: ${JSON.stringify(messages)}`);
 
@@ -874,22 +837,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 							<ModelSelection 
 								onSubmit={async (sessionId) => {
 									try {
-										// Fetch session details
-										const response = await Zotero.HTTP.request(
-											'GET',
-											`https://api.staging.deeptutor.knowhiz.us/api/session/${sessionId}`,
-											{
-												headers: {
-													'Content-Type': 'application/json'
-												}
-											}
-										);
-
-										if (response.status !== 200) {
-											throw new Error(`Failed to fetch session: ${response.status}`);
-										}
-
-										const sessionData = JSON.parse(response.responseText);
+										// Fetch session details using centralized API
+										const sessionData = await getSessionById(sessionId);
 										const session = new DeepTutorSession(sessionData);
 
 										// Create new Map with the new session

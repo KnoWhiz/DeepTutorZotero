@@ -69,6 +69,30 @@ export const updateSessionName = async (sessionId, sessionName) => {
   return response.json();
 };
 
+export const getSessionById = async (sessionId) => {
+  const response = await window.fetch(`${API_BASE_URL}/session/${sessionId}`, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+  if (!response.ok) {
+    throw new Error('Failed to fetch session');
+  }
+  return response.json();
+};
+
+export const getSessionsByUserId = async (userId) => {
+  const response = await window.fetch(`${API_BASE_URL}/session/byUser/${userId}`, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+  if (!response.ok) {
+    throw new Error('Failed to fetch sessions');
+  }
+  return response.json();
+};
+
 // User related API calls
 export const getUserById = async (userId) => {
   const response = await window.fetch(`${API_BASE_URL}/users/byUserId/${userId}`, {
