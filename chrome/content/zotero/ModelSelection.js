@@ -1,4 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { 
+  getUserById, 
+  getPreSignedUrl, 
+  createSession 
+} from './api/libs/api';
 
 // Session Status Enum
 const SessionStatus = {
@@ -493,18 +498,7 @@ function ModelSelection({ onSubmit }) {
 
     try {
       // Get user ID from API
-      const userResponse = await window.fetch('https://api.staging.deeptutor.knowhiz.us/api/users/byUserId/67f5b836cb8bb15b67a1149e', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!userResponse.ok) {
-        throw new Error(`Failed to fetch user: ${userResponse.status} ${userResponse.statusText}`);
-      }
-      
-      const userData = await userResponse.json();
+      const userData = await getUserById('67f5b836cb8bb15b67a1149e');
       Zotero.debug('ModelSelection: Fetched user data:', userData);
 
       // Handle file uploads if fileList exists
@@ -516,21 +510,7 @@ function ModelSelection({ onSubmit }) {
             Zotero.debug('ModelSelection: Processing file:', fileName);
 
             // 1. Get pre-signed URL for the file
-            const preSignedUrlResponse = await window.fetch(
-              `https://api.staging.deeptutor.knowhiz.us/api/document/preSignedUrl/${userData.id}/${fileName}`,
-              {
-                method: 'GET',
-                headers: {
-                  'Content-Type': 'application/json'
-                }
-              }
-            );
-
-            if (!preSignedUrlResponse.ok) {
-              throw new Error(`Failed to get pre-signed URL: ${preSignedUrlResponse.status}`);
-            }
-
-            const preSignedUrlData = await preSignedUrlResponse.json();
+            const preSignedUrlData = await getPreSignedUrl(userData.id, fileName);
             Zotero.debug('ModelSelection: Got pre-signed URL:', preSignedUrlData);
 
             // 2. Upload file to Azure Blob Storage
@@ -575,19 +555,7 @@ function ModelSelection({ onSubmit }) {
       Zotero.debug(`ModelSelection: Creating session with data: ${JSON.stringify(sessionData, null, 2)}`);
 
       // Create session with uploaded files
-      const sessionResponse = await window.fetch('https://api.staging.deeptutor.knowhiz.us/api/session/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(sessionData)
-      });
-
-      if (!sessionResponse.ok) {
-        throw new Error(`Failed to create session: ${sessionResponse.status} ${sessionResponse.statusText}`);
-      }
-
-      const createdSession = await sessionResponse.json();
+      const createdSession = await createSession(sessionData);
       Zotero.debug('ModelSelection: Session created successfully:', createdSession);
 
       // Call onSubmit with the session ID

@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
+import { 
+  createMessage, 
+  getMessagesBySessionId, 
+  getDocumentById, 
+  subscribeToChat 
+} from './api/libs/api';
 
 // Enums
 const SessionStatus = {
@@ -369,47 +375,8 @@ const DeepTutorChatBox = ({
 
     const sendToAPI = async (message) => {
         try {
-            // Use the stored PDF data
-            /*
-            const pdfContent = pdfDataList.map(pdf => pdf.content).join("\n\n");
-            
-            // Create a message object for the PDF content
-            const pdfMessage = {
-                subMessages: [{
-                    text: pdfContent,
-                    image: null,
-                    audio: null,
-                    contentType: ContentType.TEXT,
-                    creationTime: new Date().toISOString(),
-                    sources: []
-                }],
-                role: MessageRole.TUTOR,
-                creationTime: new Date().toISOString(),
-                lastUpdatedTime: new Date().toISOString(),
-                status: MessageStatus.UNVIEW
-            };
-            setMessages(prev => [...prev, pdfMessage]);
-
-            */
             // Send message to API
-            const response = await Zotero.HTTP.request(
-                'POST',
-                'https://api.staging.deeptutor.knowhiz.us/api/message/create',
-                {
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(message)
-                }
-            );
-
-            if (response.status !== 200) {
-                const errorText = response.responseText;
-                Zotero.debug(`DeepTutorChatBox: API error response: ${errorText}`);
-                throw new Error(`API request failed: ${response.status} ${response.statusText}\nResponse: ${errorText}`);
-            }
-
-            const responseData = JSON.parse(response.responseText);
+            const responseData = await createMessage(message);
             Zotero.debug(`DeepTutorChatBox: API response for input message: ${JSON.stringify(responseData)}`);
             
             // Update conversation with response
@@ -431,14 +398,7 @@ const DeepTutorChatBox = ({
             Zotero.debug(`DeepTutorChatBox: Request body: ${JSON.stringify(conversation)}`);
 
             Zotero.debug(`XXXXXXXXXX DeepTutorChatBox: Attempting to use fetch for stream subscription`);
-            const streamResponse = await window.fetch('https://api.staging.deeptutor.knowhiz.us/api/chat/subscribe', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'text/event-stream'
-                },
-                body: JSON.stringify(conversation)
-            });
+            const streamResponse = await subscribeToChat(conversation);
 
             if (!streamResponse.ok) {
                 throw new Error(`Stream request failed: ${streamResponse.status}`);
@@ -514,23 +474,7 @@ const DeepTutorChatBox = ({
 
             // Fetch message history for the session
             Zotero.debug(`DeepTutorChatBox: Fetching message history for session ${sessionId}`);
-            const historyResponse = await Zotero.HTTP.request(
-                'GET',
-                `https://api.staging.deeptutor.knowhiz.us/api/message/bySession/${sessionId}`,
-                {
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                }
-            );
-
-            if (historyResponse.status !== 200) {
-                const errorText = historyResponse.responseText;
-                Zotero.debug(`DeepTutorChatBox: Failed to fetch message history: ${errorText}`);
-                throw new Error(`Failed to fetch message history: ${historyResponse.status} ${historyResponse.statusText}`);
-            }
-
-            const historyData = JSON.parse(historyResponse.responseText);
+            const historyData = await getMessagesBySessionId(sessionId);
             Zotero.debug(`DeepTutorChatBox: API response data: ${JSON.stringify(historyData)}`);
             
             // Get only the last message from the response
@@ -579,22 +523,7 @@ const DeepTutorChatBox = ({
         const newDocumentFiles = [];
         for (const documentId of newDocumentIds || []) {
             try {
-                const newDoc = await Zotero.HTTP.request(
-                    'GET',
-                    `https://api.staging.deeptutor.knowhiz.us/api/document/${documentId}`,
-                    {
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    }
-                );
-
-                if (newDoc.status !== 200) {
-                    const errorText = newDoc.responseText;
-                    Zotero.debug(`DeepTutorChatBox: Failed to fetch new session documents: ${errorText}`);
-                    throw new Error(`Failed to fetch new session documents: ${newDoc.status} ${newDoc.statusText}`);
-                }
-                const newDocData = JSON.parse(newDoc.responseText);
+                const newDocData = await getDocumentById(documentId);
                 Zotero.debug(`DeepTutorChatBox: New session document: ${JSON.stringify(newDocData)}`);
                 newDocumentFiles.push(newDocData);
             } catch (error) {
@@ -943,7 +872,5 @@ DeepTutorChatBox.propTypes = {
     documentIds: PropTypes.array,
     currentSession: PropTypes.object
 };
-
-
 
 export default DeepTutorChatBox;
