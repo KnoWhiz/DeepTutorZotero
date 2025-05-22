@@ -31,47 +31,50 @@ const styles = {
   container: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 24,
+    gap: 20,
     width: '100%',
-    minHeight: '480px',
     height: '100%',
+    maxHeight: 'calc(100vh - 100px)', // Account for Zotero pane header
     background: '#FFFFFF',
     fontFamily: 'Roboto, sans-serif',
-    borderRadius: 12,
+    borderRadius: 10,
     boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
-    padding: '32px 18px 24px 18px',
+    padding: '16px',
     alignItems: 'center',
     justifyContent: 'flex-start',
+    overflowY: 'auto',
+    overflowX: 'hidden',
   },
   title: {
     background: 'linear-gradient(90deg, #0AE2FF 0%, #0687E5 100%)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     backgroundClip: 'text',
-    color: SKY, // fallback
+    color: SKY,
     fontWeight: 700,
-    fontSize: '1.35em',
+    fontSize: '1.2em',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 4,
     letterSpacing: 0.2,
+    width: '100%',
   },
   section: {
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 390,
     display: 'flex',
     flexDirection: 'column',
     gap: 8,
   },
   label: {
     fontWeight: 500,
-    color: '#292929',
+    color: '#000000',
     marginBottom: 2,
     fontSize: '1em',
   },
   input: {
     width: '100%',
-    padding: '12px',
-    borderRadius: 8,
+    padding: '16px',
+    borderRadius: 10,
     border: `1px solid ${LIGHT_GREY2}`,
     background: PEARL,
     fontSize: '1em',
@@ -80,21 +83,21 @@ const styles = {
   },
   searchArea: {
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 390,
     background: PEARL,
-    borderRadius: 8,
+    borderRadius: 10,
     border: `1px solid ${LIGHT_GREY2}`,
     display: 'flex',
     alignItems: 'center',
-    padding: '8px 12px',
+    padding: '12px 15px',
     margin: '8px 0',
     fontSize: '1em',
     color: '#292929',
-    gap: 8,
+    gap: 10,
   },
   searchIcon: {
-    width: 18,
-    height: 18,
+    width: 24,
+    height: 24,
     opacity: 0.6,
   },
   searchInput: {
@@ -135,9 +138,9 @@ const styles = {
   },
   dragArea: {
     border: `1.5px dashed ${LIGHT_GREY2}`,
-    borderRadius: 12,
+    borderRadius: 10,
     background: PEARL,
-    minHeight: 80,
+    minHeight: 91,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -156,7 +159,7 @@ const styles = {
   modelTypeRow: {
     display: 'flex',
     flexDirection: 'row',
-    gap: 8,
+    gap: 0,
     width: '100%',
     marginTop: 8,
     marginBottom: 8,
@@ -165,22 +168,26 @@ const styles = {
     flex: 1,
     padding: '12px 0',
     border: 'none',
-    borderRadius: 8,
+    borderRadius: 10,
     fontWeight: 700,
     fontSize: '1em',
     cursor: 'pointer',
-    background: LIGHT_GREY2,
+    background: PEARL,
     color: '#292929',
     transition: 'background 0.2s, color 0.2s',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
   },
   modelTypeButtonSelected: {
-    background: SKY,
-    color: '#fff',
+    background: '#0AE2FF',
+    color: '#292929',
     fontWeight: 700,
   },
   createButton: {
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 390,
     margin: '32px auto 0 auto',
     padding: '14px 0',
     background: SKY,
@@ -195,6 +202,28 @@ const styles = {
     letterSpacing: 0.2,
     transition: 'background 0.2s',
     display: 'block',
+  },
+  modelDescription: {
+    marginTop: 5,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 5,
+  },
+  modelFeature: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 5,
+    fontSize: '0.9em',
+    color: '#000000',
+  },
+  modelIcon: {
+    width: 16,
+    height: 16,
+  },
+  modelLimitations: {
+    marginTop: 5,
+    color: '#000000',
+    fontSize: '0.9em',
   },
   searchContainer: {
     position: 'relative',
@@ -509,6 +538,17 @@ function ModelSelection({ onSubmit }) {
             const fileName = file.name;
             Zotero.debug('ModelSelection: Processing file:', fileName);
 
+            // Get the file as a Data URL and convert to Blob
+            const dataURI = await file.attachmentDataURI;
+            if (!dataURI) {
+                throw new Error(`Failed to get file data for: ${fileName}`);
+            }
+
+            // Convert Data URL to Blob
+            const response = await window.fetch(dataURI);
+            const blob = await response.blob();
+            Zotero.debug('ModelSelection: Converted file to Blob:', blob);
+
             // 1. Get pre-signed URL for the file
             const preSignedUrlData = await getPreSignedUrl(userData.id, fileName);
             Zotero.debug('ModelSelection: Got pre-signed URL:', preSignedUrlData);
@@ -520,7 +560,7 @@ function ModelSelection({ onSubmit }) {
                 'x-ms-blob-type': 'BlockBlob',
                 'Content-Type': 'application/pdf'
               },
-              body: file
+              body: blob
             });
 
             if (!uploadResponse.ok) {
@@ -552,11 +592,30 @@ function ModelSelection({ onSubmit }) {
         generateHash: null
       };
 
-      Zotero.debug(`ModelSelection: Creating session with data: ${JSON.stringify(sessionData, null, 2)}`);
+      Zotero.debug(`ModelSelection0521: Creating session with data: ${JSON.stringify(sessionData, null, 2)}`);
 
       // Create session with uploaded files
       const createdSession = await createSession(sessionData);
-      Zotero.debug('ModelSelection: Session created successfully:', createdSession);
+      Zotero.debug('ModelSelection0521: Session created successfully:', createdSession);
+
+      // Create mapping file
+      if (createdSession && createdSession.id) {
+        try {
+          // Create mapping between Azure document IDs and Zotero attachment IDs
+          const mapping = {};
+          fileList.forEach((file, index) => {
+            mapping[uploadedDocumentIds[index]] = file.id;
+          });
+
+          // Save mapping to Zotero's local storage
+          const storageKey = `deeptutor_mapping_${createdSession.id}`;
+          Zotero.Prefs.set(storageKey, JSON.stringify(mapping));
+          Zotero.debug('ModelSelection0521: Saved mapping to local storage for session:', createdSession.id);
+          Zotero.debug('ModelSelection0521: Get data mapping:', Zotero.Prefs.get(storageKey));
+        } catch (error) {
+          Zotero.debug('ModelSelection0521: Error saving mapping to local storage:', error);
+        }
+      }
 
       // Call onSubmit with the session ID
       if (onSubmit) {
@@ -689,10 +748,8 @@ function ModelSelection({ onSubmit }) {
 
   return (
     <div style={styles.container}>
-      {/* Title Section */}
       <div style={styles.title}>Create a new session</div>
 
-      {/* Name Section */}
       <div style={styles.section}>
         <label style={styles.label}>Name Your Session</label>
         <input
@@ -704,15 +761,13 @@ function ModelSelection({ onSubmit }) {
         />
       </div>
 
-      {/* Context Section */}
       <div style={styles.section}>
         <label style={styles.label}>Add Context</label>
-        {/* Search Area */}
         <div style={styles.searchContainer}>
           <div style={styles.searchArea}>
-            <svg style={styles.searchIcon} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="9" cy="9" r="7" stroke="#0687E5" strokeWidth="2" />
-              <line x1="14.2" y1="14.2" x2="18" y2="18" stroke="#0687E5" strokeWidth="2" strokeLinecap="round" />
+            <svg style={styles.searchIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="11" cy="11" r="7" stroke="#0687E5" strokeWidth="2" />
+              <line x1="16.2" y1="16.2" x2="20" y2="20" stroke="#0687E5" strokeWidth="2" strokeLinecap="round" />
             </svg>
             <input
               style={styles.searchInput}
@@ -783,11 +838,10 @@ function ModelSelection({ onSubmit }) {
           onDrop={handleDrop}
         >
           <span style={{fontSize: '1.2em', opacity: 0.7}}>📄</span>
-          Drag a file here
+          Drag an Item Here
         </div>
       </div>
 
-      {/* Model Type Section */}
       <div style={styles.section}>
         <label style={styles.label}>Select Your Model</label>
         <div style={styles.modelTypeRow}>
@@ -798,6 +852,7 @@ function ModelSelection({ onSubmit }) {
             }}
             onClick={() => handleTypeSelection('lite')}
           >
+            <span>🚫</span>
             LITE
           </button>
           <button
@@ -807,6 +862,7 @@ function ModelSelection({ onSubmit }) {
             }}
             onClick={() => handleTypeSelection('normal')}
           >
+            <span>➕</span>
             STANDARD
           </button>
           <button
@@ -816,11 +872,92 @@ function ModelSelection({ onSubmit }) {
             }}
             onClick={() => handleTypeSelection('advanced')}
           >
+            <span>⚡</span>
             ADVANCED
           </button>
         </div>
+        {selectedType === 'lite' && (
+          <div style={styles.modelDescription}>
+            <div style={styles.modelFeature}>
+              <span style={styles.modelIcon}>⚡</span>
+              Our quickest model - for a quick grasp of the content.
+            </div>
+            <div style={styles.modelFeature}>
+              <span style={styles.modelIcon}>✅</span>
+              Free for all users
+            </div>
+            <div style={styles.modelFeature}>
+              <span style={styles.modelIcon}>✅</span>
+              Process raw text the fastest
+            </div>
+            <div style={styles.modelFeature}>
+              <span style={styles.modelIcon}>✅</span>
+              Source content highlight
+            </div>
+            <div style={styles.modelFeature}>
+              <span style={styles.modelIcon}>✅</span>
+              Multiple files understanding
+            </div>
+          </div>
+        )}
+        {selectedType === 'normal' && (
+          <div style={styles.modelDescription}>
+            <div style={styles.modelFeature}>
+              <span style={styles.modelIcon}>🙌</span>
+              Popular model - Great for most papers
+            </div>
+            <div style={styles.modelFeature}>
+              <span style={styles.modelIcon}>✅</span>
+              Image understanding
+            </div>
+            <div style={styles.modelFeature}>
+              <span style={styles.modelIcon}>✅</span>
+              Inference mode with DeepSeek
+            </div>
+            <div style={styles.modelFeature}>
+              <span style={styles.modelIcon}>✅</span>
+              Higher quality summary
+            </div>
+            <div style={styles.modelFeature}>
+              <span style={styles.modelIcon}>✅</span>
+              Markdown based RAG model
+            </div>
+            <div style={styles.modelFeature}>
+              <span style={styles.modelIcon}>💰</span>
+              Available with Premium Subscription
+            </div>
+          </div>
+        )}
+        {selectedType === 'advanced' && (
+          <div style={styles.modelDescription}>
+            <div style={styles.modelFeature}>
+              <span style={styles.modelIcon}>⚡</span>
+              Deep but Slow - Our most powerful model. It will take 5 - 10 min to prepare the content
+            </div>
+            <div style={styles.modelFeature}>
+              <span style={styles.modelIcon}>✅</span>
+              Everything in standard mode
+            </div>
+            <div style={styles.modelFeature}>
+              <span style={styles.modelIcon}>✅</span>
+              Deeper understanding on figures, equations, tables and graphs
+            </div>
+            <div style={styles.modelFeature}>
+              <span style={styles.modelIcon}>✅</span>
+              Further enhanced context relavency
+            </div>
+            <div style={styles.modelFeature}>
+              <span style={styles.modelIcon}>✅</span>
+              More advanced model using GraphRAG
+            </div>
+            <div style={styles.modelFeature}>
+              <span style={styles.modelIcon}>💰</span>
+              Available with Premium Subscription
+            </div>
+          </div>
+        )}
       </div>
-      {/* Create Button at the bottom */}
+
       <button style={styles.createButton} onClick={handleSubmit}>
         Create
       </button>

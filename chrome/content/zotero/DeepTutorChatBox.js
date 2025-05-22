@@ -6,6 +6,7 @@ import {
   getDocumentById, 
   subscribeToChat 
 } from './api/libs/api';
+import { viewAttachment } from './elements/callZoteroPane';
 
 // Enums
 const SessionStatus = {
@@ -379,38 +380,53 @@ const DeepTutorChatBox = ({
             const responseData = await createMessage(message);
             Zotero.debug(`DeepTutorChatBox: API response for input message: ${JSON.stringify(responseData)}`);
             
-            // Update conversation with response
-            Zotero.debug(`DeepTutorChatBox: Updating conversation state with response data includingg userId: ${userId}, sessionId: ${sessionId}, documentIds: ${documentIds}`);
-            setConversation(prev => ({
-                ...prev,
-                userId: userId,
-                sessionId: sessionId,
-                documentIds: documentIds,
-                history: [...prev.history, responseData],
-                message: responseData,
-                streaming: true,
-                type: SessionType.BASIC
-            }));
+            // Create a promise to ensure conversation state is updated
+            await new Promise(resolve => {
+                setConversation(prev => {
+                    const newState = {
+                        ...prev,
+                        userId: userId,
+                        sessionId: sessionId,
+                        documentIds: documentIds,
+                        history: [...prev.history, responseData],
+                        message: responseData,
+                        streaming: true,
+                        type: SessionType.BASIC
+                    };
+                    resolve();
+                    return newState;
+                });
+            });
+            
             Zotero.debug(`DeepTutorChatBox: Conversation state updated successfully`);
 
-            // Subscribe to chat stream
+            // Subscribe to chat stream with timeout
             Zotero.debug(`DeepTutorChatBox: Sending API request to: https://api.staging.deeptutor.knowhiz.us/api/chat/subscribe`);
             Zotero.debug(`DeepTutorChatBox: Request body: ${JSON.stringify(conversation)}`);
 
-            Zotero.debug(`XXXXXXXXXX DeepTutorChatBox: Attempting to use fetch for stream subscription`);
-            const streamResponse = await subscribeToChat(conversation);
+            const streamResponse = await Promise.race([
+                subscribeToChat(conversation),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Stream subscription timeout')), 30000)
+                )
+            ]);
 
             if (!streamResponse.ok) {
                 throw new Error(`Stream request failed: ${streamResponse.status}`);
             }
 
-            Zotero.debug(`XXXXXXXXXX DeepTutorChatBox: Starting stream processing with response status: ${streamResponse.status}`);
-            Zotero.debug(`XXXXXXXXXX DeepTutorChatBox: Checking streamResponse.body: ${streamResponse.body ? 'exists' : 'null'}`);
+            Zotero.debug(`DeepTutorChatBox: Starting stream processing with response status: ${streamResponse.status}`);
+            Zotero.debug(`DeepTutorChatBox: Checking streamResponse.body: ${streamResponse.body ? 'exists' : 'null'}`);
+            
+            if (!streamResponse.body) {
+                throw new Error('Stream response body is null');
+            }
+
             const reader = streamResponse.body.getReader();
-            Zotero.debug(`XXXXXXXXXX DeepTutorChatBox: Reader object created: ${reader ? 'success' : 'failed'}`);
             const decoder = new TextDecoder();
-            Zotero.debug(`XXXXXXXXXX DeepTutorChatBox: Decoder object created: ${decoder ? 'success' : 'failed'}`);
             let streamText = "";
+            let hasReceivedData = false;
+            let lastDataTime = Date.now();
 
             // Create initial empty message for TUTOR
             const initialTutorMessage = {
@@ -427,25 +443,42 @@ const DeepTutorChatBox = ({
             };
             
             // Add the empty message to messages
-            setMessages(prev => [...prev, initialTutorMessage]);
+            await new Promise(resolve => {
+                setMessages(prev => {
+                    resolve();
+                    return [...prev, initialTutorMessage];
+                });
+            });
 
             while (true) {
                 const { done, value } = await reader.read();
-                if (done) break;
+                
+                // Check for timeout
+                if (Date.now() - lastDataTime > 30000) {
+                    throw new Error('Stream timeout - no data received for 30 seconds');
+                }
+                
+                if (done) {
+                    if (!hasReceivedData) {
+                        throw new Error('Stream closed without receiving any data');
+                    }
+                    break;
+                }
+
+                lastDataTime = Date.now();
                 const data = decoder.decode(value);
                 
                 data.split('\n\n').forEach((event) => {
-                    Zotero.debug('DeepTutorChatBox: Processing event:', event);
                     if (!event.startsWith('data:')) return;
 
                     const jsonStr = event.slice(5);
-                    Zotero.debug('DeepTutorChatBox: Processing jsonStr:', jsonStr);
                     try {
                         const parsed = JSON.parse(jsonStr);
                         const output = parsed.msg_content;
-                        Zotero.debug('DeepTutorChatBox: Processing output:', output);
                         if (output && output.length > 0) {
+                            hasReceivedData = true;
                             streamText += output;
+                            
                             // Create a temporary message to display the stream
                             const streamMessage = {
                                 subMessages: [{
@@ -459,6 +492,7 @@ const DeepTutorChatBox = ({
                                 lastUpdatedTime: new Date().toISOString(),
                                 status: MessageStatus.UNVIEW
                             };
+
                             // Update the last message in the chat
                             setMessages(prev => {
                                 const newMessages = [...prev];
@@ -670,31 +704,86 @@ const DeepTutorChatBox = ({
     };
 
     const handleSourceClick = async (source) => {
-        if (!source.attachmentId) return;
+        if (!source || source.refinedIndex === undefined || source.refinedIndex < 0 || source.refinedIndex >= documentIds.length) {
+            Zotero.debug(`DeepTutorChatBox: Invalid source or refinedIndex: ${JSON.stringify(source)}`);
+            return;
+        }
 
-        Zotero.debug(`DeepTutorChatBox: Source button clicked for attachment ${source.attachmentId}`);
+        const attachmentId = documentIds[source.refinedIndex];
+        if (!attachmentId) {
+            Zotero.debug(`DeepTutorChatBox: No attachment ID found for refinedIndex ${source.refinedIndex}`);
+            return;
+        }
+
+        Zotero.debug(`DeepTutorChatBox: Source button clicked for attachment ${attachmentId}, page ${source.page}`);
         
-        // View the attachment
-        ZoteroPane.viewAttachment(source.attachmentId);
-        
-        // Find and focus on the annotation
-        const attachment = Zotero.Items.get(source.attachmentId);
-        if (attachment) {
-            Zotero.debug(`DeepTutorChatBox: Found attachment, retrieving annotations`);
-            const annotations = await Zotero.Annotations.getAnnotationsForItem(attachment);
-            Zotero.debug(`DeepTutorChatBox: Found ${annotations.length} annotations`);
-            
-            const highlight = annotations.find(a => 
-                a.type === 'highlight' && 
-                a.page === source.page
-            );
-            
-            if (highlight) {
-                Zotero.debug(`DeepTutorChatBox: Found matching highlight annotation ${highlight.id}, focusing on it`);
-                Zotero.Annotations.focusAnnotation(highlight);
-            } else {
-                Zotero.debug(`DeepTutorChatBox: No matching highlight found for page ${source.page}`);
+        try {
+            // Try to get the mapping from local storage
+            const storageKey = `deeptutor_mapping_${sessionId}`;
+            let zoteroAttachmentId = attachmentId;
+
+            const mappingStr = Zotero.Prefs.get(storageKey);
+            Zotero.debug('ModelSelection0521AA: Get data mapping:', Zotero.Prefs.get(storageKey));
+            if (mappingStr) {
+                const mapping = JSON.parse(mappingStr);
+                Zotero.debug(`DeepTutorChatBox: Found mapping in storage: ${JSON.stringify(mapping)}`);
+                
+                // If we have a mapping for this document ID, use it
+                if (mapping[attachmentId]) {
+                    zoteroAttachmentId = mapping[attachmentId];
+                    Zotero.debug(`DeepTutorChatBox: Using mapped attachment ID: ${zoteroAttachmentId}`);
+                }
             }
+
+            // View the attachment using our new function
+            const item = Zotero.Items.get(zoteroAttachmentId);
+            if (!item) {
+                Zotero.debug(`DeepTutorChatBox: No item found for ID ${zoteroAttachmentId}`);
+                return;
+            }
+
+            await Zotero.FileHandlers.open(item, {
+                location: {
+                    pageIndex: source.page - 1, // Convert to 0-based index
+                    annotationID: source.annotationId
+                }
+            });
+            Zotero.debug(`DeepTutorChatBox: Opened PDF with page ${source.page} and annotation ${source.annotationId}`);
+            
+            // Find and focus on the annotation
+            const attachment = Zotero.Items.get(zoteroAttachmentId);
+            if (attachment) {
+                Zotero.debug(`DeepTutorChatBox: Found attachment, retrieving annotations`);
+                const annotations = await attachment.getAnnotations();
+                Zotero.debug(`DeepTutorChatBox: Found ${annotations.length} annotations`);
+                
+                // Find highlight annotation for the specific page
+                const highlight = annotations.find(a => 
+                    a.type === 'highlight' && 
+                    a.page === source.page &&
+                    a.text === source.referenceString
+                );
+                
+                if (highlight) {
+                    Zotero.debug(`DeepTutorChatBox: Found matching highlight annotation ${highlight.id}, focusing on it`);
+                    await Zotero.Annotations.focusAnnotation(highlight);
+                    Zotero.debug(`DeepTutorChatBox: Focused on highlight annotation`);
+                } else {
+                    Zotero.debug(`DeepTutorChatBox: No matching highlight found for page ${source.page}, creating new highlight`);
+                    // Create new highlight if not found
+                    const newHighlight = await _createHighlightAnnotation(zoteroAttachmentId, source.page, source.referenceString);
+                    if (newHighlight) {
+                        Zotero.debug(`DeepTutorChatBox: Created new highlight annotation ${newHighlight.id}`);
+                        await Zotero.Annotations.focusAnnotation(newHighlight);
+                        Zotero.debug(`DeepTutorChatBox: Focused on new highlight annotation`);
+                    }
+                }
+            } else {
+                Zotero.debug(`DeepTutorChatBox: No attachment found for ID ${zoteroAttachmentId}`);
+            }
+        } catch (error) {
+            Zotero.debug(`DeepTutorChatBox: Error handling source click: ${error.message}`);
+            Zotero.debug(`DeepTutorChatBox: Error stack: ${error.stack}`);
         }
     };
 
@@ -746,7 +835,7 @@ const DeepTutorChatBox = ({
                                             style={styles.sourceButton}
                                             onClick={() => handleSourceClick(source)}
                                         >
-                                            Source {source.index + 1} (Page {source.page})
+                                            {source.index + 1}
                                         </button>
                                     ))}
                                 </div>

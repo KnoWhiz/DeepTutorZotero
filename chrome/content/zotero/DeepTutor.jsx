@@ -444,6 +444,42 @@ const styles = {
 		transition: 'background 0.2s',
 		fontFamily: 'Roboto, sans-serif',
 	},
+	profilePopup: {
+		position: 'absolute',
+		bottom: '100%',
+		left: 0,
+		background: '#fff',
+		borderRadius: '8px',
+		boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+		padding: '12px',
+		marginBottom: '8px',
+		zIndex: 1000,
+		minWidth: '200px',
+	},
+	profileButtonContainer: {
+		position: 'relative',
+	},
+	componentButton: {
+		padding: '6px 18px',
+		borderRadius: 6,
+		border: '1px solid #0687E5',
+		background: '#fff',
+		color: '#0687E5',
+		fontWeight: 600,
+		cursor: 'pointer',
+		fontFamily: 'Roboto, Inter, Arial, sans-serif',
+		width: '100%',
+		textAlign: 'left',
+		marginBottom: '4px',
+		transition: 'all 0.2s ease',
+		'&:hover': {
+			background: '#f0f9ff',
+		},
+	},
+	componentButtonActive: {
+		background: '#0687E5',
+		color: '#fff',
+	},
 };
 
 var DeepTutor = class DeepTutor extends React.Component {
@@ -496,7 +532,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 			sessions: [],
 			sesNamToObj: new Map(), // Map to store session name to session object mapping
 			isLoading: false,
-			error: null
+			error: null,
+			showProfilePopup: false,
 		};
 		this._initialized = false;
 		this._selection = null;
@@ -544,6 +581,12 @@ var DeepTutor = class DeepTutor extends React.Component {
 	// Placeholder for pane switching logic
 	switchPane = (pane) => {
 		this.setState({ currentPane: pane });
+	};
+
+	toggleProfilePopup = () => {
+		this.setState(prevState => ({
+			showProfilePopup: !prevState.showProfilePopup
+		}));
 	};
 
 	async loadSession() {
@@ -679,145 +722,6 @@ var DeepTutor = class DeepTutor extends React.Component {
 					</div>
 				</div>
 
-				{/* Temporary Component Button List */}
-				<div style={{ 
-					display: 'flex', 
-					flexDirection: 'row', 
-					justifyContent: 'flex-start', 
-					gap: 12, 
-					padding: '8px 16px', 
-					background: '#f8f9fa', 
-					borderBottom: '1px solid #e9ecef',
-					overflowX: 'auto',
-					overflowY: 'hidden',
-					whiteSpace: 'nowrap',
-					scrollbarWidth: 'thin',
-					scrollbarColor: '#0687E5 #f8f9fa',
-					'&::-webkit-scrollbar': {
-						height: '6px',
-					},
-					'&::-webkit-scrollbar-track': {
-						background: '#f8f9fa',
-					},
-					'&::-webkit-scrollbar-thumb': {
-						background: '#0687E5',
-						borderRadius: '3px',
-					}
-				}}>
-					<button
-						style={{ 
-							padding: '6px 18px', 
-							borderRadius: 6, 
-							border: '1px solid #0687E5', 
-							background: this.state.currentPane === 'main' ? '#0687E5' : '#fff', 
-							color: this.state.currentPane === 'main' ? '#fff' : '#0687E5', 
-							fontWeight: 600, 
-							cursor: 'pointer', 
-							fontFamily: 'Roboto, Inter, Arial, sans-serif',
-							flexShrink: 0
-						}}
-						onClick={() => this.switchPane('main')}
-					>
-						Main
-					</button>
-					<button
-						style={{ 
-							padding: '6px 18px', 
-							borderRadius: 6, 
-							border: '1px solid #0687E5', 
-							background: this.state.currentPane === 'modelSelection' ? '#0687E5' : '#fff', 
-							color: this.state.currentPane === 'modelSelection' ? '#fff' : '#0687E5', 
-							fontWeight: 600, 
-							cursor: 'pointer', 
-							fontFamily: 'Roboto, Inter, Arial, sans-serif',
-							flexShrink: 0
-						}}
-						onClick={() => this.switchPane('modelSelection')}
-					>
-						Model Selection
-					</button>
-					<button
-						style={{ 
-							padding: '6px 18px', 
-							borderRadius: 6, 
-							border: '1px solid #0687E5', 
-							background: this.state.currentPane === 'sessionHistory' ? '#0687E5' : '#fff', 
-							color: this.state.currentPane === 'sessionHistory' ? '#fff' : '#0687E5', 
-							fontWeight: 600, 
-							cursor: 'pointer', 
-							fontFamily: 'Roboto, Inter, Arial, sans-serif',
-							flexShrink: 0
-						}}
-						onClick={() => this.switchPane('sessionHistory')}
-					>
-						Session History
-					</button>
-					<button
-						style={{ 
-							padding: '6px 18px', 
-							borderRadius: 6, 
-							border: '1px solid #0687E5', 
-							background: this.state.currentPane === 'welcome' ? '#0687E5' : '#fff', 
-							color: this.state.currentPane === 'welcome' ? '#fff' : '#0687E5', 
-							fontWeight: 600, 
-							cursor: 'pointer', 
-							fontFamily: 'Roboto, Inter, Arial, sans-serif',
-							flexShrink: 0
-						}}
-						onClick={() => this.switchPane('welcome')}
-					>
-						Welcome
-					</button>
-					<button
-						style={{ 
-							padding: '6px 18px', 
-							borderRadius: 6, 
-							border: '1px solid #0687E5', 
-							background: this.state.currentPane === 'signIn' ? '#0687E5' : '#fff', 
-							color: this.state.currentPane === 'signIn' ? '#fff' : '#0687E5', 
-							fontWeight: 600, 
-							cursor: 'pointer', 
-							fontFamily: 'Roboto, Inter, Arial, sans-serif',
-							flexShrink: 0
-						}}
-						onClick={() => this.switchPane('signIn')}
-					>
-						Sign In
-					</button>
-					<button
-						style={{ 
-							padding: '6px 18px', 
-							borderRadius: 6, 
-							border: '1px solid #0687E5', 
-							background: this.state.currentPane === 'signUp' ? '#0687E5' : '#fff', 
-							color: this.state.currentPane === 'signUp' ? '#fff' : '#0687E5', 
-							fontWeight: 600, 
-							cursor: 'pointer', 
-							fontFamily: 'Roboto, Inter, Arial, sans-serif',
-							flexShrink: 0
-						}}
-						onClick={() => this.switchPane('signUp')}
-					>
-						Sign Up
-					</button>
-					<button
-						style={{ 
-							padding: '6px 18px', 
-							borderRadius: 6, 
-							border: '1px solid #0687E5', 
-							background: this.state.currentPane === 'upgrade' ? '#0687E5' : '#fff', 
-							color: this.state.currentPane === 'upgrade' ? '#fff' : '#0687E5', 
-							fontWeight: 600, 
-							cursor: 'pointer', 
-							fontFamily: 'Roboto, Inter, Arial, sans-serif',
-							flexShrink: 0
-						}}
-						onClick={() => this.switchPane('upgrade')}
-					>
-						Upgrade
-					</button>
-				</div>
-
 				{/* Middle Section: Pane List Holder */}
 				<div style={styles.middle}>
 					<div style={styles.paneList}>
@@ -894,10 +798,100 @@ var DeepTutor = class DeepTutor extends React.Component {
 							<img src={FeedIconPath} alt="Feedback" style={styles.buttonIcon} />
 							Feedback
 						</button>
-						<button style={styles.textButton}>
-							<img src={PersonIconPath} alt="Profile" style={styles.buttonIcon} />
-							Profile
-						</button>
+						<div style={styles.profileButtonContainer}>
+							<button style={styles.textButton} onClick={this.toggleProfilePopup}>
+								<img src={PersonIconPath} alt="Profile" style={styles.buttonIcon} />
+								Profile
+							</button>
+							{this.state.showProfilePopup && (
+								<div style={styles.profilePopup}>
+									<button
+										style={{
+											...styles.componentButton,
+											...(this.state.currentPane === 'main' ? styles.componentButtonActive : {})
+										}}
+										onClick={() => {
+											this.switchPane('main');
+											this.toggleProfilePopup();
+										}}
+									>
+										Main
+									</button>
+									<button
+										style={{
+											...styles.componentButton,
+											...(this.state.currentPane === 'modelSelection' ? styles.componentButtonActive : {})
+										}}
+										onClick={() => {
+											this.switchPane('modelSelection');
+											this.toggleProfilePopup();
+										}}
+									>
+										Model Selection
+									</button>
+									<button
+										style={{
+											...styles.componentButton,
+											...(this.state.currentPane === 'sessionHistory' ? styles.componentButtonActive : {})
+										}}
+										onClick={() => {
+											this.switchPane('sessionHistory');
+											this.toggleProfilePopup();
+										}}
+									>
+										Session History
+									</button>
+									<button
+										style={{
+											...styles.componentButton,
+											...(this.state.currentPane === 'welcome' ? styles.componentButtonActive : {})
+										}}
+										onClick={() => {
+											this.switchPane('welcome');
+											this.toggleProfilePopup();
+										}}
+									>
+										Welcome
+									</button>
+									<button
+										style={{
+											...styles.componentButton,
+											...(this.state.currentPane === 'signIn' ? styles.componentButtonActive : {})
+										}}
+										onClick={() => {
+											this.switchPane('signIn');
+											this.toggleProfilePopup();
+										}}
+									>
+										Sign In
+									</button>
+									<button
+										style={{
+											...styles.componentButton,
+											...(this.state.currentPane === 'signUp' ? styles.componentButtonActive : {})
+										}}
+										onClick={() => {
+											this.switchPane('signUp');
+											this.toggleProfilePopup();
+										}}
+									>
+										Sign Up
+									</button>
+									<button
+										style={{
+											...styles.componentButton,
+											...(this.state.currentPane === 'upgrade' ? styles.componentButtonActive : {})
+										}}
+										onClick={() => {
+											this.switchPane('upgrade');
+											this.toggleProfilePopup();
+										}}
+									>
+										Upgrade
+									</button>
+								</div>
+							)}
+						</div>
 					</div>
 					<button style={styles.upgradeButton} onClick={() => this.switchPane('upgrade')}>Upgrade</button>
 				</div>
