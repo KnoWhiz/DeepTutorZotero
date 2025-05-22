@@ -271,6 +271,17 @@ const DeepTutorChatBox = ({
         }
     }, [currentSession?.id]); // Only depend on session ID changes
 
+    // Send initial message when conditions are met
+    useEffect(() => {
+        const sendInitialMessage = async () => {
+            if (messages.length === 0 && sessionId && userId) {
+                Zotero.debug(`DeepTutorChatBox: Sending initial message - sessionId: ${sessionId}, userId: ${userId}`);
+                await userSendMessage("Can you give me a summary of this document?");
+            }
+        };
+        sendInitialMessage();
+    }, [messages.length, sessionId, userId]);
+
     useEffect(() => {
         // Scroll to bottom when messages change
         if (chatLogRef.current) {
@@ -547,6 +558,8 @@ const DeepTutorChatBox = ({
         setDocumentIds(newDocumentIds || []);
         setCurDocumentFiles([]);
         setCurSessionObj(sessionObj);
+        setUserId(sessionObj.userId || null);
+        setSessionId(sessionObj.id || null);
 
         // Update session info display
         if (newMessages.length > 0) {
@@ -592,12 +605,11 @@ const DeepTutorChatBox = ({
         } else {
             Zotero.debug(`DeepTutorChatBox: No new messages to load`);
             // Wait a bit to ensure state updates are complete
-            await new Promise(resolve => setTimeout(resolve, 400));
-            // Verify sessionId is set before sending message
-            if (sessionId) {
-                await userSendMessage("Can you give me a summary of this document?");
+            // Call onNewSession with the current session object
+            if (sessionObj) {
+                await onNewSession(sessionObj);
             } else {
-                Zotero.debug(`OOOOOOOO DeepTutorChatBox: Cannot send initial message - sessionId is null`);
+                Zotero.debug(`OOOOOOOO DeepTutorChatBox: Cannot send initial message - session object is null`);
             }
         }
 
@@ -798,9 +810,23 @@ const DeepTutorChatBox = ({
     const onNewSession = async (newSession) => {
         try {
             Zotero.debug(`UUUUUUUUUUUUUUU DeepTutorChatBox: onNewSession: ${JSON.stringify(newSession)}`);
+            
+            // Check if session is too recent
+            const sessionCreationTime = new Date(newSession.creationTime);
+            const now = new Date();
+            const timeDiff = (now - sessionCreationTime) / 1000; // Convert to seconds
+            
+            if (timeDiff < 15) {
+                // Wait for remaining time
+                Zotero.debug(`UUUUUUUUUUUUUUU DeepTutorChatBox: Waiting for ${Math.ceil(15 - timeDiff)} seconds`);
+                const waitTime = Math.ceil(15 - timeDiff) * 1000;
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+
+            }
+            
             // Update userId and sessionId
-            setUserId(newSession.userId);
-            setSessionId(newSession.id);
+            // setUserId(newSession.userId);
+            //setSessionId(newSession.id);
             await userSendMessage("Can you give me a summary of this document?");
         } catch (error) {
             Zotero.debug(`DeepTutorChatBox: Error in onNewSession: ${error.message}`);
