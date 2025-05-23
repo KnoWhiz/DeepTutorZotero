@@ -834,32 +834,6 @@ const DeepTutorChatBox = ({
         }
     };
 
-    // Add formatResponseForMarkdown function before renderMessage
-    const formatResponseForMarkdown = (text) => {
-        let formattedText = text || '';
-        // Replace source references with Source component tags
-        return formattedText.replace(/\[<(\d{1,2})>\]/g, (_, id) => {
-            return `<source id="${id}" />`;
-        });
-    };
-
-    // Add Source component definition
-    const Source = ({ id, source }) => (
-        <button
-            type="button"
-            onClick={() => handleSourceClick(source)}
-            style={{
-                ...styles.sourceButton,
-                display: 'inline-block',
-                margin: '0 2px',
-                verticalAlign: 'middle',
-            }}
-            aria-label="source"
-        >
-            {id}
-        </button>
-    );
-
     const renderMessage = (message, index) => {
         const isUser = message.role === MessageRole.USER;
         const messageStyle = {
@@ -931,31 +905,23 @@ const DeepTutorChatBox = ({
                                             {children}
                                         </p>
                                     ),
-                                    source: ({ ...props }) => (
-                                        <Source
-                                            id={props.id || 'default-id'}
-                                            source={
-                                                subMessage.sources[
-                                                    Number(props.id) - 1
-                                                ] ?? {
-                                                    index: 0,
-                                                    referenceString: '',
-                                                    page: 0,
-                                                    refinedIndex: 0,
-                                                    sourceAnnotation: {
-                                                        pageNum: 0,
-                                                        startChar: 0,
-                                                        endChar: 0,
-                                                        success: false,
-                                                        similarity: 0,
-                                                    },
-                                                }
-                                            }
-                                        />
-                                    ),
                                 }}
-                                children={formatResponseForMarkdown(subMessage.text || '')}
-                            />
+                            >
+                                {subMessage.text || ''}
+                            </ReactMarkdown>
+                            {subMessage.sources && subMessage.sources.length > 0 && (
+                                <div style={styles.sourcesContainer}>
+                                    {subMessage.sources.map((source, sourceIndex) => (
+                                        <button
+                                            key={sourceIndex}
+                                            style={styles.sourceButton}
+                                            onClick={() => handleSourceClick(source)}
+                                        >
+                                            {source.index + 1}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>
