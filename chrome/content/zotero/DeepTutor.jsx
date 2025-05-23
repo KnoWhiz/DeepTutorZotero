@@ -534,6 +534,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 			isLoading: false,
 			error: null,
 			showProfilePopup: false,
+			showSignInPopup: false, // Add new state for sign-in popup
 		};
 		this._initialized = false;
 		this._selection = null;
@@ -586,6 +587,12 @@ var DeepTutor = class DeepTutor extends React.Component {
 	toggleProfilePopup = () => {
 		this.setState(prevState => ({
 			showProfilePopup: !prevState.showProfilePopup
+		}));
+	};
+
+	toggleSignInPopup = () => {
+		this.setState(prevState => ({
+			showSignInPopup: !prevState.showSignInPopup
 		}));
 	};
 
@@ -784,12 +791,79 @@ var DeepTutor = class DeepTutor extends React.Component {
 								error={this.state.error}
 							/>
 						}
-						{this.state.currentPane === 'welcome' && <DeepTutorWelcomePane onWelcomeSignIn={() => this.switchPane('signIn')} />}
+						{this.state.currentPane === 'welcome' && <DeepTutorWelcomePane onWelcomeSignIn={() => this.toggleSignInPopup()} />}
 						{this.state.currentPane === 'signIn' && <DeepTutorSignIn />}
 						{this.state.currentPane === 'signUp' && <DeepTutorSignUp onSignUpSignIn={() => this.switchPane('signIn')} />}
 						{this.state.currentPane === 'upgrade' && <DeepTutorUpgradePremium />}
 					</div>
 				</div>
+
+				{/* Sign In Popup Overlay */}
+				{this.state.showSignInPopup && (
+					<div style={{
+						position: 'absolute',
+						top: 0,
+						left: 0,
+						right: 0,
+						bottom: 0,
+						backgroundColor: 'rgba(0, 0, 0, 0.5)',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						zIndex: 1000,
+					}}>
+						<div style={{
+							position: 'relative',
+							width: '430px',
+							background: '#FFFFFF',
+							borderRadius: '10px',
+							padding: '20px',
+						}}>
+							<div style={{
+								display: 'flex',
+								justifyContent: 'space-between',
+								alignItems: 'center',
+								marginBottom: '20px',
+							}}>
+								<div style={{
+									background: 'linear-gradient(90deg, #0AE2FF 0%, #0687E5 100%)',
+									WebkitBackgroundClip: 'text',
+									WebkitTextFillColor: 'transparent',
+									backgroundClip: 'text',
+									color: '#0687E5',
+									fontWeight: 700,
+									fontSize: '1.5em',
+								}}>
+									Sign in
+								</div>
+								<button
+									onClick={this.toggleSignInPopup}
+									style={{
+										background: 'none',
+										border: 'none',
+										cursor: 'pointer',
+										padding: '4px',
+										fontSize: '24px',
+										color: '#666',
+										width: '32px',
+										height: '32px',
+										display: 'flex',
+										alignItems: 'center',
+										justifyContent: 'center',
+										borderRadius: '50%',
+										transition: 'background-color 0.2s',
+										':hover': {
+											background: '#f0f0f0'
+										}
+									}}
+								>
+									✕
+								</button>
+							</div>
+							<DeepTutorSignIn />
+						</div>
+					</div>
+				)}
 
 				{/* Bottom Section: Utility Buttons */}
 				<div style={styles.bottom}>
@@ -859,7 +933,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 											...(this.state.currentPane === 'signIn' ? styles.componentButtonActive : {})
 										}}
 										onClick={() => {
-											this.switchPane('signIn');
+											this.toggleSignInPopup();
 											this.toggleProfilePopup();
 										}}
 									>
