@@ -749,14 +749,6 @@ var DeepTutor = class DeepTutor extends React.Component {
 					<div style={styles.paneList}>
 						{this.state.currentPane === 'main' && <DeepTutorChatBox 
 							ref={ref => this._tutorBox = ref}
-							onSessionIdUpdate={(sessionId) => {
-								Zotero.debug(`DeepTutor: Session ID updated to ${sessionId}`);
-							}}
-							onUserIdUpdate={(userId) => {
-								Zotero.debug(`DeepTutor: User ID updated to ${userId}`);
-							}}
-							messages={this.state.messages}
-							documentIds={this.state.documentIds}
 							currentSession={this.state.currentSession}
 						/>}
 						{this.state.currentPane === 'sessionHistory' && 
