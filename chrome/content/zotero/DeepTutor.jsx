@@ -33,6 +33,8 @@ import DeepTutorWelcomePane from './DeepTutorWelcomePane.js';
 import DeepTutorSignIn from './DeepTutorSignIn.js';
 import DeepTutorSignUp from './DeepTutorSignUp.js';
 import DeepTutorUpgradePremium from './DeepTutorUpgradePremium.js';
+import DeepTutorTopSection from './DeepTutorTopSection.js';
+import DeepTutorBottomSection from './DeepTutorBottomSection.js';
 import { 
 	getUserById, 
 	getSessionsByUserId, 
@@ -529,7 +531,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 	constructor(props) {
 		super(props);
 		this.state = {
-			currentPane: 'main',
+			currentPane: 'welcome',
 			sessions: [],
 			sesNamToObj: new Map(),
 			isLoading: false,
@@ -554,8 +556,10 @@ var DeepTutor = class DeepTutor extends React.Component {
 		this._initialized = true;
 		this._loadingPromiseResolve();
 		Zotero.debug("DeepTutor: Component mounted");
-		// Load sessions when component mounts
-		this.loadSession();
+		// Only load sessions if we're not in welcome pane
+		if (this.state.currentPane !== 'welcome') {
+			this.loadSession();
+		}
 	}
 
 	waitForLoad() {
@@ -740,37 +744,14 @@ var DeepTutor = class DeepTutor extends React.Component {
 				id="zotero-deep-tutor-pane"
 				collapsed={this.state.collapsed.toString()}
 			>
-				{/* Top Section */}
 				<div style={styles.top}>
-					<img src={logoPath} alt="DeepTutor Logo" style={styles.logo} />
-					<div style={styles.topRight}>
-						<button
-							style={{
-								...styles.iconButton,
-								...(this.state.currentPane === 'sessionHistory' ? styles.iconButtonActive : {})
-							}}
-							onClick={() => this.switchPane('sessionHistory')}
-						>
-							<img 
-								src={HistoryIconPath}
-								alt="History" 
-								style={styles.iconImage}
-							/>
-						</button>
-						<button
-							style={{
-								...styles.iconButton,
-								...(this.state.currentPane === 'modelSelection' ? styles.iconButtonActive : {})
-							}}
-							onClick={() => this.switchPane('modelSelection')}
-						>
-							<img 
-								src={PlusIconPath}
-								alt="New Session" 
-								style={styles.iconImage}
-							/>
-						</button>
-					</div>
+					<DeepTutorTopSection
+						currentPane={this.state.currentPane}
+						onSwitchPane={this.switchPane}
+						logoPath={logoPath}
+						HistoryIconPath={HistoryIconPath}
+						PlusIconPath={PlusIconPath}
+					/>
 				</div>
 
 				{/* Middle Section */}
@@ -814,8 +795,18 @@ var DeepTutor = class DeepTutor extends React.Component {
 							/>
 						}
 						{this.state.currentPane === 'welcome' && <DeepTutorWelcomePane onWelcomeSignIn={() => this.toggleSignInPopup()} />}
-						{this.state.currentPane === 'signIn' && <DeepTutorSignIn />}
-						{this.state.currentPane === 'signUp' && <DeepTutorSignUp onSignUpSignIn={() => this.toggleSignInPopup()} />}
+						{this.state.currentPane === 'signIn' && <DeepTutorSignIn 
+							onSignInSignUp={() => this.toggleSignUpPopup()} 
+							onSignInSuccess={() => {
+								this.loadSession();
+								this.switchPane('sessionHistory');
+								this.toggleSignInPopup();
+							}}
+						/>}
+						{this.state.currentPane === 'signUp' && <DeepTutorSignUp onSignUpSignIn={() => {
+							this.toggleSignUpPopup();
+							this.toggleSignInPopup();
+						}} />}
 					</div>
 				</div>
 
@@ -945,7 +936,14 @@ var DeepTutor = class DeepTutor extends React.Component {
 									✕
 								</button>
 							</div>
-							<DeepTutorSignIn />
+							<DeepTutorSignIn 
+								onSignInSignUp={() => this.toggleSignUpPopup()} 
+								onSignInSuccess={() => {
+									this.loadSession();
+									this.switchPane('main');
+									this.toggleSignInPopup();
+								}}
+							/>
 						</div>
 					</div>
 				)}
@@ -1023,96 +1021,19 @@ var DeepTutor = class DeepTutor extends React.Component {
 
 				{/* Bottom Section */}
 				<div style={styles.bottom}>
-					<div style={styles.bottomLeft}>
-						<button style={styles.textButton}>
-							<img src={FeedIconPath} alt="Feedback" style={styles.buttonIcon} />
-							Feedback
-						</button>
-						<div style={styles.profileButtonContainer}>
-							<button style={styles.textButton} onClick={this.toggleProfilePopup}>
-								<img src={PersonIconPath} alt="Profile" style={styles.buttonIcon} />
-								Profile
-							</button>
-							{this.state.showProfilePopup && (
-								<div style={styles.profilePopup}>
-									<button
-										style={{
-											...styles.componentButton,
-											...(this.state.currentPane === 'main' ? styles.componentButtonActive : {})
-										}}
-										onClick={() => {
-											this.switchPane('main');
-											this.toggleProfilePopup();
-										}}
-									>
-										Main
-									</button>
-									<button
-										style={{
-											...styles.componentButton,
-											...(this.state.currentPane === 'modelSelection' ? styles.componentButtonActive : {})
-										}}
-										onClick={() => {
-											this.switchPane('modelSelection');
-											this.toggleProfilePopup();
-										}}
-									>
-										Model Selection
-									</button>
-									<button
-										style={{
-											...styles.componentButton,
-											...(this.state.currentPane === 'sessionHistory' ? styles.componentButtonActive : {})
-										}}
-										onClick={() => {
-											this.switchPane('sessionHistory');
-											this.toggleProfilePopup();
-										}}
-									>
-										Session History
-									</button>
-									<button
-										style={{
-											...styles.componentButton,
-											...(this.state.currentPane === 'welcome' ? styles.componentButtonActive : {})
-										}}
-										onClick={() => {
-											this.switchPane('welcome');
-											this.toggleProfilePopup();
-										}}
-									>
-										Welcome
-									</button>
-									<button
-										style={{
-											...styles.componentButton,
-											...(this.state.currentPane === 'signIn' ? styles.componentButtonActive : {})
-										}}
-										onClick={() => {
-											this.toggleSignInPopup();
-											this.toggleProfilePopup();
-										}}
-									>
-										Sign In
-									</button>
-									<button
-										style={{
-											...styles.componentButton,
-											...(this.state.currentPane === 'signUp' ? styles.componentButtonActive : {})
-										}}
-										onClick={() => {
-											this.toggleSignUpPopup();
-											this.toggleProfilePopup();
-										}}
-									>
-										Sign Up
-									</button>
-								</div>
-							)}
-						</div>
-					</div>
-					<button style={styles.upgradeButton} onClick={this.toggleUpgradePopup}>Upgrade</button>
+					<DeepTutorBottomSection
+						currentPane={this.state.currentPane}
+						onSwitchPane={this.switchPane}
+						onToggleProfilePopup={this.toggleProfilePopup}
+						onToggleSignInPopup={this.toggleSignInPopup}
+						onToggleSignUpPopup={this.toggleSignUpPopup}
+						onToggleUpgradePopup={this.toggleUpgradePopup}
+						showProfilePopup={this.state.showProfilePopup}
+						feedIconPath={FeedIconPath}
+						personIconPath={PersonIconPath}
+					/>
 				</div>
+
 			</div>
 		);
 	}

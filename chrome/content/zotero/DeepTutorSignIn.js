@@ -147,13 +147,28 @@ const styles = {
 
 const GoogleImg = 'chrome://zotero/content/DeepTutorMaterials/SignIn/Google.png';
 
-export default function DeepTutorSignIn() {
+export default function DeepTutorSignIn({ onSignInSignUp, onSignInSuccess }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  const handleSignIn = async (e) => {
+    e.preventDefault();
+    try {
+      // Here you would typically make an API call to authenticate
+      // For now, we'll just simulate a successful sign-in
+      if (email && password) {
+        // Call the success callback
+        onSignInSuccess();
+      }
+    } catch (error) {
+      console.error('Sign in failed:', error);
+    }
+  };
+
   return (
     <div style={styles.container}>
       <div style={styles.title}>Sign in</div>
-      <form style={styles.form} autoComplete="off">
+      <form style={styles.form} autoComplete="off" onSubmit={handleSignIn}>
         <label style={styles.label}>Email address</label>
         <input
           style={styles.input}
@@ -171,7 +186,11 @@ export default function DeepTutorSignIn() {
           onChange={e => setPassword(e.target.value)}
         />
         <button style={styles.forgot} type="button">Forgot your password?</button>
-        <button style={styles.signInButton} type="button">Sign in</button>
+        <button 
+          style={styles.signInButton} 
+          type="submit"
+          onClick={handleSignIn}
+        >Sign in</button>
         <div style={styles.dividerRow}>
           <hr style={styles.divider} />
           <span style={styles.orText}>or</span>
@@ -183,7 +202,7 @@ export default function DeepTutorSignIn() {
         </button>
         <div style={styles.bottomRow}>
           Don't have an account?
-          <button style={styles.signUpLink} type="button">Sign up here</button>
+          <button style={styles.signUpLink} type="button" onClick={onSignInSignUp}>Sign up here</button>
         </div>
       </form>
     </div>
