@@ -538,6 +538,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 			showSignInPopup: false,
 			showSignUpPopup: false,
 			showUpgradePopup: false,
+			collapsed: false
 		};
 		this._initialized = false;
 		this._selection = null;
@@ -546,6 +547,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 		this._loadingPromise = new Promise(resolve => {
 			this._loadingPromiseResolve = resolve;
 		});
+		this.containerRef = React.createRef();
 	}
 
 	componentDidMount() {
@@ -610,6 +612,16 @@ var DeepTutor = class DeepTutor extends React.Component {
 			showUpgradePopup: !prevState.showUpgradePopup
 		}));
 	};
+
+	toggleCollapse = () => {
+		this.setState(prevState => ({
+			collapsed: !prevState.collapsed
+		}), () => {
+			if (window.ZoteroPane && typeof window.ZoteroPane.updateLayoutConstraints === 'function') {
+				window.ZoteroPane.updateLayoutConstraints();
+			}
+		});
+	}
 
 	async loadSession() {
 		try {
@@ -709,8 +721,25 @@ var DeepTutor = class DeepTutor extends React.Component {
 	render() {
 		Zotero.debug("DeepTutor: Render called");
 		
+		const containerStyle = {
+			...styles.container,
+			width: this.state.collapsed ? '0' : '470px',
+			minWidth: this.state.collapsed ? '0' : '320px',
+			maxWidth: this.state.collapsed ? '0' : '905px',
+			transition: 'width 0.3s ease-in-out',
+			overflow: 'hidden',
+			display: 'flex',
+			flexDirection: 'column',
+			height: '100%'
+		};
+		
 		return (
-			<div style={styles.container}>
+			<div 
+				ref={this.containerRef}
+				style={containerStyle}
+				id="zotero-deep-tutor-pane"
+				collapsed={this.state.collapsed.toString()}
+			>
 				{/* Top Section */}
 				<div style={styles.top}>
 					<img src={logoPath} alt="DeepTutor Logo" style={styles.logo} />
