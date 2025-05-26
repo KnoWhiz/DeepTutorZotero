@@ -10,14 +10,26 @@ const styles = {
         padding: '6px 8px 3px 8px',
         minHeight: '64px',
         background: '#fff',
-        borderBottom: '1px solid #e9ecef',
+        width: '100%',
+        boxSizing: 'border-box',
+    },
+    welcomeTop: {
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '6px 8px 3px 8px',
+        minHeight: '64px',
+        background: '#D9D9D9',
         width: '100%',
         boxSizing: 'border-box',
     },
     logo: {
-        height: '32px',
+        height: '28px',
         width: 'auto',
         display: 'block',
+        marginTop: '20px',
+        marginLeft: '20px',
     },
     topRight: {
         display: 'flex',
@@ -38,7 +50,7 @@ const styles = {
         padding: '8px',
     },
     iconButtonActive: {
-        background: '#D9D9D9',
+        background: '#F2F2F2',
     },
     iconImage: {
         width: '24px',
@@ -86,8 +98,9 @@ class DeepTutorTopSection extends React.Component {
     }
 
     renderWelcome() {
-        // Empty white bar
-        return null;
+        return (
+            <img src={this.props.logoPath} alt="DeepTutor Logo" style={styles.logo} />
+        );
     }
 
     renderSessionHistory() {
@@ -133,7 +146,7 @@ class DeepTutorTopSection extends React.Component {
             content = this.renderMain();
         }
         return (
-            <div style={styles.top}>
+            <div style={this.props.currentPane === 'welcome' ? styles.welcomeTop : styles.top}>
                 {content}
             </div>
         );

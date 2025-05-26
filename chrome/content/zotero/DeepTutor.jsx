@@ -744,15 +744,13 @@ var DeepTutor = class DeepTutor extends React.Component {
 				id="zotero-deep-tutor-pane"
 				collapsed={this.state.collapsed.toString()}
 			>
-				<div style={styles.top}>
-					<DeepTutorTopSection
-						currentPane={this.state.currentPane}
-						onSwitchPane={this.switchPane}
-						logoPath={logoPath}
-						HistoryIconPath={HistoryIconPath}
-						PlusIconPath={PlusIconPath}
-					/>
-				</div>
+				<DeepTutorTopSection
+					currentPane={this.state.currentPane}
+					onSwitchPane={this.switchPane}
+					logoPath={logoPath}
+					HistoryIconPath={HistoryIconPath}
+					PlusIconPath={PlusIconPath}
+				/>
 
 				{/* Middle Section */}
 				<div style={styles.middle}>
@@ -897,21 +895,10 @@ var DeepTutor = class DeepTutor extends React.Component {
 						}}>
 							<div style={{
 								display: 'flex',
-								justifyContent: 'space-between',
+								justifyContent: 'flex-end',
 								alignItems: 'center',
 								marginBottom: '20px',
 							}}>
-								<div style={{
-									background: 'linear-gradient(90deg, #0AE2FF 0%, #0687E5 100%)',
-									WebkitBackgroundClip: 'text',
-									WebkitTextFillColor: 'transparent',
-									backgroundClip: 'text',
-									color: '#0687E5',
-									fontWeight: 700,
-									fontSize: '1.5em',
-								}}>
-									Sign in
-								</div>
 								<button
 									onClick={this.toggleSignInPopup}
 									style={{
@@ -927,10 +914,6 @@ var DeepTutor = class DeepTutor extends React.Component {
 										alignItems: 'center',
 										justifyContent: 'center',
 										borderRadius: '50%',
-										transition: 'background-color 0.2s',
-										':hover': {
-											background: '#f0f0f0'
-										}
 									}}
 								>
 									✕

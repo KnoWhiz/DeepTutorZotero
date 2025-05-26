@@ -15,6 +15,16 @@ const styles = {
     justifyContent: 'center',
     padding: '32px 0',
   },
+  titleSection: {
+    position: 'absolute',
+    width: '390px',
+    height: '28px',
+    top: '20px',
+    left: '20px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '15px',
+  },
   title: {
     background: 'linear-gradient(90deg, #0AE2FF 0%, #0687E5 100%)',
     WebkitBackgroundClip: 'text',
@@ -22,17 +32,20 @@ const styles = {
     backgroundClip: 'text',
     color: SKY, // fallback
     fontWeight: 700,
-    fontSize: '1.5em',
+    fontSize: '24px',
+    lineHeight: '100%',
+    letterSpacing: '0%',
     textAlign: 'center',
-    marginBottom: 32,
-    letterSpacing: 0.2,
   },
   form: {
-    width: '100%',
-    maxWidth: 340,
+    position: 'absolute',
+    width: '390px',
+    height: '256px',
+    top: '78px',
+    left: '30px',
     display: 'flex',
     flexDirection: 'column',
-    gap: 18,
+    gap: '20px',
     alignItems: 'center',
   },
   label: {
@@ -167,7 +180,9 @@ export default function DeepTutorSignIn({ onSignInSignUp, onSignInSuccess }) {
 
   return (
     <div style={styles.container}>
-      <div style={styles.title}>Sign in</div>
+      <div style={styles.titleSection}>
+        <div style={styles.title}>Sign in</div>
+      </div>
       <form style={styles.form} autoComplete="off" onSubmit={handleSignIn}>
         <label style={styles.label}>Email address</label>
         <input
