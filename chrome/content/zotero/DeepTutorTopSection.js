@@ -84,7 +84,7 @@ class DeepTutorTopSection extends React.Component {
                     </button>
                     <button
                         style={this.getIconButtonStyle(this.props.currentPane === 'modelSelection')}
-                        onClick={() => this.props.onSwitchPane('modelSelection')}
+                        onClick={this.props.onToggleModelSelectionPopup}
                     >
                         <img 
                             src={this.props.PlusIconPath}
@@ -120,7 +120,7 @@ class DeepTutorTopSection extends React.Component {
                     </button>
                     <button
                         style={this.getIconButtonStyle(this.props.currentPane === 'modelSelection')}
-                        onClick={() => this.props.onSwitchPane('modelSelection')}
+                        onClick={this.props.onToggleModelSelectionPopup}
                     >
                         <img 
                             src={this.props.PlusIconPath}

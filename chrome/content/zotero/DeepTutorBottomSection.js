@@ -8,10 +8,14 @@ const styles = {
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '18px 32px 24px 32px',
-        background: '#fff',
-        borderTop: '1px solid #e9ecef',
+        background: '#F2F2F2',
         width: '100%',
         boxSizing: 'border-box',
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        margin: 0,
     },
     bottomLeft: {
         display: 'flex',
@@ -23,10 +27,10 @@ const styles = {
         border: 'none',
         color: '#0687E5',
         fontWeight: 500,
-        fontSize: '1em',
+        fontSize: '16px',
         fontFamily: 'Roboto, sans-serif',
         cursor: 'pointer',
-        padding: '4px 8px',
+        padding: '8px 16px',
         margin: 0,
         borderRadius: '4px',
         width: 'fit-content',
@@ -48,14 +52,14 @@ const styles = {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        height: '33px',
-        minWidth: '33px',
-        padding: '0 18px',
+        height: '40px',
+        minWidth: '40px',
+        padding: '0 24px',
         background: '#0687E5',
         border: 'none',
         borderRadius: '8px',
         fontWeight: 600,
-        fontSize: '1em',
+        fontSize: '16px',
         color: '#ffffff',
         cursor: 'pointer',
         boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
@@ -127,7 +131,10 @@ class DeepTutorBottomSection extends React.Component {
     }
 
     renderWelcome() {
-        return <></>;
+        return (
+            <div style={{ ...styles.bottom, background: '#F2F2F2' }}>
+            </div>
+        );
     }
 
     renderSessionHistory() {
