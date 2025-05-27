@@ -20,7 +20,7 @@ const styles = {
         justifyContent: 'space-between',
         padding: '6px 8px 3px 8px',
         minHeight: '64px',
-        background: '#D9D9D9',
+        background: '#F2F2F2',
         width: '100%',
         boxSizing: 'border-box',
     },
