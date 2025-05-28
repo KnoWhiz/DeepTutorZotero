@@ -12,8 +12,6 @@ const styles = {
         background: '#fff',
         width: '100%',
         boxSizing: 'border-box',
-        position: 'relative',
-        zIndex: 1,
     },
     welcomeTop: {
         display: 'flex',
@@ -25,8 +23,6 @@ const styles = {
         background: '#F2F2F2',
         width: '100%',
         boxSizing: 'border-box',
-        position: 'relative',
-        zIndex: 1,
     },
     logo: {
         height: '28px',
