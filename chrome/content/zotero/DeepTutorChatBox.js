@@ -74,7 +74,7 @@ const styles = {
         borderRadius: '8px',
         boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
         height: '100%',
-        maxHeight: '100%',
+        maxHeight: '720px',
         width: '430px',
         display: 'flex',
         flexDirection: 'column',
@@ -90,17 +90,19 @@ const styles = {
         fontFamily: 'Roboto, sans-serif',
     },
     chatLog: {
-        borderRadius: '8px',
-        padding: '12px',
+        borderRadius: '10px',
+        padding: '12px 15px',
         overflowY: 'auto',
-        background: 'white',
+        background: '#F2F2F2',
         height: '100%',
         width: '100%',
-        boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.1)',
+        boxShadow: 'none',
         marginBottom: '16px',
         fontFamily: 'Roboto, sans-serif',
         flex: 1,
         marginTop: '0',
+        gap: '10px',
+        borderWidth: '1px',
     },
     bottomBar: {
         marginTop: 'auto',
@@ -1194,7 +1196,6 @@ const DeepTutorChatBox = ({ currentSession }) => {
 
     return (
         <div style={styles.container}>
-            <div>Note???</div>
             {isLoading && <LoadingPopup />}
             
             <div ref={chatLogRef} style={styles.chatLog}>
