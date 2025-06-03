@@ -1385,7 +1385,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 					}}>
 						<div style={{
 							position: 'relative',
-							width: '80%',
+							width: '90%',
 							maxWidth: '26.875rem',
 							maxHeight: '80%',
 							background: '#FFFFFF',
@@ -1397,7 +1397,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 								display: 'flex',
 								justifyContent: 'space-between',
 								alignItems: 'center',
-								marginBottom: '1.25rem',
+								marginBottom: '2rem',
 								minHeight: '4rem',
 								padding: '0 1rem',
 								position: 'relative',
@@ -1412,8 +1412,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 									backgroundClip: 'text',
 									color: '#0687E5',
 									fontWeight: 700,
-									fontSize: '1rem',
-									lineHeight: '100%',
+									fontSize: '1.5rem',
+									lineHeight: '1.2',
 									letterSpacing: '0%',
 									textAlign: 'center',
 								}}>
