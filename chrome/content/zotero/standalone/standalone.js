@@ -469,54 +469,85 @@ const ZoteroStandalone = new function() {
 		);
 	};
 
-	this.onItemPaneOpen = function () {
-		var itemPane = document.getElementById('zotero-item-pane');
-		var itemsSplitter = document.getElementById('zotero-items-splitter');
-		// Show
-		if (itemPane.getAttribute('collapsed') == 'true') {
-			itemsSplitter.setAttribute('state', 'open');
-			itemsSplitter.setAttribute('collapse', 'after');
-			itemPane.setAttribute('collapsed', false);
-		}
-		// Hide
-		else {
-			itemsSplitter.setAttribute('state', 'collapsed');
-			itemsSplitter.setAttribute('collapse', 'after');
-			itemPane.setAttribute('collapsed', true);
-		}
-		ZoteroPane.updateLayoutConstraints();
-	}
-
 	this.onDeepTutorPaneOpen = function () {
-		var deepTutorPane = document.getElementById('zotero-deep-tutor-pane');
+		var deepTutorPane = document.getElementById('new-deep-tutor-pane-container');
 		var deeptutorSplitter = document.getElementById('zotero-deeptutor-splitter');
 		var itemPane = document.getElementById('zotero-item-pane');
 		var itemsSplitter = document.getElementById('zotero-items-splitter');
-		Zotero.debug('Standalone: DeepTutor pane toggle triggered');
-		Zotero.debug('Standalone: Current collapsed state: ' + deepTutorPane.getAttribute('collapsed'));
+		var contextPane = document.getElementById('zotero-context-pane');
+		var contextSplitter = document.getElementById('zotero-context-splitter');
 		
-		// Show
-		if (deepTutorPane.getAttribute('collapsed') == 'true') {
+		Zotero.debug('Standalone: DeepTutor pane toggle triggered');
+		
+		// Show DeepTutor pane
+		if (deepTutorPane.hidden) {
 			Zotero.debug('Standalone: Opening DeepTutor pane');
+			deepTutorPane.hidden = false;
 			deeptutorSplitter.setAttribute('state', 'open');
-			deeptutorSplitter.setAttribute('collapse', 'after');
-			deepTutorPane.setAttribute('collapsed', false);
 			
-			// Collapse item pane
-			itemsSplitter.setAttribute('state', 'collapsed');
-			itemsSplitter.setAttribute('collapse', 'after');
-			itemPane.setAttribute('collapsed', true);
+			// Hide other panes
+			if (!itemPane.getAttribute('collapsed')) {
+				itemsSplitter.setAttribute('state', 'collapsed');
+				itemPane.setAttribute('collapsed', true);
+			}
+			if (!contextPane.getAttribute('collapsed')) {
+				contextSplitter.setAttribute('state', 'collapsed');
+				contextPane.setAttribute('collapsed', true);
+			}
 		}	
-		// Hide
+		// Hide DeepTutor pane
 		else {
 			Zotero.debug('Standalone: Closing DeepTutor pane');
+			deepTutorPane.hidden = true;
 			deeptutorSplitter.setAttribute('state', 'collapsed');
-			deeptutorSplitter.setAttribute('collapse', 'after');
-			deepTutorPane.setAttribute('collapsed', true);
 		}
 		ZoteroPane.updateLayoutConstraints();
 		Zotero.debug('Standalone: Layout constraints updated');
-	}
+	};
+
+	this.onItemPaneOpen = function () {
+		var deepTutorPane = document.getElementById('new-deep-tutor-pane-container');
+		var itemPane = document.getElementById('zotero-item-pane');
+		var itemsSplitter = document.getElementById('zotero-items-splitter');
+		
+		// Show item pane
+		if (itemPane.getAttribute('collapsed') == 'true') {
+			itemsSplitter.setAttribute('state', 'open');
+			itemPane.setAttribute('collapsed', false);
+			
+			// Hide DeepTutor pane
+			deepTutorPane.hidden = true;
+			document.getElementById('zotero-deeptutor-splitter').setAttribute('state', 'collapsed');
+		}
+		// Hide item pane
+		else {
+			itemsSplitter.setAttribute('state', 'collapsed');
+			itemPane.setAttribute('collapsed', true);
+		}
+		ZoteroPane.updateLayoutConstraints();
+	};
+
+	this.onContextPaneOpen = function () {
+		var deepTutorPane = document.getElementById('new-deep-tutor-pane-container');
+		var contextPane = document.getElementById('zotero-context-pane');
+		var contextSplitter = document.getElementById('zotero-context-splitter');
+		
+		// Show context pane
+		if (contextPane.getAttribute('collapsed') == 'true') {
+			contextSplitter.setAttribute('state', 'open');
+			contextPane.setAttribute('collapsed', false);
+			
+			// Hide DeepTutor pane
+			deepTutorPane.hidden = true;
+			document.getElementById('zotero-deeptutor-splitter').setAttribute('state', 'collapsed');
+		}
+		// Hide context pane
+		else {
+			contextSplitter.setAttribute('state', 'collapsed');
+			contextPane.setAttribute('collapsed', true);
+		}
+		ZoteroPane.updateLayoutConstraints();
+	};
 
 	this.onDeepTutorPaneTwoOpen = function () {
 		var deepTutorPane = document.getElementById('deep-tutor-pane-two');
