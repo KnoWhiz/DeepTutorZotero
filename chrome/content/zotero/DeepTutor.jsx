@@ -348,40 +348,40 @@ const styles = {
 		flexDirection: 'row',
 		alignItems: 'center',
 		justifyContent: 'space-between',
-		padding: '6px 8px 3px 8px',
-		minHeight: '64px',
+		padding: '0.375rem 0.5rem 0.1875rem 0.5rem',
+		minHeight: '4rem',
 		background: '#fff',
-		borderBottom: '1px solid #e9ecef',
+		borderBottom: '0.0625rem solid #e9ecef',
 	},
 	logo: {
-		height: '32px',
+		height: '2rem',
 		width: 'auto',
 		display: 'block',
 	},
 	topRight: {
 		display: 'flex',
 		flexDirection: 'row',
-		gap: '12px',
+		gap: '0.75rem',
 	},
 	iconButton: {
-		width: '40px',
-		height: '40px',
+		width: '2.5rem',
+		height: '2.5rem',
 		background: '#F8F6F7',
 		border: 'none',
-		borderRadius: '6px',
+		borderRadius: '0.375rem',
 		cursor: 'pointer',
 		display: 'flex',
 		alignItems: 'center',
 		justifyContent: 'center',
 		transition: 'background-color 0.2s ease',
-		padding: '8px',
+		padding: '0.5rem',
 	},
 	iconButtonActive: {
 		background: '#D9D9D9',
 	},
 	iconImage: {
-		width: '24px',
-		height: '24px',
+		width: '1.5rem',
+		height: '1.5rem',
 		objectFit: 'contain',
 	},
 	middle: {
@@ -411,14 +411,14 @@ const styles = {
 		flexDirection: 'row',
 		alignItems: 'center',
 		justifyContent: 'space-between',
-		padding: '18px 32px 24px 32px',
+		padding: '1.125rem 2rem 1.5rem 2rem',
 		background: '#fff',
-		borderTop: '1px solid #e9ecef',
+		borderTop: '0.0625rem solid #e9ecef',
 	},
 	bottomLeft: {
 		display: 'flex',
 		flexDirection: 'column',
-		gap: '8px',
+		gap: '0.5rem',
 	},
 	textButton: {
 		background: '#F8F6F7',
@@ -428,39 +428,39 @@ const styles = {
 		fontSize: '1em',
 		fontFamily: 'Roboto, sans-serif',
 		cursor: 'pointer',
-		padding: '4px 8px',
+		padding: '0.25rem 0.5rem',
 		margin: 0,
-		borderRadius: '4px',
+		borderRadius: '0.25rem',
 		width: 'fit-content',
 		textAlign: 'left',
 		display: 'flex',
 		alignItems: 'center',
-		gap: '8px',
+		gap: '0.5rem',
 		transition: 'background-color 0.2s ease',
 		':hover': {
 			background: '#D9D9D9'
 		}
 	},
 	buttonIcon: {
-		width: '16px',
-		height: '16px',
+		width: '1rem',
+		height: '1rem',
 		objectFit: 'contain',
 	},
 	upgradeButton: {
 		display: 'flex',
 		alignItems: 'center',
 		justifyContent: 'center',
-		height: '33px',
-		minWidth: '33px',
-		padding: '0 18px',
+		height: '2.0625rem',
+		minWidth: '2.0625rem',
+		padding: '0 1.125rem',
 		background: '#0687E5',
 		border: 'none',
-		borderRadius: '8px',
+		borderRadius: '0.5rem',
 		fontWeight: 600,
 		fontSize: '1em',
 		color: '#ffffff',
 		cursor: 'pointer',
-		boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+		boxShadow: '0 0.0625rem 0.125rem rgba(0,0,0,0.03)',
 		transition: 'background 0.2s',
 		fontFamily: 'Roboto, sans-serif',
 	},
@@ -469,20 +469,20 @@ const styles = {
 		bottom: '100%',
 		left: 0,
 		background: '#fff',
-		borderRadius: '8px',
-		boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-		padding: '12px',
-		marginBottom: '8px',
+		borderRadius: '0.5rem',
+		boxShadow: '0 0.125rem 0.5rem rgba(0,0,0,0.15)',
+		padding: '0.75rem',
+		marginBottom: '0.5rem',
 		zIndex: 1000,
-		minWidth: '200px',
+		minWidth: '12.5rem',
 	},
 	profileButtonContainer: {
 		position: 'relative',
 	},
 	componentButton: {
-		padding: '6px 18px',
-		borderRadius: 6,
-		border: '1px solid #0687E5',
+		padding: '0.375rem 1.125rem',
+		borderRadius: '0.375rem',
+		border: '0.0625rem solid #0687E5',
 		background: '#fff',
 		color: '#0687E5',
 		fontWeight: 600,
@@ -490,7 +490,7 @@ const styles = {
 		fontFamily: 'Roboto, Inter, Arial, sans-serif',
 		width: '100%',
 		textAlign: 'left',
-		marginBottom: '4px',
+		marginBottom: '0.25rem',
 		transition: 'all 0.2s ease',
 		'&:hover': {
 			background: '#f0f9ff',
@@ -897,8 +897,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 		const containerStyle = {
 			...styles.container,
 			width: this.state.collapsed ? '0' : '100%',
-			minWidth: this.state.collapsed ? '0' : '320px',
-			maxWidth: this.state.collapsed ? '0' : '905px',
+			minWidth: this.state.collapsed ? '0' : '20rem',
+			maxWidth: this.state.collapsed ? '0' : '56.5625rem',
 			transition: 'all 0.3s ease-in-out',
 			overflow: 'hidden',
 			display: 'flex',
@@ -972,18 +972,6 @@ var DeepTutor = class DeepTutor extends React.Component {
 							/>
 						}
 						{this.state.currentPane === 'welcome' && <DeepTutorWelcomePane onWelcomeSignIn={() => this.toggleSignInPopup()} />}
-						{this.state.currentPane === 'signIn' && <DeepTutorSignIn 
-							onSignInSignUp={() => this.toggleSignUpPopup()} 
-							onSignInSuccess={() => {
-								this.loadSession();
-								this.switchPane('sessionHistory');
-								this.toggleSignInPopup();
-							}}
-						/>}
-						{this.state.currentPane === 'signUp' && <DeepTutorSignUp onSignUpSignIn={() => {
-							this.toggleSignUpPopup();
-							this.toggleSignInPopup();
-						}} />}
 					</div>
 				</div>
 
@@ -1004,20 +992,20 @@ var DeepTutor = class DeepTutor extends React.Component {
 						<div style={{
 							position: 'relative',
 							width: '80%',
-							maxWidth: '430px',
+							maxWidth: '26.875rem',
 							maxHeight: '80%',
 							background: '#FFFFFF',
-							borderRadius: '10px',
-							padding: '20px',
+							borderRadius: '0.625rem',
+							padding: '1.25rem',
 							overflow: 'auto'
 						}}>
 							<div style={{
 								display: 'flex',
 								justifyContent: 'space-between',
 								alignItems: 'center',
-								marginBottom: '20px',
-								minHeight: '64px',
-								padding: '0 16px',
+								marginBottom: '1.25rem',
+								minHeight: '4rem',
+								padding: '0 1rem',
 							}}>
 								<div style={{
 									position: 'absolute',
@@ -1029,7 +1017,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 									backgroundClip: 'text',
 									color: '#0687E5',
 									fontWeight: 700,
-									fontSize: '16px',
+									fontSize: '1rem',
 									lineHeight: '100%',
 									letterSpacing: '0%',
 								}}>
@@ -1041,11 +1029,11 @@ var DeepTutor = class DeepTutor extends React.Component {
 										background: 'none',
 										border: 'none',
 										cursor: 'pointer',
-										padding: '4px',
-										fontSize: '24px',
+										padding: '0.25rem',
+										fontSize: '1.5rem',
 										color: '#666',
-										width: '32px',
-										height: '32px',
+										width: '2rem',
+										height: '2rem',
 										display: 'flex',
 										alignItems: 'center',
 										justifyContent: 'center',
@@ -1080,13 +1068,58 @@ var DeepTutor = class DeepTutor extends React.Component {
 						<div style={{
 							position: 'relative',
 							width: '80%',
-							maxWidth: '430px',
+							maxWidth: '26.875rem',
 							maxHeight: '80%',
 							background: '#FFFFFF',
-							borderRadius: '10px',
-							padding: '20px',
+							borderRadius: '0.625rem',
+							padding: '1.25rem',
 							overflow: 'auto'
 						}}>
+							<div style={{
+								display: 'flex',
+								justifyContent: 'space-between',
+								alignItems: 'center',
+								marginBottom: '1.25rem',
+								minHeight: '4rem',
+								padding: '0 1rem',
+							}}>
+								<div style={{
+									position: 'absolute',
+									left: '50%',
+									transform: 'translateX(-50%)',
+									background: 'linear-gradient(90deg, #0AE2FF 0%, #0687E5 100%)',
+									WebkitBackgroundClip: 'text',
+									WebkitTextFillColor: 'transparent',
+									backgroundClip: 'text',
+									color: '#0687E5',
+									fontWeight: 700,
+									fontSize: '1rem',
+									lineHeight: '100%',
+									letterSpacing: '0%',
+								}}>
+									Upgrade Your Plan
+								</div>
+								<button
+									onClick={this.toggleUpgradePopup}
+									style={{
+										background: 'none',
+										border: 'none',
+										cursor: 'pointer',
+										padding: '0.25rem',
+										fontSize: '1.5rem',
+										color: '#666',
+										width: '2rem',
+										height: '2rem',
+										display: 'flex',
+										alignItems: 'center',
+										justifyContent: 'center',
+										borderRadius: '50%',
+										marginLeft: 'auto',
+									}}
+								>
+									✕
+								</button>
+							</div>
 							<DeepTutorSubscriptionConfirm
 								imagePath={SubscriptionConfirmBookPath}
 								onClose={() => this.setState({ showSubscriptionConfirmPopup: false, showManageSubscriptionPopup: true })}
@@ -1112,13 +1145,58 @@ var DeepTutor = class DeepTutor extends React.Component {
 						<div style={{
 							position: 'relative',
 							width: '80%',
-							maxWidth: '430px',
+							maxWidth: '26.875rem',
 							maxHeight: '80%',
 							background: '#FFFFFF',
-							borderRadius: '10px',
-							padding: '20px',
+							borderRadius: '0.625rem',
+							padding: '1.25rem',
 							overflow: 'auto'
 						}}>
+							<div style={{
+								display: 'flex',
+								justifyContent: 'space-between',
+								alignItems: 'center',
+								marginBottom: '1.25rem',
+								minHeight: '4rem',
+								padding: '0 1rem',
+							}}>
+								<div style={{
+									position: 'absolute',
+									left: '50%',
+									transform: 'translateX(-50%)',
+									background: 'linear-gradient(90deg, #0AE2FF 0%, #0687E5 100%)',
+									WebkitBackgroundClip: 'text',
+									WebkitTextFillColor: 'transparent',
+									backgroundClip: 'text',
+									color: '#0687E5',
+									fontWeight: 700,
+									fontSize: '1rem',
+									lineHeight: '100%',
+									letterSpacing: '0%',
+								}}>
+									Upgrade Your Plan
+								</div>
+								<button
+									onClick={this.toggleUpgradePopup}
+									style={{
+										background: 'none',
+										border: 'none',
+										cursor: 'pointer',
+										padding: '0.25rem',
+										fontSize: '1.5rem',
+										color: '#666',
+										width: '2rem',
+										height: '2rem',
+										display: 'flex',
+										alignItems: 'center',
+										justifyContent: 'center',
+										borderRadius: '50%',
+										marginLeft: 'auto',
+									}}
+								>
+									✕
+								</button>
+							</div>
 							<DeepTutorManageSubscription
 								imagePath={SubscriptionManageMarkPath}
 								onManage={() => this.setState({ showManageSubscriptionPopup: false })}
@@ -1145,21 +1223,21 @@ var DeepTutor = class DeepTutor extends React.Component {
 					}}>
 						<div style={{
 							position: 'relative',
-							width: '80%',
-							maxWidth: '430px',
+							width: '90%',
+							maxWidth: '28rem',
 							maxHeight: '80%',
 							background: '#FFFFFF',
-							borderRadius: '10px',
-							padding: '20px',
+							borderRadius: '0.625rem',
+							padding: '1.25rem',
 							overflow: 'auto'
 						}}>
 							<div style={{
 								display: 'flex',
 								justifyContent: 'space-between',
 								alignItems: 'center',
-								marginBottom: '20px',
-								minHeight: '64px',
-								padding: '0 16px',
+								marginBottom: '1.5rem',
+								minHeight: '4rem',
+								padding: '0 1rem',
 							}}>
 								<div style={{
 									position: 'absolute',
@@ -1171,8 +1249,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 									backgroundClip: 'text',
 									color: '#0687E5',
 									fontWeight: 700,
-									fontSize: '24px',
-									lineHeight: '100%',
+									fontSize: '1.5rem',
+									lineHeight: '1.2',
 									letterSpacing: '0%',
 								}}>
 									Sign in
@@ -1183,11 +1261,11 @@ var DeepTutor = class DeepTutor extends React.Component {
 										background: 'none',
 										border: 'none',
 										cursor: 'pointer',
-										padding: '4px',
-										fontSize: '24px',
+										padding: '0.25rem',
+										fontSize: '1.5rem',
 										color: '#666',
-										width: '32px',
-										height: '32px',
+										width: '2rem',
+										height: '2rem',
 										display: 'flex',
 										alignItems: 'center',
 										justifyContent: 'center',
@@ -1230,20 +1308,20 @@ var DeepTutor = class DeepTutor extends React.Component {
 						<div style={{
 							position: 'relative',
 							width: '80%',
-							maxWidth: '430px',
+							maxWidth: '26.875rem',
 							maxHeight: '80%',
 							background: '#FFFFFF',
-							borderRadius: '10px',
-							padding: '20px',
+							borderRadius: '0.625rem',
+							padding: '1.25rem',
 							overflow: 'auto'
 						}}>
 							<div style={{
 								display: 'flex',
 								justifyContent: 'space-between',
 								alignItems: 'center',
-								marginBottom: '20px',
-								minHeight: '64px',
-								padding: '0 16px',
+								marginBottom: '1.25rem',
+								minHeight: '4rem',
+								padding: '0 1rem',
 							}}>
 								<div style={{
 									position: 'absolute',
@@ -1255,7 +1333,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 									backgroundClip: 'text',
 									color: '#0687E5',
 									fontWeight: 700,
-									fontSize: '24px',
+									fontSize: '1rem',
 									lineHeight: '100%',
 									letterSpacing: '0%',
 								}}>
@@ -1267,11 +1345,11 @@ var DeepTutor = class DeepTutor extends React.Component {
 										background: 'none',
 										border: 'none',
 										cursor: 'pointer',
-										padding: '4px',
-										fontSize: '24px',
+										padding: '0.25rem',
+										fontSize: '1.5rem',
 										color: '#666',
-										width: '32px',
-										height: '32px',
+										width: '2rem',
+										height: '2rem',
 										display: 'flex',
 										alignItems: 'center',
 										justifyContent: 'center',
@@ -1308,20 +1386,20 @@ var DeepTutor = class DeepTutor extends React.Component {
 						<div style={{
 							position: 'relative',
 							width: '80%',
-							maxWidth: '430px',
+							maxWidth: '26.875rem',
 							maxHeight: '80%',
 							background: '#FFFFFF',
-							borderRadius: '10px',
-							padding: '20px',
+							borderRadius: '0.625rem',
+							padding: '1.25rem',
 							overflow: 'auto'
 						}}>
 							<div style={{
 								display: 'flex',
 								justifyContent: 'space-between',
 								alignItems: 'center',
-								marginBottom: '20px',
-								minHeight: '64px',
-								padding: '0 16px',
+								marginBottom: '1.25rem',
+								minHeight: '4rem',
+								padding: '0 1rem',
 								position: 'relative',
 							}}>
 								<div style={{
@@ -1334,7 +1412,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 									backgroundClip: 'text',
 									color: '#0687E5',
 									fontWeight: 700,
-									fontSize: '24px',
+									fontSize: '1rem',
 									lineHeight: '100%',
 									letterSpacing: '0%',
 									textAlign: 'center',
@@ -1347,11 +1425,11 @@ var DeepTutor = class DeepTutor extends React.Component {
 										background: 'none',
 										border: 'none',
 										cursor: 'pointer',
-										padding: '4px',
-										fontSize: '24px',
+										padding: '0.25rem',
+										fontSize: '1.5rem',
 										color: '#666',
-										width: '32px',
-										height: '32px',
+										width: '2rem',
+										height: '2rem',
 										display: 'flex',
 										alignItems: 'center',
 										justifyContent: 'center',
