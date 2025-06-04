@@ -476,7 +476,6 @@ const ZoteroStandalone = new function() {
 		var itemsSplitter = document.getElementById('zotero-items-splitter');
 		var contextPane = document.getElementById('zotero-context-pane');
 		var contextSplitter = document.getElementById('zotero-context-splitter');
-		
 		Zotero.debug('Standalone: DeepTutor pane toggle triggered');
 		
 		// Show DeepTutor pane
@@ -503,50 +502,6 @@ const ZoteroStandalone = new function() {
 		}
 		ZoteroPane.updateLayoutConstraints();
 		Zotero.debug('Standalone: Layout constraints updated');
-	};
-
-	this.onItemPaneOpen = function () {
-		var deepTutorPane = document.getElementById('new-deep-tutor-pane-container');
-		var itemPane = document.getElementById('zotero-item-pane');
-		var itemsSplitter = document.getElementById('zotero-items-splitter');
-		
-		// Show item pane
-		if (itemPane.getAttribute('collapsed') == 'true') {
-			itemsSplitter.setAttribute('state', 'open');
-			itemPane.setAttribute('collapsed', false);
-			
-			// Hide DeepTutor pane
-			deepTutorPane.hidden = true;
-			document.getElementById('zotero-deeptutor-splitter').setAttribute('state', 'collapsed');
-		}
-		// Hide item pane
-		else {
-			itemsSplitter.setAttribute('state', 'collapsed');
-			itemPane.setAttribute('collapsed', true);
-		}
-		ZoteroPane.updateLayoutConstraints();
-	};
-
-	this.onContextPaneOpen = function () {
-		var deepTutorPane = document.getElementById('new-deep-tutor-pane-container');
-		var contextPane = document.getElementById('zotero-context-pane');
-		var contextSplitter = document.getElementById('zotero-context-splitter');
-		
-		// Show context pane
-		if (contextPane.getAttribute('collapsed') == 'true') {
-			contextSplitter.setAttribute('state', 'open');
-			contextPane.setAttribute('collapsed', false);
-			
-			// Hide DeepTutor pane
-			deepTutorPane.hidden = true;
-			document.getElementById('zotero-deeptutor-splitter').setAttribute('state', 'collapsed');
-		}
-		// Hide context pane
-		else {
-			contextSplitter.setAttribute('state', 'collapsed');
-			contextPane.setAttribute('collapsed', true);
-		}
-		ZoteroPane.updateLayoutConstraints();
 	};
 
 	this.onDeepTutorPaneTwoOpen = function () {
