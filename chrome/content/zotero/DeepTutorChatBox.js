@@ -8,7 +8,7 @@ import {
 	getSessionById
 } from './api/libs/api';
 import { viewAttachment } from './elements/callZoteroPane';
-// import ReactMarkdown from 'react-markdown';
+import ReactMarkdown from 'react-markdown';
 
 // Enums
 const SessionStatus = {
@@ -251,7 +251,7 @@ const styles = {
 	sourceButton: {
 		all: 'revert',
 		background: '#0687E5',
-        opacity: 0.4,
+		opacity: 0.4,
 		color: 'white',
 		border: 'none',
 		borderRadius: '50%',
@@ -1334,75 +1334,63 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect }) => {
 				}}>
 					{message.subMessages.map((subMessage, subIndex) => (
 						<div key={subIndex} style={styles.messageText}>
-							{/* Commented out ReactMarkdown implementation
-                            <ReactMarkdown
-                                className="markdown mb-0 flex flex-col"
-                                components={{
-                                    h3: ({ children }) => (
-                                        <h3 style={{ fontSize: '24px' }}>{children}</h3>
-                                    ),
-                                    ul: ({ children }) => (
-                                        <ul style={{
-                                            fontSize: '16px',
-                                            marginTop: '0.5em',
-                                            marginBottom: '0.5em',
-                                            padding: '5',
-                                        }}>
-                                            {children}
-                                        </ul>
-                                    ),
-                                    li: ({ children }) => (
-                                        <li style={{
-                                            marginBottom: '0.2em',
-                                            fontSize: '16px',
-                                            padding: '0',
-                                        }}>
-                                            {children}
-                                        </li>
-                                    ),
-                                    code: ({ className, children, ...props }) => (
-                                        <code
-                                            className={className}
-                                            style={{
-                                                fontSize: '14px',
-                                                fontFamily: 'Courier, monospace',
-                                                whiteSpace: 'pre-wrap',
-                                                wordBreak: 'break-word',
-                                            }}
-                                            {...props}
-                                        >
-                                            {children}
-                                        </code>
-                                    ),
-                                    p: ({ children, ...props }) => (
-                                        <p
-                                            style={{
-                                                margin: '0.1',
-                                                padding: '0',
-                                                lineHeight: '1.5',
-                                            }}
-                                            {...props}
-                                        >
-                                            {children}
-                                        </p>
-                                    ),
-                                }}
-                            >
-                                {subMessage.text || ''}
-                            </ReactMarkdown>
-                            */}
-							<div style={{
-								fontSize: '14px',
-								lineHeight: '1.5',
-								whiteSpace: 'pre-wrap',
-								wordBreak: 'break-word',
-								fontFamily: 'Roboto, sans-serif',
-								width: '100%',
-								boxSizing: 'border-box',
-								overflowWrap: 'break-word',
-							}}>
-								{subMessage.text || ''}
-							</div>
+							{
+								<ReactMarkdown
+									className="markdown mb-0 flex flex-col"
+									components={{
+										h3: ({ children }) => (
+											<h3 style={{ fontSize: '24px' }}>{children}</h3>
+										),
+										ul: ({ children }) => (
+											<ul style={{
+												fontSize: '16px',
+												marginTop: '0.5em',
+												marginBottom: '0.5em',
+												padding: '5',
+											}}>
+												{children}
+											</ul>
+										),
+										li: ({ children }) => (
+											<li style={{
+												marginBottom: '0.2em',
+												fontSize: '16px',
+												padding: '0',
+											}}>
+												{children}
+											</li>
+										),
+										code: ({ className, children, ...props }) => (
+											<code
+												className={className}
+												style={{
+													fontSize: '14px',
+													fontFamily: 'Courier, monospace',
+													whiteSpace: 'pre-wrap',
+													wordBreak: 'break-word',
+												}}
+												{...props}
+											>
+												{children}
+											</code>
+										),
+										p: ({ children, ...props }) => (
+											<p
+												style={{
+													margin: '0.1',
+													padding: '0',
+													lineHeight: '1.5',
+												}}
+												{...props}
+											>
+												{children}
+											</p>
+										),
+									}}
+								>
+									{subMessage.text || ''}
+								</ReactMarkdown>
+							}
 							{subMessage.sources && subMessage.sources.length > 0 && (
 								<div style={styles.sourcesContainer}>
 									{subMessage.sources.map((source, sourceIndex) => (
@@ -1424,14 +1412,13 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect }) => {
 						{message.followUpQuestions.map((question, qIndex) => (
 							<button
 								key={qIndex}
-								style={styles.questionButton}
+								style={{
+									...styles.questionButton,
+									background: hoveredQuestion === qIndex ? '#D9D9D9' : '#FFFFFF'
+								}}
 								onClick={() => handleQuestionClick(question)}
-								onMouseEnter={(e) => {
-									e.target.style.background = '#D9D9D9';
-								}}
-								onMouseLeave={(e) => {
-									e.target.style.background = '#FFFFFF';
-								}}
+								onMouseEnter={() => setHoveredQuestion(qIndex)}
+								onMouseLeave={() => setHoveredQuestion(null)}
 							>
 								{question}
 							</button>
