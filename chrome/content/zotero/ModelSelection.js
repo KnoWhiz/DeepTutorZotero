@@ -677,11 +677,8 @@ function ModelSelection({ onSubmit, user }) {
 
     // Check if user is provided
     if (!user) {
-      console.log("ModelSelection: No user provided");
       setErrorMessage("Please sign in to create a session");
       return;
-    }else{
-      console.log(user);
     }
 
     // Clear any existing error message
