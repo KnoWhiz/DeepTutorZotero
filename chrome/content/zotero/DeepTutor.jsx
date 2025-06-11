@@ -1674,6 +1674,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 					isAuthenticated={this.state.isAuthenticated}
 					currentUser={this.state.currentUser}
 					onSignOut={this.handleSignOut}
+					userData={this.state.userData}
 				/>
 			</div>
 		);
