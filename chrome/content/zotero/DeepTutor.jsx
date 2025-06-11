@@ -1067,6 +1067,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 										Zotero.debug(`DeepTutor: Error handling new session: ${error.message}`);
 									}
 								}}
+								user={this.state.currentUser}
 							/>
 						}
 						{this.state.currentPane === 'welcome' && <DeepTutorWelcomePane onWelcomeSignIn={() => this.toggleSignInPopup()} />}
@@ -1602,6 +1603,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 										Zotero.debug(`DeepTutor: Error handling new session: ${error.message}`);
 									}
 								}}
+								user={this.state.currentUser}
 							/>
 						</div>
 					</div>
