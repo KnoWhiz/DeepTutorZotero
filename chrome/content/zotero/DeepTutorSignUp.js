@@ -302,11 +302,22 @@ export default function DeepTutorSignUp({ onSignUpSignIn }) {
       setIsLoading(true);
       setError('');
       setMessage('');
-      
+
       Zotero.debug('DeepTutor SignUp: Attempting Google sign up');
-      await signInWithGoogle();
-      setMessage('Redirecting to Google registration...');
+      const result = await signInWithGoogle();
       
+      Zotero.debug('DeepTutor SignUp: Google sign up successful');
+      setMessage('Google registration successful!');
+
+      // Initialize empty Map for recent sessions
+      const emptyMap = new Map();
+      Zotero.Prefs.set('deeptutor.recentSessions', JSON.stringify(Object.fromEntries(emptyMap)));
+
+      // Redirect to sign in after successful Google registration
+      setTimeout(() => {
+        onSignUpSignIn();
+      }, 1000);
+
     } catch (error) {
       Zotero.debug(`DeepTutor SignUp: Google sign up failed: ${error.message}`);
       setError('Google registration failed, please try again');

@@ -845,13 +845,41 @@ var DeepTutor = class DeepTutor extends React.Component {
 			Zotero.debug("DeepTutor: Loading sessions...");
 
 			// Get user ID from Cognito user attributes.sub as providerUserId and call getUserByProviderUserId
+			Zotero.debug("DeepTutor: Calling getCurrentUser()...");
 			const currentUserData = await getCurrentUser();
+			
+			Zotero.debug(`DeepTutor: getCurrentUser() result: ${currentUserData ? 'found' : 'null'}`);
+			if (currentUserData && currentUserData.user) {
+				Zotero.debug(`DeepTutor: Current user data: ${JSON.stringify(currentUserData.user, null, 2)}`);
+			}
+			
 			if (!currentUserData || !currentUserData.user) {
 				throw new Error('No current user found');
 			}
 
 			// Get user attributes to retrieve the 'sub' field (Cognito User ID)
 			const userData = await new Promise((resolve, reject) => {
+				// Check if this is a Google OAuth user (has attributes directly)
+				if (currentUserData.user.attributes && currentUserData.user.attributes.sub) {
+					Zotero.debug('DeepTutor: Using Google OAuth user attributes');
+					const providerUserId = currentUserData.user.attributes.sub;
+					Zotero.debug(`DeepTutor: Using provider user ID from attributes: ${providerUserId}`);
+
+					// Get user data using the provider user ID (sub)
+					Zotero.debug(`DeepTutor: Calling getUserByProviderUserId with providerUserId: ${providerUserId}`);
+					getUserByProviderUserId(providerUserId)
+						.then(userData => {
+							Zotero.debug(`DeepTutor: getUserByProviderUserId successful: ${JSON.stringify(userData, null, 2)}`);
+							resolve(userData);
+						})
+						.catch(error => {
+							Zotero.debug(`DeepTutor: Error getting user by provider ID: ${error.message}`);
+							reject(error);
+						});
+					return;
+				}
+
+				// For regular Cognito users, use getUserAttributes method
 				currentUserData.user.getUserAttributes((err, attributes) => {
 					if (err) {
 						Zotero.debug(`DeepTutor: Error getting user attributes: ${err.message}`);
@@ -875,11 +903,13 @@ var DeepTutor = class DeepTutor extends React.Component {
 					}
 
 					const providerUserId = subAttribute.getValue();
-					Zotero.debug(`DeepTutor: Using provider user ID: ${providerUserId}`);
+					Zotero.debug(`DeepTutor: Using provider user ID from getUserAttributes: ${providerUserId}`);
 
 					// Get user data using the provider user ID (sub)
+					Zotero.debug(`DeepTutor: Calling getUserByProviderUserId with providerUserId: ${providerUserId}`);
 					getUserByProviderUserId(providerUserId)
 						.then(userData => {
+							Zotero.debug(`DeepTutor: getUserByProviderUserId successful: ${JSON.stringify(userData, null, 2)}`);
 							resolve(userData);
 						})
 						.catch(error => {
