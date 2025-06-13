@@ -7,7 +7,7 @@ let Services;
 function getServices() {
 	if (!Services) {
 		Services = globalThis.Services || window.Services;
-		
+
 		// If still not available, try importing
 		if (!Services) {
 			try {
@@ -38,7 +38,7 @@ function loadCognitoLibrary() {
 	return new Promise(async (resolve, reject) => {
 		try {
 			Zotero.debug('DeepTutor Auth: Loading Amazon Cognito Identity JS library...');
-			
+
 			// Method 1: Try using Services.scriptloader
 			const services = getServices();
 			if (services && services.scriptloader) {
@@ -53,7 +53,7 @@ function loadCognitoLibrary() {
 						throw new Error(`HTTP error! status: ${response.status}`);
 					}
 					const scriptContent = await response.text();
-					
+
 					// Execute the script in the global context
 					const script = `
 						(function() {
@@ -61,14 +61,14 @@ function loadCognitoLibrary() {
 						})();
 					`;
 					eval(script);
-					
+
 					Zotero.debug('DeepTutor Auth: Script loaded via fetch and eval');
 				} catch (fetchError) {
 					Zotero.debug(`DeepTutor Auth: Fetch method failed: ${fetchError.message}`);
 					throw new Error(`Failed to load via fetch: ${fetchError.message}`);
 				}
 			}
-			
+
 			// Give a moment for the library to initialize
 			setTimeout(() => {
 				try {
@@ -85,7 +85,7 @@ function loadCognitoLibrary() {
 					reject(checkError);
 				}
 			}, 50);
-			
+
 		} catch (error) {
 			Zotero.debug(`DeepTutor Auth: Failed to load Amazon Cognito Identity JS library: ${error.message}`);
 			const services = getServices();
@@ -147,13 +147,13 @@ class AuthState {
 		this.accessToken = session.getAccessToken().getJwtToken();
 		this.idToken = session.getIdToken().getJwtToken();
 		this.refreshToken = session.getRefreshToken().getToken();
-		
+
 		// Store tokens in Zotero preferences for persistence
 		Zotero.Prefs.set('deeptutor.auth.accessToken', this.accessToken);
 		Zotero.Prefs.set('deeptutor.auth.idToken', this.idToken);
 		Zotero.Prefs.set('deeptutor.auth.refreshToken', this.refreshToken);
 		Zotero.Prefs.set('deeptutor.auth.isAuthenticated', true);
-		
+
 		this.notifyListeners();
 	}
 
@@ -164,13 +164,13 @@ class AuthState {
 		this.accessToken = null;
 		this.idToken = null;
 		this.refreshToken = null;
-		
+
 		// Clear tokens from Zotero preferences
 		Zotero.Prefs.clear('deeptutor.auth.accessToken');
 		Zotero.Prefs.clear('deeptutor.auth.idToken');
 		Zotero.Prefs.clear('deeptutor.auth.refreshToken');
 		Zotero.Prefs.clear('deeptutor.auth.isAuthenticated');
-		
+
 		this.notifyListeners();
 	}
 
@@ -182,7 +182,7 @@ class AuthState {
 			this.accessToken = Zotero.Prefs.get('deeptutor.auth.accessToken');
 			this.idToken = Zotero.Prefs.get('deeptutor.auth.idToken');
 			this.refreshToken = Zotero.Prefs.get('deeptutor.auth.refreshToken');
-			
+
 			// Try to get current user
 			try {
 				await loadCognitoLibrary();
@@ -234,10 +234,10 @@ const authState = new AuthState();
 export const signUp = async (email, password, name) => {
 	await loadCognitoLibrary();
 	const pool = initializeUserPool();
-	
+
 	return new Promise((resolve, reject) => {
 		const attributeList = [];
-		
+
 		// Add email attribute
 		const dataEmail = {
 			Name: 'email',
@@ -262,7 +262,7 @@ export const signUp = async (email, password, name) => {
 				reject(err);
 				return;
 			}
-			
+
 			Zotero.debug('DeepTutor Auth: Sign up successful');
 			resolve({
 				user: result.user,
@@ -277,22 +277,22 @@ export const signUp = async (email, password, name) => {
 export const confirmSignUp = async (email, confirmationCode) => {
 	await loadCognitoLibrary();
 	const pool = initializeUserPool();
-	
+
 	return new Promise((resolve, reject) => {
 		const userData = {
 			Username: email,
 			Pool: pool
 		};
-		
+
 		const cognitoUser = new CognitoUser(userData);
-		
+
 		cognitoUser.confirmRegistration(confirmationCode, true, (err, result) => {
 			if (err) {
 				Zotero.debug(`DeepTutor Auth: Confirmation error: ${err.message}`);
 				reject(err);
 				return;
 			}
-			
+
 			Zotero.debug('DeepTutor Auth: Email confirmation successful');
 			resolve(result);
 		});
@@ -303,22 +303,22 @@ export const confirmSignUp = async (email, confirmationCode) => {
 export const signIn = async (email, password) => {
 	await loadCognitoLibrary();
 	const pool = initializeUserPool();
-	
+
 	return new Promise((resolve, reject) => {
 		const authenticationData = {
 			Username: email,
 			Password: password
 		};
-		
+
 		const authenticationDetails = new AuthenticationDetails(authenticationData);
-		
+
 		const userData = {
 			Username: email,
 			Pool: pool
 		};
-		
+
 		const cognitoUser = new CognitoUser(userData);
-		
+
 		cognitoUser.authenticateUser(authenticationDetails, {
 			onSuccess: (session) => {
 				Zotero.debug('DeepTutor Auth: Sign in successful');
@@ -348,14 +348,14 @@ export const signOut = async () => {
 	try {
 		await loadCognitoLibrary();
 		const pool = initializeUserPool();
-		
+
 		const currentUser = pool.getCurrentUser();
-		
+
 		if (currentUser) {
 			currentUser.signOut();
 			Zotero.debug('DeepTutor Auth: Sign out successful');
 		}
-		
+
 		authState.setUnauthenticated();
 		return Promise.resolve();
 	} catch (error) {
@@ -369,26 +369,26 @@ export const signOut = async () => {
 export const getCurrentUser = async () => {
 	await loadCognitoLibrary();
 	const pool = initializeUserPool();
-	
+
 	return new Promise((resolve, reject) => {
 		const currentUser = pool.getCurrentUser();
-		
+
 		Zotero.debug(`DeepTutor Auth: getCurrentUser - pool.getCurrentUser() result: ${currentUser ? 'found' : 'null'}`);
-		
+
 		if (!currentUser) {
 			// Check if we have a user in authState (for Google OAuth users)
 			if (authState.isUserAuthenticated() && authState.getCurrentUser()) {
 				const authStateUser = authState.getCurrentUser();
 				Zotero.debug('DeepTutor Auth: getCurrentUser - Using user from authState (Google OAuth)');
 				Zotero.debug(`DeepTutor Auth: getCurrentUser - AuthState user: ${JSON.stringify(authStateUser, null, 2)}`);
-				
+
 				// Create a mock session object for consistency
 				const mockSession = {
 					isValid: () => true,
 					getAccessToken: () => ({ getJwtToken: () => authState.getAccessToken() }),
 					getIdToken: () => ({ getJwtToken: () => authState.getIdToken() })
 				};
-				
+
 				resolve({
 					user: authStateUser,
 					session: mockSession,
@@ -397,12 +397,12 @@ export const getCurrentUser = async () => {
 				});
 				return;
 			}
-			
+
 			Zotero.debug('DeepTutor Auth: getCurrentUser - No current user found in pool or authState');
 			reject(new Error('No current user'));
 			return;
 		}
-		
+
 		// For regular Cognito users
 		Zotero.debug('DeepTutor Auth: getCurrentUser - Processing regular Cognito user');
 		currentUser.getSession((err, session) => {
@@ -412,7 +412,7 @@ export const getCurrentUser = async () => {
 				reject(err);
 				return;
 			}
-			
+
 			if (session.isValid()) {
 				authState.setAuthenticated(currentUser, session);
 				resolve({
@@ -433,15 +433,15 @@ export const getCurrentUser = async () => {
 export const refreshSession = async () => {
 	await loadCognitoLibrary();
 	const pool = initializeUserPool();
-	
+
 	return new Promise((resolve, reject) => {
 		const currentUser = pool.getCurrentUser();
-		
+
 		if (!currentUser) {
 			reject(new Error('No current user'));
 			return;
 		}
-		
+
 		currentUser.getSession((err, session) => {
 			if (err) {
 				Zotero.debug(`DeepTutor Auth: Refresh session error: ${err.message}`);
@@ -449,7 +449,7 @@ export const refreshSession = async () => {
 				reject(err);
 				return;
 			}
-			
+
 			if (session.isValid()) {
 				authState.setAuthenticated(currentUser, session);
 				resolve({
@@ -468,7 +468,7 @@ export const refreshSession = async () => {
 						reject(refreshErr);
 						return;
 					}
-					
+
 					authState.setAuthenticated(currentUser, refreshedSession);
 					resolve({
 						user: currentUser,
@@ -486,15 +486,15 @@ export const refreshSession = async () => {
 export const forgotPassword = async (email) => {
 	await loadCognitoLibrary();
 	const pool = initializeUserPool();
-	
+
 	return new Promise((resolve, reject) => {
 		const userData = {
 			Username: email,
 			Pool: pool
 		};
-		
+
 		const cognitoUser = new CognitoUser(userData);
-		
+
 		cognitoUser.forgotPassword({
 			onSuccess: (data) => {
 				Zotero.debug('DeepTutor Auth: Forgot password email sent');
@@ -512,15 +512,15 @@ export const forgotPassword = async (email) => {
 export const confirmForgotPassword = async (email, confirmationCode, newPassword) => {
 	await loadCognitoLibrary();
 	const pool = initializeUserPool();
-	
+
 	return new Promise((resolve, reject) => {
 		const userData = {
 			Username: email,
 			Pool: pool
 		};
-		
+
 		const cognitoUser = new CognitoUser(userData);
-		
+
 		cognitoUser.confirmPassword(confirmationCode, newPassword, {
 			onSuccess: () => {
 				Zotero.debug('DeepTutor Auth: Password reset successful');
@@ -539,21 +539,21 @@ export const signInWithGoogle = () => {
 	return new Promise((resolve, reject) => {
 		const domain = amplifyConfig.oauth.domain;
 		const clientId = amplifyConfig.aws_user_pools_web_client_id;
-		
+
 		// Use one of the configured redirect URIs instead of urn:ietf:wg:oauth:2.0:oob
 		// We'll use the staging URL as it's most likely to be configured for OAuth
 		const redirectUri = encodeURIComponent('https://staging.deeptutor.knowhiz.us/');
 		const scope = encodeURIComponent(amplifyConfig.oauth.scope.join(' '));
-		
+
 		const googleAuthUrl = `https://${domain}/oauth2/authorize?` +
 			`identity_provider=Google&` +
 			`redirect_uri=${redirectUri}&` +
 			`response_type=code&` +
 			`client_id=${clientId}&` +
 			`scope=${scope}`;
-		
+
 		Zotero.debug(`DeepTutor Auth: Opening Google OAuth URL: ${googleAuthUrl}`);
-		
+
 		// Create a dialog to handle the OAuth flow
 		const dialogWindow = window.openDialog(
 			'chrome://zotero/content/DeepTutorGoogleAuth.xhtml',
@@ -564,23 +564,23 @@ export const signInWithGoogle = () => {
 				onAuthComplete: async (authCode) => {
 					try {
 						Zotero.debug(`DeepTutor Auth: Received auth code: ${authCode ? 'present' : 'missing'}`);
-						
+
 						if (!authCode) {
 							throw new Error('No authorization code received');
 						}
-						
+
 						// Exchange authorization code for tokens
 						const tokenResponse = await exchangeCodeForTokens(authCode);
 						Zotero.debug('DeepTutor Auth: Token exchange successful');
-						
+
 						// Parse and validate the ID token
 						const { accessToken, idToken, refreshToken } = tokenResponse;
 						const userInfo = parseJwtToken(idToken);
-						
+
 						// Print user data for debugging
 						Zotero.debug('DeepTutor Auth: Google Sign In - User Info from JWT:');
 						Zotero.debug(JSON.stringify(userInfo, null, 2));
-						
+
 						// Create a mock Cognito user for consistency with existing auth flow
 						const cognitoUser = {
 							username: userInfo.email,
@@ -590,11 +590,11 @@ export const signInWithGoogle = () => {
 								sub: userInfo.sub
 							}
 						};
-						
+
 						// Print final user object for debugging
 						Zotero.debug('DeepTutor Auth: Google Sign In - Final User Object:');
 						Zotero.debug(JSON.stringify(cognitoUser, null, 2));
-						
+
 						// Create a mock session object
 						const session = {
 							isValid: () => true,
@@ -602,10 +602,10 @@ export const signInWithGoogle = () => {
 							getIdToken: () => ({ getJwtToken: () => idToken }),
 							getRefreshToken: () => ({ getToken: () => refreshToken })
 						};
-						
+
 						// Update auth state
 						authState.setAuthenticated(cognitoUser, session);
-						
+
 						resolve({
 							user: cognitoUser,
 							session: session,
@@ -623,7 +623,7 @@ export const signInWithGoogle = () => {
 				}
 			}
 		);
-		
+
 		// Handle dialog close without completion
 		if (!dialogWindow) {
 			reject(new Error('Failed to open Google authentication dialog'));
@@ -636,9 +636,9 @@ async function exchangeCodeForTokens(authCode) {
 	const domain = amplifyConfig.oauth.domain;
 	const clientId = amplifyConfig.aws_user_pools_web_client_id;
 	const redirectUri = 'https://staging.deeptutor.knowhiz.us/';
-	
+
 	const tokenEndpoint = `https://${domain}/oauth2/token`;
-	
+
 	// Create URL-encoded form data manually since URLSearchParams is not available in Zotero extension context
 	const formData = [
 		`grant_type=authorization_code`,
@@ -646,7 +646,7 @@ async function exchangeCodeForTokens(authCode) {
 		`code=${encodeURIComponent(authCode)}`,
 		`redirect_uri=${encodeURIComponent(redirectUri)}`
 	].join('&');
-	
+
 	try {
 		const xmlhttp = await Zotero.HTTP.request('POST', tokenEndpoint, {
 			body: formData,
@@ -654,14 +654,14 @@ async function exchangeCodeForTokens(authCode) {
 				'Content-Type': 'application/x-www-form-urlencoded'
 			}
 		});
-		
+
 		if (xmlhttp.status < 200 || xmlhttp.status >= 300) {
 			const errorText = xmlhttp.responseText;
 			throw new Error(`Token exchange failed: ${xmlhttp.status} ${errorText}`);
 		}
-		
+
 		const tokenData = JSON.parse(xmlhttp.responseText);
-		
+
 		return {
 			accessToken: tokenData.access_token,
 			idToken: tokenData.id_token,
@@ -682,13 +682,13 @@ function parseJwtToken(token) {
 		if (parts.length !== 3) {
 			throw new Error('Invalid JWT token format');
 		}
-		
+
 		const payload = parts[1];
 		// Add padding if necessary
 		const paddedPayload = payload + '='.repeat((4 - payload.length % 4) % 4);
 		// Use Zotero's base64 decoder instead of atob
 		const decodedPayload = Zotero.Utilities.Internal.Base64.decode(paddedPayload);
-		
+
 		return JSON.parse(decodedPayload);
 	} catch (error) {
 		Zotero.debug(`DeepTutor Auth: JWT parsing error: ${error.message}`);

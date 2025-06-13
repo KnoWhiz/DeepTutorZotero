@@ -861,15 +861,14 @@ var DeepTutor = class DeepTutor extends React.Component {
 			const userData = await new Promise((resolve, reject) => {
 				// Check if this is a Google OAuth user (has attributes directly)
 				if (currentUserData.user.attributes && currentUserData.user.attributes.sub) {
-					Zotero.debug('DeepTutor: Using Google OAuth user attributes');
 					const providerUserId = currentUserData.user.attributes.sub;
-					Zotero.debug(`DeepTutor: Using provider user ID from attributes: ${providerUserId}`);
+					Zotero.debug('DeepTutor: Using provider user ID from Google OAuth attributes');
 
 					// Get user data using the provider user ID (sub)
-					Zotero.debug(`DeepTutor: Calling getUserByProviderUserId with providerUserId: ${providerUserId}`);
+					Zotero.debug('DeepTutor: Calling getUserByProviderUserId with providerUserId');
 					getUserByProviderUserId(providerUserId)
 						.then(userData => {
-							Zotero.debug(`DeepTutor: getUserByProviderUserId successful: ${JSON.stringify(userData, null, 2)}`);
+							Zotero.debug('DeepTutor: getUserByProviderUserId successful');
 							resolve(userData);
 						})
 						.catch(error => {
@@ -903,13 +902,13 @@ var DeepTutor = class DeepTutor extends React.Component {
 					}
 
 					const providerUserId = subAttribute.getValue();
-					Zotero.debug(`DeepTutor: Using provider user ID from getUserAttributes: ${providerUserId}`);
+					Zotero.debug('DeepTutor: Using provider user ID from getUserAttributes');
 
 					// Get user data using the provider user ID (sub)
-					Zotero.debug(`DeepTutor: Calling getUserByProviderUserId with providerUserId: ${providerUserId}`);
+					Zotero.debug('DeepTutor: Calling getUserByProviderUserId with providerUserId');
 					getUserByProviderUserId(providerUserId)
 						.then(userData => {
-							Zotero.debug(`DeepTutor: getUserByProviderUserId successful: ${JSON.stringify(userData, null, 2)}`);
+							Zotero.debug('DeepTutor: getUserByProviderUserId successful');
 							resolve(userData);
 						})
 						.catch(error => {
