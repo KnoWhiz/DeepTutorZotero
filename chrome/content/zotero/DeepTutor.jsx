@@ -478,7 +478,7 @@ const styles = {
 		background: '#fff',
 		borderRadius: '0.5rem',
 		boxShadow: '0 0.125rem 0.5rem rgba(0,0,0,0.15)',
-		padding: '0.75rem',
+		padding: '0.25rem 0.5rem 0.5rem 0.5rem',
 		marginBottom: '0.5rem',
 		zIndex: 1000,
 		minWidth: '12.5rem',
@@ -1478,7 +1478,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 								maxHeight: '80%',
 								background: '#FFFFFF',
 								borderRadius: '0.625rem',
-								padding: '0.5rem',
+								padding: '0.25rem 0.5rem 0.5rem 0.5rem',
 								overflow: 'auto'
 							}}
 							onClick={(e) => e.stopPropagation()}

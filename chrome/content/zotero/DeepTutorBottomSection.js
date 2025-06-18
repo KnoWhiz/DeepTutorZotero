@@ -268,7 +268,7 @@ class DeepTutorBottomSection extends React.Component {
 			buttonText = "Premium";
 		}
 		else if (this.props.isFreeTrial) {
-			buttonText = "Free Trial";
+			buttonText = "Start Trial";
 		}
 
 		return (
