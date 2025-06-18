@@ -28,9 +28,9 @@ import PropTypes from "prop-types";
 import DeepTutorUpgradePremium from "./DeepTutorUpgradePremium.js";
 import DeepTutorSubscriptionConfirm from "./DeepTutorSubscriptionConfirm.js";
 import DeepTutorManageSubscription from "./DeepTutorManageSubscription.js";
-import PopupClosePath from "chrome://zotero/content/DeepTutorMaterials/Subscription/POPUP_CLOSE.svg";
-import SubscriptionConfirmBookPath from "chrome://zotero/content/DeepTutorMaterials/Subscription/SUB_SUCCESS.svg";
-import SubscriptionManageMarkPath from "chrome://zotero/content/DeepTutorMaterials/Subscription/SUB_MANAGEMENT.svg";
+const PopupClosePath = "chrome://zotero/content/DeepTutorMaterials/Subscription/POPUP_CLOSE.svg";
+const SubscriptionConfirmBookPath = 'chrome://zotero/content/DeepTutorMaterials/Subscription/SUB_SUCCESS.svg';
+const SubscriptionManageMarkPath = 'chrome://zotero/content/DeepTutorMaterials/Subscription/SUB_MANAGEMENT.svg';
 
 /**
  * DeepTutorSubscription component handles subscription-related functionality

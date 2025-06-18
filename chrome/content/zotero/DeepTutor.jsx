@@ -32,7 +32,7 @@ import DeepTutorChatBox from './DeepTutorChatBox.js';
 import DeepTutorWelcomePane from './DeepTutorWelcomePane.js';
 import DeepTutorSignIn from './DeepTutorSignIn.js';
 import DeepTutorSignUp from './DeepTutorSignUp.js';
-import DeepTutorSubscription from './DeepTutorSubscription.jsx';
+import DeepTutorSubscription from './DeepTutorSubscription.js';
 // import DeepTutorUpgradePremium from './DeepTutorUpgradePremium.js';
 import DeepTutorTopSection from './DeepTutorTopSection.js';
 import DeepTutorBottomSection from './DeepTutorBottomSection.js';
