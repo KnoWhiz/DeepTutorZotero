@@ -808,27 +808,9 @@ var DeepTutor = class DeepTutor extends React.Component {
 		}));
 	};
 
-	toggleUpgradePopup = () => {
-		this.setState(prevState => ({
-			showUpgradePopup: !prevState.showUpgradePopup
-		}));
-	};
-
 	toggleModelSelectionPopup = () => {
 		this.setState(prevState => ({
 			showModelSelectionPopup: !prevState.showModelSelectionPopup
-		}));
-	};
-
-	toggleSubscriptionConfirmPopup = () => {
-		this.setState(prevState => ({
-			showSubscriptionConfirmPopup: !prevState.showSubscriptionConfirmPopup
-		}));
-	};
-
-	toggleManageSubscriptionPopup = () => {
-		this.setState(prevState => ({
-			showManageSubscriptionPopup: !prevState.showManageSubscriptionPopup
 		}));
 	};
 
@@ -1069,6 +1051,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 			let isFreeTrial = true;
 			try {
 				const latestSubscription = await getLatestUserSubscriptionByUserId(userData.id);
+				console.log(latestSubscription);
 				isFreeTrial = !latestSubscription;
 				Zotero.debug('DeepTutor: Latest subscription status:', isFreeTrial);
 			} catch (error) {
@@ -1463,7 +1446,11 @@ var DeepTutor = class DeepTutor extends React.Component {
 				</div>
 				{/* Subscription Popups */}
 				{this.state.showSubscriptionPopup && (
-					<DeepTutorSubscription />
+					<DeepTutorSubscription 
+						userId={this.state.userData?.id}
+						userSubscribed={this.state.userSubscribed}
+						isFreeTrial={this.state.isFreeTrial}
+					/>
 				)}
 
 
@@ -1764,6 +1751,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 					onSignOut={this.handleSignOut}
 					onSwitchNoSession={() => this.switchPane('noSession')}
 					userData={this.state.userData}
+					userSubscribed={this.state.userSubscribed}
+					isFreeTrial={this.state.isFreeTrial}
 				/>
 			</div>
 		);

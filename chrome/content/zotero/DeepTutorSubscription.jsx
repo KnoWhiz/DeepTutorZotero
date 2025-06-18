@@ -41,18 +41,18 @@ class DeepTutorSubscription extends React.Component {
 		onUpgradeSuccess: PropTypes.func,
 		onManageSubscription: PropTypes.func,
 		onCancel: PropTypes.func,
-		userData: PropTypes.shape({
-			id: PropTypes.string,
-			subscriptionStatus: PropTypes.string,
-			subscriptionType: PropTypes.string
-		})
+		userId: PropTypes.string,
+		userSubscribed: PropTypes.bool,
+		isFreeTrial: PropTypes.bool
 	};
 
 	static defaultProps = {
 		onUpgradeSuccess: () => {},
 		onManageSubscription: () => {},
 		onCancel: () => {},
-		userData: null
+		userId: null,
+		userSubscribed: false,
+		isFreeTrial: true
 	};
 
 	constructor(props) {
