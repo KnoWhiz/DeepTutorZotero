@@ -29,6 +29,7 @@ import DeepTutorUpgradePremium from "./DeepTutorUpgradePremium.js";
 import DeepTutorSubscriptionConfirm from "./DeepTutorSubscriptionConfirm.js";
 import DeepTutorManageSubscription from "./DeepTutorManageSubscription.js";
 import DeepTutorFreeTrial from "./DeepTutorFreeTrial.js";
+import DeepTutorProcessingSubscription from "./DeepTutorProcessingSubscription.js";
 
 const PopupClosePath = "chrome://zotero/content/DeepTutorMaterials/Cross.png";
 const SubscriptionConfirmBookPath = 'chrome://zotero/content/DeepTutorMaterials/Subscription/SUB_SUCCESS.svg';
@@ -62,7 +63,8 @@ class DeepTutorSubscription extends React.Component {
 	constructor(props) {
 		super(props);
 		this.state = {
-			currentPanel: "main" // "main", "confirm", "manage"
+			currentPanel: "main", // "main", "confirm", "manage"
+			showProcessing: false,
 		};
 	}
 
@@ -102,6 +104,16 @@ class DeepTutorSubscription extends React.Component {
 	 */
 	handleBackToMain = () => {
 		this.setState({ currentPanel: "main" });
+	};
+
+	handleShowProcessing = () => {
+		Zotero.launchURL('https://staging.deeptutor.knowhiz.us/dzSubscription');
+		this.setState({ showProcessing: true });
+	};
+
+	handleProcessingContinue = () => {
+		this.setState({ showProcessing: false });
+		this.setState({ currentPanel: "confirm" });
 	};
 
 	/**
@@ -184,7 +196,7 @@ class DeepTutorSubscription extends React.Component {
 				<div>
 					{this.renderHeader("Free Trial", this.handleCancel)}
 					<DeepTutorFreeTrial
-						onUpgradeSuccess={this.handleUpgradeSuccess}
+						onStartTrial={() => this.handleShowProcessing()}
 					/>
 				</div>
 			);
@@ -195,7 +207,7 @@ class DeepTutorSubscription extends React.Component {
 				<div>
 					{this.renderHeader("Upgrade to Premium", this.handleCancel)}
 					<DeepTutorUpgradePremium
-						onUpgradeSuccess={this.handleUpgradeSuccess}
+						onGetPremium={() => this.handleShowProcessing()}
 					/>
 				</div>
 			);
@@ -235,12 +247,61 @@ class DeepTutorSubscription extends React.Component {
 		);
 	}
 
+	renderProcessingPanel() {
+		return (
+			<div>
+				{this.renderHeader("Processing Subscription", this.handleCancel)}
+				<DeepTutorProcessingSubscription
+					onContinue={this.handleProcessingContinue}
+					onCancel={this.handleCancel}
+				/>
+			</div>
+		);
+	}
+
 	render() {
 		return (
 			<div style={styles.container}>
 				{this.state.currentPanel === "main" && this.renderMainPanel()}
 				{this.state.currentPanel === "confirm" && this.renderConfirmPanel()}
 				{this.state.currentPanel === "manage" && this.renderManagePanel()}
+				{this.state.currentPanel === "processing" && this.renderProcessingPanel()}
+				{this.state.showProcessing && (
+					<div
+						style={{
+							position: "absolute",
+							top: 0,
+							left: 0,
+							right: 0,
+							bottom: 0,
+							backgroundColor: "rgba(0, 0, 0, 0.5)",
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
+							zIndex: 2000
+						}}
+						onClick={this.handleProcessingCancel}
+					>
+						<div
+							style={{
+								position: "relative",
+								width: "80%",
+								maxWidth: "26.875rem",
+								maxHeight: "80%",
+								background: "#FFFFFF",
+								borderRadius: "0.625rem",
+								padding: "0.25rem 0.5rem 0.5rem 0.5rem",
+								overflow: "auto"
+							}}
+							onClick={e => e.stopPropagation()}
+						>
+							<DeepTutorProcessingSubscription
+								onContinue={this.handleProcessingContinue}
+								onCancel={this.handleProcessingCancel}
+							/>
+						</div>
+					</div>
+				)}
 			</div>
 		);
 	}

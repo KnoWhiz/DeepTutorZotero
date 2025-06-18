@@ -1,4 +1,6 @@
 import React from 'react';
+import PropTypes from 'prop-types';
+import DeepTutorProcessingSubscription from "./DeepTutorProcessingSubscription.js";
 
 const SKY = '#0687E5';
 const GREEN = '#22C55E';
@@ -113,7 +115,7 @@ const styles = {
 	},
 };
 
-export default function DeepTutorFreeTrial({ onUpgradeSuccess }) {
+export default function DeepTutorFreeTrial({ onStartTrial }) {
 	return (
 		<div style={styles.container}>
 			<div style={styles.contentFrame}>
@@ -133,7 +135,10 @@ export default function DeepTutorFreeTrial({ onUpgradeSuccess }) {
 					<div style={styles.featureRow}>✅ No payment method needed</div>
 				</div>
 			</div>
-			<button style={styles.button} onClick={onUpgradeSuccess}>Start 30 Days Free Trial</button>
-		</div>
-	);
+			<button style={styles.button} onClick={onStartTrial}>Start 30 Days Free Trial</button>
+		</div>);
 }
+
+DeepTutorFreeTrial.propTypes = {
+	onUpgradeSuccess: PropTypes.func.isRequired
+};

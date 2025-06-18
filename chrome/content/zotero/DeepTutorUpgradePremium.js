@@ -1,6 +1,7 @@
 import React from 'react';
+import PropTypes from 'prop-types';
+import DeepTutorProcessingSubscription from "./DeepTutorProcessingSubscription.js";
 
-const AQUA = '#0AE2FF';
 const SKY = '#0687E5';
 const GREEN = '#22C55E';
 const styles = {
@@ -106,7 +107,8 @@ const styles = {
 	},
 };
 
-export default function DeepTutorUpgradePremium({ onUpgradeSuccess }) {
+export default function DeepTutorUpgradePremium({ onGetPremium }) {
+
 	return (
 		<div style={styles.container}>
 			<div style={styles.contentFrame}>
@@ -124,7 +126,11 @@ export default function DeepTutorUpgradePremium({ onUpgradeSuccess }) {
 					<div style={styles.featureRow}>✅ Up to 100 pages and 30Mb/file</div>
 				</div>
 			</div>
-			<button style={styles.button} onClick={onUpgradeSuccess}>Get Premium</button>
+			<button style={styles.button} onClick={onGetPremium}>Get Premium</button>
 		</div>
 	);
 }
+
+DeepTutorUpgradePremium.propTypes = {
+	onUpgradeSuccess: PropTypes.func.isRequired
+};
