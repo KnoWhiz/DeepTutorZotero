@@ -84,6 +84,7 @@ const styles = {
 		objectFit: 'contain',
 	},
 	upgradeButton: {
+		all: 'revert',
 		display: 'flex',
 		alignItems: 'center',
 		justifyContent: 'center',
