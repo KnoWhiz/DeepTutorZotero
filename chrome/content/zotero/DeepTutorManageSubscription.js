@@ -85,8 +85,8 @@ export default function DeepTutorManageSubscription({ imagePath, onManage, onCan
 		<div style={styles.container}>
 			<img src={imagePath} alt="Manage Subscription" style={styles.image} />
 			<div style={styles.text}>
-        You can add or modify your payment method,<br />
-        changing your billing information, view your payment history<br />
+        You can add or modify your payment method,
+        changing your billing information, view your payment history,
         or cancel your subscription here.
 			</div>
 			<button style={styles.button} onClick={onManage}>Manage</button>

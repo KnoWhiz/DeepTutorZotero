@@ -1478,7 +1478,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 								maxHeight: '80%',
 								background: '#FFFFFF',
 								borderRadius: '0.625rem',
-								padding: '1.0rem',
+								padding: '0.5rem',
 								overflow: 'auto'
 							}}
 							onClick={(e) => e.stopPropagation()}

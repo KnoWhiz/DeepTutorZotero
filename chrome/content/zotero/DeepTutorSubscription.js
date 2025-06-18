@@ -30,7 +30,7 @@ import DeepTutorSubscriptionConfirm from "./DeepTutorSubscriptionConfirm.js";
 import DeepTutorManageSubscription from "./DeepTutorManageSubscription.js";
 import DeepTutorFreeTrial from "./DeepTutorFreeTrial.js";
 
-const PopupClosePath = "chrome://zotero/content/DeepTutorMaterials/Subscription/POPUP_CLOSE.svg";
+const PopupClosePath = "chrome://zotero/content/DeepTutorMaterials/Cross.png";
 const SubscriptionConfirmBookPath = 'chrome://zotero/content/DeepTutorMaterials/Subscription/SUB_SUCCESS.svg';
 const SubscriptionManageMarkPath = 'chrome://zotero/content/DeepTutorMaterials/Subscription/SUB_MANAGEMENT.svg';
 
@@ -75,10 +75,10 @@ class DeepTutorSubscription extends React.Component {
 	};
 
 	/**
-	 * Handles subscription confirmation close and shows management panel
+	 * Handles subscription confirmation close and closes the popup
 	 */
 	handleSubscriptionConfirmClose = () => {
-		this.setState({ currentPanel: "manage" });
+		this.props.toggleSubscriptionPopup();
 	};
 
 	/**
@@ -86,7 +86,7 @@ class DeepTutorSubscription extends React.Component {
 	 */
 	handleManageSubscription = () => {
 		this.setState({ currentPanel: "main" });
-		this.props.onManageSubscription();
+		Zotero.launchURL('https://staging.deeptutor.knowhiz.us/dzSubscription?manage=true');
 		this.props.toggleSubscriptionPopup();
 	};
 
