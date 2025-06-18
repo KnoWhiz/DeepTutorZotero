@@ -86,8 +86,9 @@ export default function DeepTutorProcessingSubscription({ onContinue, onCancel }
 		<div style={styles.container}>
 			<div style={styles.contentFrame}>
 				<div style={styles.text}>
-					A browser will open up for your subscription.<br />
-					After you complete the subscription, please press continue.
+					You&apos;ll now be redirected to a secure page to set up your subscription.<br />
+					You may need to sign in again.<br />
+					Once done, come back here and click &apos;Continue&apos;.
 				</div>
 				<div style={styles.buttonCol}>
 					<button style={styles.button} onClick={onContinue}>Continue</button>

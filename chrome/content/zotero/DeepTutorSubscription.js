@@ -63,8 +63,7 @@ class DeepTutorSubscription extends React.Component {
 	constructor(props) {
 		super(props);
 		this.state = {
-			currentPanel: "main", // "main", "confirm", "manage"
-			showProcessing: false,
+			currentPanel: "main", // "main", "confirm", "manage" , "processing"
 		};
 	}
 
@@ -108,11 +107,10 @@ class DeepTutorSubscription extends React.Component {
 
 	handleShowProcessing = () => {
 		Zotero.launchURL('https://staging.deeptutor.knowhiz.us/dzSubscription');
-		this.setState({ showProcessing: true });
+		this.setState({ currentPanel: "processing" });
 	};
 
 	handleProcessingContinue = () => {
-		this.setState({ showProcessing: false });
 		this.setState({ currentPanel: "confirm" });
 	};
 
@@ -266,42 +264,6 @@ class DeepTutorSubscription extends React.Component {
 				{this.state.currentPanel === "confirm" && this.renderConfirmPanel()}
 				{this.state.currentPanel === "manage" && this.renderManagePanel()}
 				{this.state.currentPanel === "processing" && this.renderProcessingPanel()}
-				{this.state.showProcessing && (
-					<div
-						style={{
-							position: "absolute",
-							top: 0,
-							left: 0,
-							right: 0,
-							bottom: 0,
-							backgroundColor: "rgba(0, 0, 0, 0.5)",
-							display: "flex",
-							alignItems: "center",
-							justifyContent: "center",
-							zIndex: 2000
-						}}
-						onClick={this.handleProcessingCancel}
-					>
-						<div
-							style={{
-								position: "relative",
-								width: "80%",
-								maxWidth: "26.875rem",
-								maxHeight: "80%",
-								background: "#FFFFFF",
-								borderRadius: "0.625rem",
-								padding: "0.25rem 0.5rem 0.5rem 0.5rem",
-								overflow: "auto"
-							}}
-							onClick={e => e.stopPropagation()}
-						>
-							<DeepTutorProcessingSubscription
-								onContinue={this.handleProcessingContinue}
-								onCancel={this.handleProcessingCancel}
-							/>
-						</div>
-					</div>
-				)}
 			</div>
 		);
 	}
