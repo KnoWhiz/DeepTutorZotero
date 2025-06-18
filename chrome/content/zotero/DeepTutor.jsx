@@ -32,6 +32,7 @@ import DeepTutorChatBox from './DeepTutorChatBox.js';
 import DeepTutorWelcomePane from './DeepTutorWelcomePane.js';
 import DeepTutorSignIn from './DeepTutorSignIn.js';
 import DeepTutorSignUp from './DeepTutorSignUp.js';
+import DeepTutorSubscription from './DeepTutorSubscription.jsx';
 // import DeepTutorUpgradePremium from './DeepTutorUpgradePremium.js';
 import DeepTutorTopSection from './DeepTutorTopSection.js';
 import DeepTutorBottomSection from './DeepTutorBottomSection.js';
@@ -563,12 +564,10 @@ var DeepTutor = class DeepTutor extends React.Component {
 			showProfilePopup: false,
 			showSignInPopup: false,
 			showSignUpPopup: false,
-			showUpgradePopup: false,
 			showModelSelectionPopup: false,
 			collapsed: false,
 			showSearch: false,
-			showSubscriptionConfirmPopup: false,
-			showManageSubscriptionPopup: false,
+			showSubscriptionPopup: false,
 			// Auth state
 			isAuthenticated: false,
 			currentUser: null,
@@ -830,6 +829,12 @@ var DeepTutor = class DeepTutor extends React.Component {
 		}));
 	};
 
+	toggleSubscriptionPopup = () => {
+		this.setState(prevState => ({
+			showSubscriptionPopup: !prevState.showSubscriptionPopup
+		}));
+	};
+
 	handleSignOut = async () => {
 		try {
 			Zotero.debug("DeepTutor: Signing out user");
@@ -1043,7 +1048,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 				const activeSubscription = await getActiveUserSubscriptionByUserId(userData.id);
 				userSubscribed = !!activeSubscription;
 				Zotero.debug('DeepTutor: Active subscription status:', userSubscribed);
-			} catch (error) {
+			}
+			catch (error) {
 				Zotero.debug('DeepTutor: Error checking active subscription:', error);
 			}
 
@@ -1054,7 +1060,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 				console.log(latestSubscription);
 				isFreeTrial = !latestSubscription;
 				Zotero.debug('DeepTutor: Latest subscription status:', isFreeTrial);
-			} catch (error) {
+			}
+			catch (error) {
 				Zotero.debug('DeepTutor: Error checking latest subscription:', error);
 			}
 
@@ -1296,7 +1303,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 				const activeSubscription = await getActiveUserSubscriptionByUserId(userData.id);
 				userSubscribed = !!activeSubscription;
 				Zotero.debug('DeepTutor: Active subscription status:', userSubscribed);
-			} catch (error) {
+			}
+			catch (error) {
 				Zotero.debug('DeepTutor: Error checking active subscription:', error);
 			}
 
@@ -1306,7 +1314,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 				const latestSubscription = await getLatestUserSubscriptionByUserId(userData.id);
 				isFreeTrial = !latestSubscription;
 				Zotero.debug('DeepTutor: Latest subscription status:', isFreeTrial);
-			} catch (error) {
+			}
+			catch (error) {
 				Zotero.debug('DeepTutor: Error checking latest subscription:', error);
 			}
 
@@ -1446,7 +1455,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 				</div>
 				{/* Subscription Popups */}
 				{this.state.showSubscriptionPopup && (
-					<DeepTutorSubscription 
+					<DeepTutorSubscription
 						userId={this.state.userData?.id}
 						userSubscribed={this.state.userSubscribed}
 						isFreeTrial={this.state.isFreeTrial}
@@ -1742,7 +1751,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 					onToggleProfilePopup={this.toggleProfilePopup}
 					onToggleSignInPopup={this.toggleSignInPopup}
 					onToggleSignUpPopup={this.handleOpenSignUpPage}
-					onToggleUpgradePopup={this.toggleUpgradePopup}
+					onToggleSubscriptionPopup={this.toggleSubscriptionPopup}
 					showProfilePopup={this.state.showProfilePopup}
 					feedIconPath={FeedIconPath}
 					personIconPath={PersonIconPath}

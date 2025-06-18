@@ -180,7 +180,7 @@ class DeepTutorSubscription extends React.Component {
 							justifyContent: 'center',
 							zIndex: 1000,
 						}}
-						onClick={this.toggleUpgradePopup}
+						onClick={this.toggleSubscriptionPopup}
 					>
 						<div
 							style={{
@@ -220,7 +220,7 @@ class DeepTutorSubscription extends React.Component {
 									Upgrade Your Plan
 								</div>
 								<button
-									onClick={this.toggleUpgradePopup}
+									onClick={this.toggleSubscriptionPopup}
 									style={{
 										background: 'none',
 										border: 'none',

@@ -378,7 +378,7 @@ class DeepTutorBottomSection extends React.Component {
 						</div>
 						<button
 							style={upgradeButtonDynamicStyle}
-							onClick={this.props.onToggleUpgradePopup}
+							onClick={this.props.onToggleSubscriptionPopup}
 							onMouseEnter={this.handleUpgradeMouseEnter}
 							onMouseLeave={this.handleUpgradeMouseLeave}
 						>
@@ -429,7 +429,7 @@ DeepTutorBottomSection.propTypes = {
 	onToggleProfilePopup: PropTypes.func.isRequired,
 	onToggleSignInPopup: PropTypes.func.isRequired,
 	onToggleSignUpPopup: PropTypes.func.isRequired,
-	onToggleUpgradePopup: PropTypes.func.isRequired,
+	onToggleSubscriptionPopup: PropTypes.func.isRequired,
 	showProfilePopup: PropTypes.bool.isRequired,
 	feedIconPath: PropTypes.string.isRequired,
 	personIconPath: PropTypes.string.isRequired,
