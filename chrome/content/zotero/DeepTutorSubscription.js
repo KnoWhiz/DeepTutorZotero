@@ -48,7 +48,8 @@ class DeepTutorSubscription extends React.Component {
 		userId: PropTypes.string,
 		userSubscribed: PropTypes.bool,
 		isFreeTrial: PropTypes.bool,
-		toggleSubscriptionPopup: PropTypes.func
+		toggleSubscriptionPopup: PropTypes.func,
+		onSubscriptionStatusChange: PropTypes.func
 	};
 
 	static defaultProps = {
@@ -58,7 +59,8 @@ class DeepTutorSubscription extends React.Component {
 		userId: null,
 		userSubscribed: false,
 		isFreeTrial: true,
-		toggleSubscriptionPopup: () => {}
+		toggleSubscriptionPopup: () => {},
+		onSubscriptionStatusChange: () => {}
 	};
 
 	constructor(props) {
@@ -80,6 +82,8 @@ class DeepTutorSubscription extends React.Component {
 	 * Handles subscription confirmation close and closes the popup
 	 */
 	handleSubscriptionConfirmClose = () => {
+		// Notify parent component that subscription was confirmed
+		this.props.onSubscriptionStatusChange(true);
 		this.props.toggleSubscriptionPopup();
 	};
 
@@ -123,6 +127,9 @@ class DeepTutorSubscription extends React.Component {
 			const hasActiveSubscription = !!activeSubscription;
 			
 			Zotero.debug(`DeepTutorSubscription: Active subscription check result: ${hasActiveSubscription}`);
+			
+			// Notify parent component about subscription status change
+			this.props.onSubscriptionStatusChange(hasActiveSubscription);
 			
 			if (hasActiveSubscription) {
 				// User has active subscription - proceed to confirmation

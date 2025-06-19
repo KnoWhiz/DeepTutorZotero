@@ -835,6 +835,81 @@ var DeepTutor = class DeepTutor extends React.Component {
 		}));
 	};
 
+	/**
+	 * Handles subscription status change from DeepTutorSubscription component
+	 * @param {boolean} hasActiveSubscription - Whether user has active subscription
+	 */
+	handleSubscriptionStatusChange = async (hasActiveSubscription) => {
+		try {
+			Zotero.debug(`DeepTutor: Subscription status changed to: ${hasActiveSubscription}`);
+			
+			// Update the subscription status in state
+			this.setState({ userSubscribed: hasActiveSubscription });
+			
+			// If user now has subscription, also update isFreeTrial status
+			if (hasActiveSubscription) {
+				this.setState({ isFreeTrial: false });
+			} else {
+				// If user doesn't have active subscription, check if they have any subscription history
+				if (this.state.userData?.id) {
+					try {
+						const latestSubscription = await getLatestUserSubscriptionByUserId(this.state.userData.id);
+						this.setState({ isFreeTrial: !latestSubscription });
+					} catch (error) {
+						Zotero.debug(`DeepTutor: Error checking latest subscription: ${error.message}`);
+						this.setState({ isFreeTrial: true });
+					}
+				}
+			}
+		} catch (error) {
+			Zotero.debug(`DeepTutor: Error handling subscription status change: ${error.message}`);
+		}
+	};
+
+	/**
+	 * Refreshes subscription data from the server
+	 */
+	refreshSubscriptionData = async () => {
+		try {
+			if (!this.state.userData?.id) {
+				Zotero.debug("DeepTutor: Cannot refresh subscription data - no user ID");
+				return;
+			}
+
+			Zotero.debug("DeepTutor: Refreshing subscription data from server");
+
+			// Check active subscription
+			let userSubscribed = false;
+			try {
+				const activeSubscription = await getActiveUserSubscriptionByUserId(this.state.userData.id);
+				userSubscribed = !!activeSubscription;
+				Zotero.debug('DeepTutor: Active subscription status:', userSubscribed);
+			} catch (error) {
+				Zotero.debug('DeepTutor: Error checking active subscription:', error);
+			}
+
+			// Check latest subscription
+			let isFreeTrial = true;
+			try {
+				const latestSubscription = await getLatestUserSubscriptionByUserId(this.state.userData.id);
+				isFreeTrial = !latestSubscription;
+				Zotero.debug('DeepTutor: Latest subscription status:', isFreeTrial);
+			} catch (error) {
+				Zotero.debug('DeepTutor: Error checking latest subscription:', error);
+			}
+
+			// Update state with fresh subscription data
+			this.setState({
+				userSubscribed,
+				isFreeTrial
+			});
+
+			Zotero.debug("DeepTutor: Subscription data refreshed successfully");
+		} catch (error) {
+			Zotero.debug(`DeepTutor: Error refreshing subscription data: ${error.message}`);
+		}
+	};
+
 	handleSignOut = async () => {
 		try {
 			Zotero.debug("DeepTutor: Signing out user");
@@ -1488,6 +1563,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 								userSubscribed={this.state.userSubscribed}
 								isFreeTrial={this.state.isFreeTrial}
 								toggleSubscriptionPopup={this.toggleSubscriptionPopup}
+								onSubscriptionStatusChange={this.handleSubscriptionStatusChange}
 							/>
 						</div>
 					</div>
