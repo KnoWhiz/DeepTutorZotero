@@ -30,6 +30,7 @@ import DeepTutorSubscriptionConfirm from "./DeepTutorSubscriptionConfirm.js";
 import DeepTutorManageSubscription from "./DeepTutorManageSubscription.js";
 import DeepTutorFreeTrial from "./DeepTutorFreeTrial.js";
 import DeepTutorProcessingSubscription from "./DeepTutorProcessingSubscription.js";
+import { getActiveUserSubscriptionByUserId } from "./api/libs/api.js";
 
 const PopupClosePath = "chrome://zotero/content/DeepTutorMaterials/Cross.png";
 const SubscriptionConfirmBookPath = 'chrome://zotero/content/DeepTutorMaterials/Subscription/SUB_SUCCESS.svg';
@@ -110,8 +111,34 @@ class DeepTutorSubscription extends React.Component {
 		this.setState({ currentPanel: "processing" });
 	};
 
-	handleProcessingContinue = () => {
-		this.setState({ currentPanel: "confirm" });
+	/**
+	 * Handles processing continue action with subscription status check
+	 */
+	handleProcessingContinue = async () => {
+		try {
+			Zotero.debug("DeepTutorSubscription: Checking user subscription status after processing");
+			
+			// Check if user has active subscription
+			const activeSubscription = await getActiveUserSubscriptionByUserId(this.props.userId);
+			const hasActiveSubscription = !!activeSubscription;
+			
+			Zotero.debug(`DeepTutorSubscription: Active subscription check result: ${hasActiveSubscription}`);
+			
+			if (hasActiveSubscription) {
+				// User has active subscription - proceed to confirmation
+				Zotero.debug("DeepTutorSubscription: User has active subscription, showing confirmation");
+				this.setState({ currentPanel: "confirm" });
+			} else {
+				// User does not have active subscription - return to main panel
+				Zotero.debug("DeepTutorSubscription: User does not have active subscription, returning to main");
+				this.setState({ currentPanel: "main" });
+			}
+		} catch (error) {
+			Zotero.debug(`DeepTutorSubscription: Error checking subscription status: ${error.message}`);
+			
+			// On error, return to main panel to allow user to try again
+			this.setState({ currentPanel: "main" });
+		}
 	};
 
 	/**
