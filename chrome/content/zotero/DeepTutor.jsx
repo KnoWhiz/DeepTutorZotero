@@ -974,7 +974,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 							Zotero.debug('DeepTutor: getUserByProviderUserId successful');
 							resolve(userData);
 						})
-						.catch((error) => {
+						.catch(async (error) => {
 							Zotero.debug(`DeepTutor: Error getting user by provider ID: ${error.message}`);
 
 							// If user not found, try to register them
@@ -1048,7 +1048,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 							Zotero.debug('DeepTutor: getUserByProviderUserId successful');
 							resolve(userData);
 						})
-						.catch((error) => {
+						.catch(async (error) => {
 							Zotero.debug(`DeepTutor: Error getting user by provider ID: ${error.message}`);
 
 							// If user not found, try to register them
