@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
-import {
-	createMessage,
-	getMessagesBySessionId,
-	getDocumentById,
+import { 
+	createMessage, 
+	getMessagesBySessionId, 
+	getDocumentById, 
 	subscribeToChat,
-	getSessionById
+	getSessionById 
 } from './api/libs/api';
 import { viewAttachment } from './elements/callZoteroPane';
-import ReactMarkdown from 'react-markdown';
+const ReactMarkdown = require('react-markdown');
 
 // Enums
 const SessionStatus = {
@@ -29,7 +29,7 @@ class Conversation {
 		history = [],
 		message = null,
 		streaming = false,
-		type = null
+		type = SessionType.BASIC
 	} = {}) {
 		this.userId = userId;
 		this.sessionId = sessionId;

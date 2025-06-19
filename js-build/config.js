@@ -30,6 +30,7 @@ const symlinkFiles = [
 	// those. Babel transpilation is still disabled in .babelrc.
 	'resource/**/*',
 	'!resource/react-virtualized.js',
+	'!resource/react-markdown.js',
 	// Only include dist directory of singleFile
 	// Also do a little bit of manipulation similar to react-virtualized
 	'!resource/SingleFile/**/*',
@@ -67,6 +68,13 @@ const browserifyConfigs = [
 		dest: 'resource/react-select.js',
 		config: {
 			standalone: 'react-select'
+		}
+	},
+	{
+		src: 'node_modules/react-markdown/react-markdown.min.js',
+		dest: 'resource/react-markdown.js',
+		config: {
+			standalone: 'react-markdown'
 		}
 	},
 	{
