@@ -9,6 +9,10 @@ import {
 } from './api/libs/api';
 import { viewAttachment } from './elements/callZoteroPane';
 const ReactMarkdown = require('react-markdown');
+const rehypeKatex = require('rehype-katex');
+const rehypeRaw = require('rehype-raw');
+const remarkGfm = require('remark-gfm');
+const remarkMath = require('remark-math');
 
 // Enums
 const SessionStatus = {
@@ -1313,6 +1317,89 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect }) => {
 		}
 	};
 
+	// Format response text for markdown rendering with source replacements
+	const formatResponseForMarkdown = (text, subMessage) => {
+		let formattedText = text;
+
+		// Replace inline math-like expressions (e.g., \( u \)) with proper Markdown math
+		formattedText = formattedText.replace(/\\\((.+?)\\\)/g, '$$$1$$');
+
+		// Replace block math-like expressions (e.g., \[ ... \]) with proper Markdown math
+		formattedText = formattedText.replace(
+			/\\\[([\s\S]+?)\\\]/g,
+			'$$$$\n$1\n$$$$',
+		);
+
+		// Split text by source references and create a mixed array of text and source info
+		const parts = [];
+		let lastIndex = 0;
+		const sourceRegex = /\[<(\d{1,2})>\]/g;
+		let match;
+
+		while ((match = sourceRegex.exec(formattedText)) !== null) {
+			// Add text before the source
+			if (match.index > lastIndex) {
+				parts.push({
+					type: 'text',
+					content: formattedText.slice(lastIndex, match.index)
+				});
+			}
+			
+			// Add source info
+			const sourceId = match[1];
+			const sourceIndex = Number(sourceId) - 1;
+			const source = subMessage?.sources?.[sourceIndex] || {
+				index: 0,
+				referenceString: '',
+				page: 0,
+				refinedIndex: 0,
+				sourceAnnotation: {
+					pageNum: 0,
+					startChar: 0,
+					endChar: 0,
+					success: false,
+					similarity: 0,
+				},
+			};
+			
+			parts.push({
+				type: 'source',
+				id: sourceId,
+				source: source
+			});
+			
+			lastIndex = match.index + match[0].length;
+		}
+
+		// Add remaining text
+		if (lastIndex < formattedText.length) {
+			parts.push({
+				type: 'text',
+				content: formattedText.slice(lastIndex)
+			});
+		}
+
+		// If no sources found, just return the text
+		if (parts.length === 0) {
+			parts.push({
+				type: 'text',
+				content: formattedText
+			});
+		}
+
+		return parts;
+	};
+
+	// Source component to match Chat.tsx pattern
+	const Source = ({ id, source }) => (
+		<button
+			style={styles.sourceButton}
+			onClick={() => handleSourceClick(source)}
+		>
+			{id}
+		</button>
+	);
+
 	const renderMessage = (message, index) => {
 		// Return nothing if it's the first message and from user
 		if (index === 0 && message.role === MessageRole.USER) {
@@ -1332,80 +1419,88 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect }) => {
 					...(isUser ? styles.userMessage : styles.botMessage),
 					animation: 'slideIn 0.3s ease-out'
 				}}>
-					{message.subMessages.map((subMessage, subIndex) => (
-						<div key={subIndex} style={styles.messageText}>
-							{
-								<ReactMarkdown
-									className="markdown mb-0 flex flex-col"
-									components={{
-										h3: ({ children }) => (
-											<h3 style={{ fontSize: '24px' }}>{children}</h3>
-										),
-										ul: ({ children }) => (
-											<ul style={{
-												fontSize: '16px',
-												marginTop: '0.5em',
-												marginBottom: '0.5em',
-												padding: '5',
-											}}>
-												{children}
-											</ul>
-										),
-										li: ({ children }) => (
-											<li style={{
-												marginBottom: '0.2em',
-												fontSize: '16px',
-												padding: '0',
-											}}>
-												{children}
-											</li>
-										),
-										code: ({ className, children, ...props }) => (
-											<code
-												className={className}
-												style={{
-													fontSize: '14px',
-													fontFamily: 'Courier, monospace',
-													whiteSpace: 'pre-wrap',
-													wordBreak: 'break-word',
+					{message.subMessages.map((subMessage, subIndex) => {
+						const parts = formatResponseForMarkdown(subMessage.text || '', subMessage);
+						
+						return (
+							<div key={subIndex} style={styles.messageText}>
+								{parts.map((part, partIndex) => {
+									if (part.type === 'text') {
+										// Render text content through ReactMarkdown
+										return (
+											<ReactMarkdown
+												key={partIndex}
+												className="markdown mb-0 flex flex-col"
+												plugins={[remarkMath, remarkGfm]}
+												renderers={{
+													heading: ({ level, children }) => {
+														if (level === 3) {
+															return <h3 style={{ fontSize: '24px' }}>{children}</h3>;
+														}
+														return React.createElement(`h${level}`, {}, children);
+													},
+													list: ({ children }) => (
+														<ul style={{
+															fontSize: '16px',
+															marginTop: '0.5em',
+															marginBottom: '0.5em',
+															padding: '5',
+														}}>
+															{children}
+														</ul>
+													),
+													listItem: ({ children }) => (
+														<li style={{
+															marginBottom: '0.2em',
+															fontSize: '16px',
+															padding: '0',
+														}}>
+															{children}
+														</li>
+													),
+													code: ({ language, value }) => (
+														<code
+															style={{
+																fontSize: '14px',
+																fontFamily: 'Courier, monospace',
+																whiteSpace: 'pre-wrap',
+																wordBreak: 'break-word',
+															}}
+														>
+															{value}
+														</code>
+													),
+													paragraph: ({ children }) => (
+														<span
+															style={{
+																margin: '0.1',
+																padding: '0',
+																lineHeight: '1.5',
+																display: 'inline',
+															}}
+														>
+															{children}
+														</span>
+													),
 												}}
-												{...props}
-											>
-												{children}
-											</code>
-										),
-										p: ({ children, ...props }) => (
-											<p
-												style={{
-													margin: '0.1',
-													padding: '0',
-													lineHeight: '1.5',
-												}}
-												{...props}
-											>
-												{children}
-											</p>
-										),
-									}}
-								>
-									{subMessage.text || ''}
-								</ReactMarkdown>
-							}
-							{subMessage.sources && subMessage.sources.length > 0 && (
-								<div style={styles.sourcesContainer}>
-									{subMessage.sources.map((source, sourceIndex) => (
-										<button
-											key={sourceIndex}
-											style={styles.sourceButton}
-											onClick={() => handleSourceClick(source)}
-										>
-											{source.index + 1}
-										</button>
-									))}
-								</div>
-							)}
-						</div>
-					))}
+												children={part.content}
+											/>
+										);
+									} else if (part.type === 'source') {
+										// Render source button directly
+										return (
+											<Source
+												key={partIndex}
+												id={part.id}
+												source={part.source}
+											/>
+										);
+									}
+									return null;
+								})}
+							</div>
+						);
+					})}
 				</div>
 				{index === messages.length - 1 && message.followUpQuestions && message.followUpQuestions.length > 0 && (
 					<div style={styles.questionContainer}>
