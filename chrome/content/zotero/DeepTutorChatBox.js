@@ -475,7 +475,7 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect }) => {
 	const contextPopupRef = useRef(null);
 	const [hoveredContextDoc, setHoveredContextDoc] = useState(null);
 	// Removed hoveredQuestion and hoveredPopupSession states - these were causing unnecessary re-renders
-	// const [hoveredQuestion, setHoveredQuestion] = useState(null);
+	const [hoveredQuestion, setHoveredQuestion] = useState(null);
 	// const [hoveredPopupSession, setHoveredPopupSession] = useState(null);
 	const [iniWait, setInitWait] = useState(false);
 	const [isStreaming, setIsStreaming] = useState(false);
