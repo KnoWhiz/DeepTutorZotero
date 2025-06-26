@@ -7,12 +7,11 @@ import {
 	subscribeToChat,
 	getSessionById
 } from './api/libs/api';
-
-// Use markdown-it instead of ReactMarkdown
 const markdownit = require('markdown-it');
 const md = markdownit();
-const mk = require('@vscode/markdown-it-katex').default;
+const mk = require('resource://zotero/markdown-it-katex.js');
 md.use(mk);
+
 // Enums
 const _SessionStatus = {
 	CREATED: 'CREATED',
@@ -1708,7 +1707,22 @@ Here's a paragraph with **bold text**, *italic text*, and inline math: $E = mc^2
 `;
 
 	return (
-		<div style={{ padding: "2rem" }}>
+		
+		<div style={{
+			padding: "2rem",
+			height: "100vh",
+			overflow: "hidden",
+			display: "flex",
+			flexDirection: "column"
+		}}>
+			<h2 style={{
+				margin: "0 0 1rem 0",
+				fontSize: "1.5rem",
+				fontWeight: "600",
+				color: "#333"
+			}}>
+				Markdown with KaTeX Test
+			</h2>
 			<div
 				className="markdown"
 				dangerouslySetInnerHTML={{ __html: md.render(sampleMarkdown) }}
@@ -1716,7 +1730,15 @@ Here's a paragraph with **bold text**, *italic text*, and inline math: $E = mc^2
 					fontSize: "16px",
 					lineHeight: "1.5",
 					wordBreak: "break-word",
-					overflowWrap: "break-word"
+					overflowWrap: "break-word",
+					overflowY: "auto",
+					overflowX: "hidden",
+					flex: 1,
+					padding: "1rem",
+					border: "1px solid #e0e0e0",
+					borderRadius: "8px",
+					backgroundColor: "#fafafa",
+					maxHeight: "calc(100vh - 6rem)"
 				}}
 			/>
 		</div>
