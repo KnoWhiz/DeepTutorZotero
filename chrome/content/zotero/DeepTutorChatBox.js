@@ -10,7 +10,10 @@ import {
 const markdownit = require('markdown-it');
 const md = markdownit();
 const mk = require('resource://zotero/markdown-it-katex.js');
-md.use(mk);
+md.use(mk, {
+	throwOnError: false,
+	errorColor: "#cc0000"
+});
 
 // Enums
 const _SessionStatus = {
