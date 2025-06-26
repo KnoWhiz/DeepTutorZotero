@@ -1,34 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { 
-	createMessage, 
-	getMessagesBySessionId, 
-	getDocumentById, 
+import {
+	createMessage,
+	getMessagesBySessionId,
+	getDocumentById,
 	subscribeToChat,
-	getSessionById 
+	getSessionById
 } from './api/libs/api';
 
 // Use markdown-it instead of ReactMarkdown
-const MarkdownIt = require('markdown-it');
-const md = new MarkdownIt({
-	html: true,
-	linkify: true,
-	typographer: true,
-	breaks: true
-}).enable("table") // Enable GFM tables
-  .enable("strikethrough") // Enable GFM strikethrough
-  .enable("autolink"); // Enable GFM autolinks
-
-// Add plugins for task lists and math support
-try {
-	const markdownItTaskLists = require('markdown-it-task-lists');
-	const markdownItKatex = require('markdown-it-katex');
-	md.use(markdownItTaskLists);
-	md.use(markdownItKatex);
-} catch (e) {
-	Zotero.debug?.(`DeepTutorChatBox: Failed to load markdown-it plugins: ${e.message}`);
-}
-
+const markdownit = require('markdown-it');
+const md = markdownit();
+const mk = require('@vscode/markdown-it-katex').default;
+md.use(mk);
 // Enums
 const _SessionStatus = {
 	CREATED: 'CREATED',
@@ -1093,79 +1077,6 @@ const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
 		}
 	};
 
-	const handleSourceClick = async (source) => {
-		if (!source) {
-			Zotero.debug("DeepTutorChatBox: Source button clicked with empty source object");
-			return;
-		}
-
-		// Determine which attachment the source refers to
-		const docIdx
-            = (source.refinedIndex !== undefined && source.refinedIndex !== null)
-            	? source.refinedIndex
-            	: source.index;
-
-		if (docIdx === undefined || docIdx === null || docIdx < 0 || docIdx >= documentIds.length) {
-			Zotero.debug(`DeepTutorChatBox: Invalid source index (index=${source.index}, refinedIndex=${source.refinedIndex})`);
-			return;
-		}
-
-		const attachmentId = documentIds[docIdx];
-		if (!attachmentId) {
-			Zotero.debug(`DeepTutorChatBox: No attachment ID found for docIdx ${docIdx}`);
-			return;
-		}
-
-		Zotero.debug(`DeepTutorChatBox: Source button clicked for attachment ${attachmentId}, page ${source.page}`);
-
-		try {
-			const storageKey = `deeptutor_mapping_${sessionId}`;
-			let zoteroAttachmentId = attachmentId;
-
-			const mappingStr = Zotero.Prefs.get(storageKey);
-			if (mappingStr) {
-				const mapping = JSON.parse(mappingStr);
-				if (mapping[attachmentId]) {
-					zoteroAttachmentId = mapping[attachmentId];
-				}
-			}
-
-			const item = Zotero.Items.get(zoteroAttachmentId);
-			if (!item) {
-				Zotero.debug(`DeepTutorChatBox: No item found for ID ${zoteroAttachmentId}`);
-				return;
-			}
-
-			// Open the PDF on the correct page
-			await Zotero.FileHandlers.open(item, {
-				location: { pageIndex: source.page - 1 }
-			});
-			Zotero.debug(`DeepTutorChatBox: Opened PDF at page ${source.page}`);
-
-			// Get the reader instance for the current tab
-			const reader = Zotero.Reader.getByTabID(Zotero.getMainWindow().Zotero_Tabs.selectedID);
-			if (!reader) {
-				Zotero.debug("DeepTutorChatBox: No reader instance found");
-				return;
-			}
-			
-			// Use the new public setFindQuery method
-			const searchQuery = source.referenceString || "test";
-			Zotero.debug(`DeepTutorChatBox: Setting find query to "${searchQuery}"`);
-			
-			reader._internalReader.setFindQuery(searchQuery, {
-				primary: true,
-				openPopup: false,
-				activateSearch: true
-			});
-			
-			Zotero.debug(`DeepTutorChatBox: Successfully set find query and activated search`);
-		}
-		catch (error) {
-			Zotero.debug(`DeepTutorChatBox: Error handling source click: ${error.message}`);
-		}
-	};
-
 	const handleQuestionClick = async (question) => {
 		// Set the input value to the question
 		Zotero.debug(`DeepTutorChatBox: Handling question click: ${question}`);
@@ -1244,92 +1155,9 @@ const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
 		}
 	};
 
-	// Format response text for markdown rendering with source replacements
-	const formatResponseForMarkdown = (text, subMessage) => {
-		let formattedText = text;
-
-		// Replace inline math-like expressions (e.g., \( u \)) with proper Markdown math
-		formattedText = formattedText.replace(/\\\((.+?)\\\)/g, '$$$1$$');
-
-		// Replace block math-like expressions (e.g., \[ ... \]) with proper Markdown math
-		formattedText = formattedText.replace(
-			/\\\[([\s\S]+?)\\\]/g,
-			'$$$$\n$1\n$$$$',
-		);
-
-		// Split text by source references and create a mixed array of text and source info
-		const parts = [];
-		let lastIndex = 0;
-		const sourceRegex = /\[<(\d{1,2})>\]/g;
-		let match;
-
-		while ((match = sourceRegex.exec(formattedText)) !== null) {
-			// Add text before the source
-			if (match.index > lastIndex) {
-				parts.push({
-					type: 'text',
-					content: formattedText.slice(lastIndex, match.index)
-				});
-			}
-			
-			// Add source info
-			const sourceId = match[1];
-			const sourceIndex = Number(sourceId) - 1;
-			const source = subMessage?.sources?.[sourceIndex] || {
-				index: 0,
-				referenceString: '',
-				page: 0,
-				refinedIndex: 0,
-				sourceAnnotation: {
-					pageNum: 0,
-					startChar: 0,
-					endChar: 0,
-					success: false,
-					similarity: 0,
-				},
-			};
-			
-			parts.push({
-				type: 'source',
-				id: sourceId,
-				source: source
-			});
-			
-			lastIndex = match.index + match[0].length;
-		}
-
-		// Add remaining text
-		if (lastIndex < formattedText.length) {
-			parts.push({
-				type: 'text',
-				content: formattedText.slice(lastIndex)
-			});
-		}
-
-		// If no sources found, just return the text
-		if (parts.length === 0) {
-			parts.push({
-				type: 'text',
-				content: formattedText
-			});
-		}
-
-		return parts;
-	};
-
-	// Source component to match Chat.tsx pattern
-	const Source = ({ id, source }) => (
-		<button
-			style={styles.sourceButton}
-			onClick={() => handleSourceClick(source)}
-		>
-			{id}
-		</button>
-	);
-
-	Source.propTypes = {
-		id: PropTypes.string.isRequired,
-		source: PropTypes.object.isRequired
+	// Format response text for markdown rendering
+	const formatResponseForMarkdown = (text, _subMessage) => {
+		return text;
 	};
 
 	const renderMessage = (message, index) => {
@@ -1352,39 +1180,21 @@ const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
 					animation: "slideIn 0.3s ease-out"
 				}}>
 					{message.subMessages.map((subMessage, subIndex) => {
-						const parts = formatResponseForMarkdown(subMessage.text || "", subMessage);
+						const text = formatResponseForMarkdown(subMessage.text || "", subMessage);
 						
 						return (
 							<div key={subIndex} style={styles.messageText}>
-								{parts.map((part, partIndex) => {
-									if (part.type === "text") {
-										// Render text content through markdown-it
-										const htmlContent = md.render(part.content);
-										return (
-											<div
-												key={partIndex}
-												className="markdown mb-0 flex flex-col"
-												dangerouslySetInnerHTML={{ __html: htmlContent }}
-												style={{
-													fontSize: "16px",
-													lineHeight: "1.5",
-													wordBreak: "break-word",
-													overflowWrap: "break-word"
-												}}
-											/>
-										);
-									} else if (part.type === "source") {
-										// Render source button directly
-										return (
-											<Source
-												key={partIndex}
-												id={part.id}
-												source={part.source}
-											/>
-										);
-									}
-									return null;
-								})}
+								{/* Render text content through markdown-it */}
+								<div
+									className="markdown mb-0 flex flex-col"
+									dangerouslySetInnerHTML={{ __html: md.render(text) }}
+									style={{
+										fontSize: "16px",
+										lineHeight: "1.5",
+										wordBreak: "break-word",
+										overflowWrap: "break-word"
+									}}
+								/>
 							</div>
 						);
 					})}
@@ -1628,6 +1438,7 @@ const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
 				document.removeEventListener("mousedown", handleClickOutside);
 			};
 		}
+		return undefined; // Explicit return for linter
 	}, [showContextPopup]);
 
 	const updateRecentSessions = async (sessionId) => {
@@ -1832,6 +1643,87 @@ const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
 		loadContextDocuments();
 	}, [documentIds, sessionId]);
 
+	// --- SAMPLE MARKDOWN TEST ---
+	const sampleMarkdown = `
+
+## LaTeX Examples
+
+### Inline LaTeX
+The quadratic formula is: $x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$
+
+### Block LaTeX
+The Pythagorean theorem states:
+
+$$a^2 + b^2 = c^2$$
+
+### Complex Mathematical Expressions
+
+#### Summation
+$$\\sum_{i=1}^{n} x_i = x_1 + x_2 + \\cdots + x_n$$
+
+#### Integral
+$$\\int_{a}^{b} f(x) dx = F(b) - F(a)$$
+
+#### Matrix
+$$
+\\begin{pmatrix}
+a & b & c \\\\
+d & e & f \\\\
+g & h & i
+\\end{pmatrix}
+$$
+
+#### System of Equations
+$$
+\\begin{cases}
+x + y = 10 \\\\
+2x - y = 5
+\\end{cases}
+$$
+
+#### Fraction with Complex Expression
+$$\\frac{\\partial f}{\\partial x} = \\lim_{h \\to 0} \\frac{f(x + h) - f(x)}{h}$$
+
+### Chemical Equations
+The reaction between hydrogen and oxygen:
+
+$$2H_2 + O_2 \\rightarrow 2H_2O$$
+
+### Statistical Notation
+The normal distribution:
+
+$$f(x) = \\frac{1}{\\sigma\\sqrt{2\\pi}} e^{-\\frac{1}{2}\\left(\\frac{x-\\mu}{\\sigma}\\right)^2}$$
+
+## Mixed Content
+
+Here's a paragraph with **bold text**, *italic text*, and inline math: $E = mc^2$.
+
+| Concept | Formula | Description |
+|---------|---------|-------------|
+| Energy | $E = mc^2$ | Einstein's mass-energy equivalence |
+| Force | $F = ma$ | Newton's second law |
+| Velocity | $v = \\frac{d}{t}$ | Rate of change of position |
+
+> **Note**: All LaTeX expressions should be properly escaped for markdown rendering.
+`;
+
+	return (
+		<div style={{ padding: "2rem" }}>
+			<div
+				className="markdown"
+				dangerouslySetInnerHTML={{ __html: md.render(sampleMarkdown) }}
+				style={{
+					fontSize: "16px",
+					lineHeight: "1.5",
+					wordBreak: "break-word",
+					overflowWrap: "break-word"
+				}}
+			/>
+		</div>
+	);
+
+	/*
+	// --- ORIGINAL CHAT RENDERING (commented out for markdown-it test) ---
 	return (
 		<div style={styles.container}>
 			{isLoading && <LoadingPopup />}
@@ -1848,7 +1740,7 @@ const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
 					<span style={styles.viewContextText}>View Context</span>
 					<img src={ArrowDownPath} alt="Arrow Down" />
 				</button>
-                
+            
 				{showContextPopup && (
 					<div style={styles.contextPopup}>
 						{contextDocuments.length > 0
@@ -1962,6 +1854,7 @@ const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
 			</div>
 		</div>
 	);
+	*/
 };
 
 DeepTutorChatBox.propTypes = {
