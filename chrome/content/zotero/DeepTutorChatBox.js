@@ -1162,6 +1162,16 @@ const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
 		return text;
 	};
 
+	// Process markdown result to fix JSX compatibility issues
+	const processMarkdownResult = (html) => {
+		if (!html || typeof html !== "string") {
+			return "";
+		}
+		
+		// Replace <hr> with <hr/> for JSX compatibility
+		return html.replace(/<hr>/g, "<hr/>");
+	};
+
 	const renderMessage = (message, index) => {
 		// Return nothing if it's the first message and from user
 		if (index === 0 && message.role === MessageRole.USER) {
@@ -1183,13 +1193,14 @@ const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
 				}}>
 					{message.subMessages.map((subMessage, subIndex) => {
 						const text = formatResponseForMarkdown(subMessage.text || "", subMessage);
-						
+						var result = md.render(text);
+						console.log(result);
 						return (
 							<div key={subIndex} style={styles.messageText}>
 								{/* Render text content through markdown-it */}
 								<div
 									className="markdown mb-0 flex flex-col"
-									dangerouslySetInnerHTML={{ __html: md.render(text) }}
+									dangerouslySetInnerHTML={{ __html: processMarkdownResult(result) }}
 									style={{
 										fontSize: "16px",
 										lineHeight: "1.5",
@@ -1645,110 +1656,6 @@ const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
 		loadContextDocuments();
 	}, [documentIds, sessionId]);
 
-	// --- SAMPLE MARKDOWN TEST ---
-	const sampleMarkdown = `
-
-## LaTeX Examples
-
-### Inline LaTeX
-The quadratic formula is: $x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$
-
-### Block LaTeX
-The Pythagorean theorem states:
-
-$$a^2 + b^2 = c^2$$
-
-### Complex Mathematical Expressions
-
-#### Summation
-$$\\sum_{i=1}^{n} x_i = x_1 + x_2 + \\cdots + x_n$$
-
-#### Integral
-$$\\int_{a}^{b} f(x) dx = F(b) - F(a)$$
-
-#### Matrix
-$$
-\\begin{pmatrix}
-a & b & c \\\\
-d & e & f \\\\
-g & h & i
-\\end{pmatrix}
-$$
-
-#### System of Equations
-$$
-\\begin{cases}
-x + y = 10 \\\\
-2x - y = 5
-\\end{cases}
-$$
-
-#### Fraction with Complex Expression
-$$\\frac{\\partial f}{\\partial x} = \\lim_{h \\to 0} \\frac{f(x + h) - f(x)}{h}$$
-
-### Chemical Equations
-The reaction between hydrogen and oxygen:
-
-$$2H_2 + O_2 \\rightarrow 2H_2O$$
-
-### Statistical Notation
-The normal distribution:
-
-$$f(x) = \\frac{1}{\\sigma\\sqrt{2\\pi}} e^{-\\frac{1}{2}\\left(\\frac{x-\\mu}{\\sigma}\\right)^2}$$
-
-## Mixed Content
-
-Here's a paragraph with **bold text**, *italic text*, and inline math: $E = mc^2$.
-
-| Concept | Formula | Description |
-|---------|---------|-------------|
-| Energy | $E = mc^2$ | Einstein's mass-energy equivalence |
-| Force | $F = ma$ | Newton's second law |
-| Velocity | $v = \\frac{d}{t}$ | Rate of change of position |
-
-> **Note**: All LaTeX expressions should be properly escaped for markdown rendering.
-`;
-
-	return (
-		
-		<div style={{
-			padding: "2rem",
-			height: "100vh",
-			overflow: "hidden",
-			display: "flex",
-			flexDirection: "column"
-		}}>
-			<h2 style={{
-				margin: "0 0 1rem 0",
-				fontSize: "1.5rem",
-				fontWeight: "600",
-				color: "#333"
-			}}>
-				Markdown with KaTeX Test
-			</h2>
-			<div
-				className="markdown"
-				dangerouslySetInnerHTML={{ __html: md.render(sampleMarkdown) }}
-				style={{
-					fontSize: "16px",
-					lineHeight: "1.5",
-					wordBreak: "break-word",
-					overflowWrap: "break-word",
-					overflowY: "auto",
-					overflowX: "hidden",
-					flex: 1,
-					padding: "1rem",
-					border: "1px solid #e0e0e0",
-					borderRadius: "8px",
-					backgroundColor: "#fafafa",
-					maxHeight: "calc(100vh - 6rem)"
-				}}
-			/>
-		</div>
-	);
-
-	/*
-	// --- ORIGINAL CHAT RENDERING (commented out for markdown-it test) ---
 	return (
 		<div style={styles.container}>
 			{isLoading && <LoadingPopup />}
@@ -1879,7 +1786,6 @@ Here's a paragraph with **bold text**, *italic text*, and inline math: $E = mc^2
 			</div>
 		</div>
 	);
-	*/
 };
 
 DeepTutorChatBox.propTypes = {
