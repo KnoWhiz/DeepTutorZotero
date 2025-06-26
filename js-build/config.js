@@ -78,6 +78,27 @@ const browserifyConfigs = [
 		}
 	},
 	{
+		src: 'node_modules/markdown-it/dist/markdown-it.js',
+		dest: 'resource/markdown-it.js',
+		config: {
+			standalone: 'markdown-it'
+		}
+	},
+	{
+		src: 'node_modules/markdown-it-task-lists/index.js',
+		dest: 'resource/markdown-it-task-lists.js',
+		config: {
+			standalone: 'markdown-it-task-lists'
+		}
+	},
+	{
+		src: 'node_modules/markdown-it-katex/index.js',
+		dest: 'resource/markdown-it-katex.js',
+		config: {
+			standalone: 'markdown-it-katex'
+		}
+	},
+	{
 		src: 'node_modules/url/url.js',
 		dest: 'resource/url.js',
 		config: {
