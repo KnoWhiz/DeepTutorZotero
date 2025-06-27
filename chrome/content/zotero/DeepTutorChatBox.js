@@ -1243,8 +1243,38 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect, onInitWaitChan
 			return "";
 		}
 		
-		// Replace <hr> with <hr/> for JSX compatibility and remove all line breaks
-		return html.replace(/<hr>/g, "").replace(/\n/g, "");
+		// Fix self-closing tags for XML/XHTML compatibility
+		let processedHtml = html
+			// Replace <br> with <br/>
+			.replace(/<br>/g, "<br/>")
+			// Replace <hr> with <hr/>
+			.replace(/<hr>/g, "<hr/>")
+			// Replace <img> tags to be self-closing
+			.replace(/<img([^>]*?)>/g, "<img$1/>")
+			// Replace <input> tags to be self-closing
+			.replace(/<input([^>]*?)>/g, "<input$1/>")
+			// Replace <area> tags to be self-closing
+			.replace(/<area([^>]*?)>/g, "<area$1/>")
+			// Replace <base> tags to be self-closing
+			.replace(/<base([^>]*?)>/g, "<base$1/>")
+			// Replace <col> tags to be self-closing
+			.replace(/<col([^>]*?)>/g, "<col$1/>")
+			// Replace <embed> tags to be self-closing
+			.replace(/<embed([^>]*?)>/g, "<embed$1/>")
+			// Replace <link> tags to be self-closing
+			.replace(/<link([^>]*?)>/g, "<link$1/>")
+			// Replace <meta> tags to be self-closing
+			.replace(/<meta([^>]*?)>/g, "<meta$1/>")
+			// Replace <source> tags to be self-closing
+			.replace(/<source([^>]*?)>/g, "<source$1/>")
+			// Replace <track> tags to be self-closing
+			.replace(/<track([^>]*?)>/g, "<track$1/>")
+			// Replace <wbr> tags to be self-closing
+			.replace(/<wbr([^>]*?)>/g, "<wbr$1/>")
+			// Remove line breaks
+			.replace(/\n/g, "");
+		
+		return processedHtml;
 	};
 	const handleSourceClick = async (source) => {
 		if (!source) {
@@ -1340,23 +1370,54 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect, onInitWaitChan
 				}}>
 					{message.subMessages.map((subMessage, subIndex) => {
 						const text = formatResponseForMarkdown(subMessage.text || "", subMessage);
-						var result = md.render(text);
-						console.log(result);
-						return (
-							<div key={subIndex} style={styles.messageText}>
-								{/* Render text content through markdown-it */}
-								<div
-									className="markdown mb-0 flex flex-col"
-									dangerouslySetInnerHTML={{ __html: processMarkdownResult(result) }}
-									style={{
+						try {
+							var result = md.render(text);
+							Zotero.debug(`DeepTutorChatBox: Markdown render result: ${result}`);
+							const processedResult = processMarkdownResult(result);
+							Zotero.debug(`DeepTutorChatBox: Processed result: ${processedResult}`);
+							
+							return (
+								<div key={subIndex} style={styles.messageText}>
+									{/* Render text content through markdown-it */}
+									{processedResult ? (
+										<div
+											className="markdown mb-0 flex flex-col"
+											dangerouslySetInnerHTML={{ __html: processedResult }}
+											style={{
+												fontSize: "16px",
+												lineHeight: "1.5",
+												wordBreak: "break-word",
+												overflowWrap: "break-word"
+											}}
+										/>
+									) : (
+										<div style={{
+											fontSize: "16px",
+											lineHeight: "1.5",
+											wordBreak: "break-word",
+											overflowWrap: "break-word"
+										}}>
+											{subMessage.text || ""}
+										</div>
+									)}
+								</div>
+							);
+						} catch (error) {
+							Zotero.debug(`DeepTutorChatBox: Error processing markdown: ${error.message}`);
+							// Fallback to plain text if markdown processing fails
+							return (
+								<div key={subIndex} style={styles.messageText}>
+									<div style={{
 										fontSize: "16px",
 										lineHeight: "1.5",
 										wordBreak: "break-word",
 										overflowWrap: "break-word"
-									}}
-								/>
-							</div>
-						);
+									}}>
+										{subMessage.text || ""}
+									</div>
+								</div>
+							);
+						}
 					})}
 				</div>
 				{index === messages.length - 1 && message.followUpQuestions && message.followUpQuestions.length > 0 && (
@@ -1652,45 +1713,56 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect, onInitWaitChan
 				try {
 					// Try to get the mapping from local storage
 					const storageKey = `deeptutor_mapping_${sessionId}`;
-					let zoteroAttachmentId = documentIds[0];
-
 					const mappingStr = Zotero.Prefs.get(storageKey);
 					Zotero.debug("DeepTutorChatBox: Get data mapping:", Zotero.Prefs.get(storageKey));
+					
+					let mapping = {};
 					if (mappingStr) {
-						const mapping = JSON.parse(mappingStr);
+						mapping = JSON.parse(mappingStr);
 						Zotero.debug(`DeepTutorChatBox: Found mapping in storage: ${JSON.stringify(mapping)}`);
+					}
 
-						// If we have a mapping for this document ID, use it
-						if (mapping[documentId]) {
-							zoteroAttachmentId = mapping[documentId];
-							Zotero.debug(`DeepTutorChatBox: Using mapped attachment ID: ${zoteroAttachmentId} for document ${documentId}`);
-						}
+					// Loop through all document IDs
+					for (let i = 0; i < documentIds.length; i++) {
+						const documentId = documentIds[i];
+						try {
+							let zoteroAttachmentId = documentId;
 
-						// Get the item and open it
-						const item = Zotero.Items.get(zoteroAttachmentId);
-						if (!item) {
-							Zotero.debug(`DeepTutorChatBox: No item found for ID ${zoteroAttachmentId}`);
-							continue; // Skip this document and continue with the next one
-						}
-
-						// Open the document in the reader
-						await Zotero.FileHandlers.open(item, {
-							location: {
-								pageIndex: 0 // Start at first page
+							// If we have a mapping for this document ID, use it
+							if (mapping[documentId]) {
+								zoteroAttachmentId = mapping[documentId];
+								Zotero.debug(`DeepTutorChatBox: Using mapped attachment ID: ${zoteroAttachmentId} for document ${documentId}`);
 							}
-						});
-						Zotero.debug(`DeepTutorChatBox: Opened document ${i + 1}/${documentIds.length}: ${zoteroAttachmentId} in reader`);
-						
-						// Add a small delay between opening documents to avoid overwhelming the UI
-						if (i < documentIds.length - 1) {
-							await new Promise(resolve => setTimeout(resolve, 500));
+
+							// Get the item and open it
+							const item = Zotero.Items.get(zoteroAttachmentId);
+							if (!item) {
+								Zotero.debug(`DeepTutorChatBox: No item found for ID ${zoteroAttachmentId}`);
+								continue; // Skip this document and continue with the next one
+							}
+
+							// Open the document in the reader
+							await Zotero.FileHandlers.open(item, {
+								location: {
+									pageIndex: 0 // Start at first page
+								}
+							});
+							Zotero.debug(`DeepTutorChatBox: Opened document ${i + 1}/${documentIds.length}: ${zoteroAttachmentId} in reader`);
+							
+							// Add a small delay between opening documents to avoid overwhelming the UI
+							if (i < documentIds.length - 1) {
+								await new Promise(resolve => setTimeout(resolve, 500));
+							}
+						}
+						catch (error) {
+							Zotero.debug(`DeepTutorChatBox: Error opening document ${documentId}: ${error.message}`);
+							Zotero.debug(`DeepTutorChatBox: Error stack: ${error.stack}`);
+							// Continue with the next document even if this one fails
 						}
 					}
-					catch (error) {
-						Zotero.debug(`DeepTutorChatBox: Error opening document ${documentId}: ${error.message}`);
-						Zotero.debug(`DeepTutorChatBox: Error stack: ${error.stack}`);
-						// Continue with the next document even if this one fails
-					}
+				}
+				catch (error) {
+					Zotero.debug(`DeepTutorChatBox: Error in openAllDocuments: ${error.message}`);
 				}
 				
 				Zotero.debug(`DeepTutorChatBox: Finished opening all ${documentIds.length} documents`);
@@ -1827,48 +1899,6 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect, onInitWaitChan
 			};
 		}
 	}, [showContextPopup]);
-
-	const updateRecentSessions = async (sessionId) => {
-		try {
-			const session = await getSessionById(sessionId);
-			if (!session) {
-				Zotero.debug(`DeepTutorChatBox: No session found for ID ${sessionId}`);
-				return;
-			}
-
-			Zotero.debug(`DeepTutorChatBox: Updating recent sessions with session ${sessionId}`);
-			setRecentSessions((prev) => {
-				const newMap = new Map(prev);
-				// Only add if not already present or if it's a different session
-				if (!newMap.has(sessionId)) {
-					newMap.set(sessionId, {
-						name: session.sessionName || `Session ${sessionId.slice(0, 8)}`,
-						lastUpdatedTime: new Date().toISOString() // Use current time for new sessions
-					});
-					Zotero.debug(`DeepTutorChatBox: Added new session to recent sessions map, now has ${newMap.size} sessions`);
-				}
-				else {
-					// Update the existing session's lastUpdatedTime with current time
-					const existingSession = newMap.get(sessionId);
-					newMap.set(sessionId, {
-						...existingSession,
-						lastUpdatedTime: new Date().toISOString() // Use current time for updates
-					});
-					Zotero.debug(`DeepTutorChatBox: Updated existing session in recent sessions map`);
-				}
-
-				// Store in preferences
-				const sessionsObject = Object.fromEntries(newMap);
-				Zotero.Prefs.set('deeptutor.recentSessions', JSON.stringify(sessionsObject));
-				Zotero.debug(`DeepTutorChatBox: Stored ${newMap.size} sessions in preferences`);
-
-				return newMap;
-			});
-		}
-		catch (error) {
-			Zotero.debug(`DeepTutorChatBox: Error updating recent sessions: ${error.message}`);
-		}
-	};
 
 	// Add SessionTabBar component
 	const SessionTabBar = () => {
