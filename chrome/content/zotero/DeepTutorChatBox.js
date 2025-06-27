@@ -8,6 +8,8 @@ import {
 	subscribeToChat,
 	getSessionById
 } from './api/libs/api';
+import DeepTutorStreamingComponent from './DeepTutorStreamingComponent';
+import DeepTutorUserMessage from './DeepTutorUserMessage';
 const markdownit = require('markdown-it');
 const md = markdownit(
 	{ html: true,
@@ -991,9 +993,9 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect, onInitWaitChan
 			let hasReceivedData = false;
 			let lastDataTime = Date.now();
 
-			// Create initial empty message for TUTOR
-			Zotero.debug(`DeepTutorChatBox: Creating initial empty message for TUTOR`);
-			const initialTutorMessage = {
+			// Create initial streaming message for TUTOR
+			Zotero.debug(`DeepTutorChatBox: Creating initial streaming message for TUTOR`);
+			const initialStreamingMessage = {
 				subMessages: [{
 					text: "",
 					contentType: ContentType.TEXT,
@@ -1003,14 +1005,16 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect, onInitWaitChan
 				role: MessageRole.TUTOR,
 				creationTime: new Date().toISOString(),
 				lastUpdatedTime: new Date().toISOString(),
-				status: MessageStatus.UNVIEW
+				status: MessageStatus.UNVIEW,
+				isStreaming: true,
+				streamText: ""
 			};
             
-			// Add the empty message to messages
+			// Add the streaming message to messages
 			await new Promise((resolve) => {
 				setMessages((prev) => {
 					resolve();
-					return [...prev, initialTutorMessage];
+					return [...prev, initialStreamingMessage];
 				});
 			});
 
@@ -1049,7 +1053,7 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect, onInitWaitChan
 							hasReceivedData = true;
 							streamText += output;
                             
-							// Create a temporary message to display the stream
+							// Create a temporary streaming message to display the stream
 							const streamMessage = {
 								subMessages: [{
 									text: streamText,
@@ -1060,7 +1064,9 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect, onInitWaitChan
 								role: MessageRole.TUTOR,
 								creationTime: new Date().toISOString(),
 								lastUpdatedTime: new Date().toISOString(),
-								status: MessageStatus.UNVIEW
+								status: MessageStatus.UNVIEW,
+								isStreaming: true,
+								streamText: streamText
 							};
 
 							// Update the last message in the chat
@@ -1361,8 +1367,26 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect, onInitWaitChan
 			animation: "fadeIn 0.3s ease-in-out"
 		};
         
+		// Handle streaming messages for TUTOR role
+		if (!isUser && message.isStreaming && message.streamText) {
+			return (
+				<div key={message.id || index} style={styles.messageContainer}>
+					<DeepTutorStreamingComponent 
+						streamText={message.streamText || ''}
+						hideStreamResponse={false}
+					/>
+				</div>
+			);
+		}
+        
 		return (
 			<div key={message.id || index} style={styles.messageStyle}>
+				{/* Add user message icon for user messages */}
+				{isUser && (
+					<div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.5rem' }}>
+						<DeepTutorUserMessage />
+					</div>
+				)}
 				<div style={{
 					...styles.messageBubble,
 					...(isUser ? styles.userMessage : styles.botMessage),
