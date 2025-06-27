@@ -128,13 +128,17 @@ const styles = {
 		alignItems: 'stretch',
 		boxSizing: 'border-box',
 		marginBottom: '1.25rem',
+		userSelect: 'text',
+		WebkitUserSelect: 'text',
+		MozUserSelect: 'text',
+		msUserSelect: 'text',
 	},
 	bottomBar: {
 		width: '100%',
 		background: '#F8F6F7',
 		boxShadow: '0 -0.0625rem 0.1875rem rgba(0,0,0,0.08)',
 		display: 'flex',
-		alignItems: 'center',
+		alignItems: 'flex-end', // Changed from 'center' to 'flex-end' to align with textarea
 		justifyContent: 'space-between',
 		fontFamily: 'Roboto, sans-serif',
 		position: 'relative',
@@ -143,7 +147,7 @@ const styles = {
 		borderRadius: '0.5rem',
 		boxSizing: 'border-box',
 		minHeight: '2.5rem',
-		maxHeight: '3.5rem',
+		maxHeight: '10rem', // Increased to accommodate larger textarea (7rem + padding)
 		padding: '0.5rem',
 	},
 	textInput: {
@@ -155,19 +159,17 @@ const styles = {
 		background: '#F8F6F7',
 		color: '#1a65b0',
 		minHeight: '1.5rem',
-		maxHeight: '2rem',
+		maxHeight: '7rem', // Approximately 5 lines of text at 0.95rem font size
 		fontSize: '0.95rem',
 		overflowY: 'auto',
 		fontFamily: 'Roboto, sans-serif',
 		resize: 'none',
-		height: 'auto',
+		height: '24px', // Start with minHeight (1.5rem)
 		marginRight: '0.625rem',
-		alignSelf: 'stretch',
-		':focus': {
-			outline: 'none',
-			border: 'none',
-			boxShadow: 'none'
-		}
+		alignSelf: 'flex-end',
+		lineHeight: '1.4',
+		wordWrap: 'break-word',
+		whiteSpace: 'pre-wrap'
 	},
 	sendButton: {
 		all: 'revert',
@@ -212,6 +214,10 @@ const styles = {
 		wordBreak: 'break-word',
 		boxSizing: 'border-box',
 		overflowWrap: 'break-word',
+		userSelect: 'text',
+		WebkitUserSelect: 'text',
+		MozUserSelect: 'text',
+		msUserSelect: 'text',
 	},
 	userMessage: {
 		backgroundColor: 'white',
@@ -249,6 +255,11 @@ const styles = {
 		maxWidth: '100%',
 		overflowWrap: 'break-word',
 		wordBreak: 'break-word',
+		userSelect: 'text',
+		WebkitUserSelect: 'text',
+		MozUserSelect: 'text',
+		msUserSelect: 'text',
+		cursor: 'text',
 	},
 	sourcesContainer: {
 		marginTop: '0.5rem',
@@ -468,8 +479,7 @@ const styles = {
 const SendIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_SEND.svg';
 const SessionTabClosePath = 'chrome://zotero/content/DeepTutorMaterials/Chat/CHAT_SES_TAB_CLOSE.svg';
 const ArrowDownPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/CHAT_ARROWDOWN.svg';
-
-const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
+const DeepTutorChatBox = ({ currentSession, key, onSessionSelect, onInitWaitChange }) => {
 	const [messages, setMessages] = useState([]);
 	const [inputValue, setInputValue] = useState('');
 	const [sessionId, setSessionId] = useState(null);
@@ -483,6 +493,7 @@ const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
 	const MAX_VISIBLE_SESSIONS = 2;
 	const chatLogRef = useRef(null);
 	const contextPopupRef = useRef(null);
+	const textareaRef = useRef(null);
 	const [hoveredContextDoc, setHoveredContextDoc] = useState(null);
 	// Removed hoveredQuestion and hoveredPopupSession states - these were causing unnecessary re-renders
 	const [hoveredQuestion, setHoveredQuestion] = useState(null);
@@ -492,6 +503,50 @@ const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
 	const isAutoScrollingRef = useRef(true);
 	const [showContextPopup, setShowContextPopup] = useState(false);
 	const [contextDocuments, setContextDocuments] = useState([]);
+
+	// Function to adjust textarea height based on content
+	const adjustTextareaHeight = () => {
+		const textarea = textareaRef.current;
+		if (textarea) {
+			// Reset height to get the correct scrollHeight
+			textarea.style.height = 'auto';
+			
+			// Calculate the new height
+			const scrollHeight = textarea.scrollHeight;
+			const maxHeight = 83; // 10rem converted to pixels (assuming 16px base)
+			
+			// For empty or single-line content, use a fixed minimum height
+			// We detect single-line by checking if textarea value has newlines or if it's empty
+			const isEmpty = !textarea.value.trim();
+			const hasMultipleLines = textarea.value.includes('\n');
+			
+			let newHeight;
+			
+			if (isEmpty || (!hasMultipleLines && scrollHeight <= 50)) {
+				// Use minimum height for empty or short single-line content
+				newHeight = 24; // 1.5rem in pixels
+				Zotero.debug(`DeepTutorChatBox: Using minimum height ${newHeight}px for single-line content`);
+			} else {
+				// Use scrollHeight for multi-line content, but cap at maxHeight
+				newHeight = Math.min(scrollHeight, maxHeight);
+				Zotero.debug(`DeepTutorChatBox: Using scroll height ${newHeight}px for multi-line content`);
+			}
+			
+			textarea.style.height = newHeight + 'px';
+			
+			// Show/hide scrollbar based on content
+			if (scrollHeight > maxHeight) {
+				textarea.style.overflowY = 'scroll';
+			} else {
+				textarea.style.overflowY = 'hidden';
+			}
+		}
+	};
+
+	// Adjust textarea height on mount and when inputValue changes
+	useEffect(() => {
+		adjustTextareaHeight();
+	}, [inputValue]);
 
 	// Load recent sessions from preferences on component mount
 	useEffect(() => {
@@ -860,9 +915,24 @@ const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
 		}
 	};
 
+	const handleInputChange = (e) => {
+		setInputValue(e.target.value);
+		// Adjust height after the value is set
+		setTimeout(adjustTextareaHeight, 0);
+	};
+
 	const handleSend = async () => {
-		setInputValue('');
-		await userSendMessage(inputValue);
+		const trimmedValue = inputValue.replace(/\s+$/, ''); // Remove trailing spaces
+		if (trimmedValue.trim()) { // Only send if there's actual content after trimming
+			setInputValue('');
+			// Reset textarea height after clearing
+			setTimeout(adjustTextareaHeight, 0);
+			await userSendMessage(trimmedValue);
+		} else {
+			setInputValue(''); // Clear input even if empty
+			// Reset textarea height after clearing
+			setTimeout(adjustTextareaHeight, 0);
+		}
 	};
 
 	const sendToAPI = async (message) => {
@@ -948,9 +1018,9 @@ const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
 				const { done, value } = await reader.read();
                 
 				// Check for timeout
-				if (Date.now() - lastDataTime > 30000) {
+				if (Date.now() - lastDataTime > 300000) {
 					setIsStreaming(false); // Set streaming to false on timeout
-					throw new Error('Stream timeout - no data received for 30 seconds');
+					throw new Error('Stream timeout - no data received for 300 seconds');
 				}
                 
 				if (done) {
@@ -1575,9 +1645,9 @@ const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
 
 	// Add new useEffect after the existing one
 	useEffect(() => {
-		const openFirstDocument = async () => {
+		const openAllDocuments = async () => {
 			if (documentIds && documentIds.length > 0 && sessionId) {
-				Zotero.debug(`DeepTutorChatBox: Opening first document - sessionId: ${sessionId}, documentId: ${documentIds[0]}`);
+				Zotero.debug(`DeepTutorChatBox: Opening all documents - sessionId: ${sessionId}, ${documentIds.length} documents`);
                 
 				try {
 					// Try to get the mapping from local storage
@@ -1589,36 +1659,44 @@ const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
 					if (mappingStr) {
 						const mapping = JSON.parse(mappingStr);
 						Zotero.debug(`DeepTutorChatBox: Found mapping in storage: ${JSON.stringify(mapping)}`);
-                        
+
 						// If we have a mapping for this document ID, use it
-						if (mapping[documentIds[0]]) {
-							zoteroAttachmentId = mapping[documentIds[0]];
-							Zotero.debug(`DeepTutorChatBox: Using mapped attachment ID: ${zoteroAttachmentId}`);
+						if (mapping[documentId]) {
+							zoteroAttachmentId = mapping[documentId];
+							Zotero.debug(`DeepTutorChatBox: Using mapped attachment ID: ${zoteroAttachmentId} for document ${documentId}`);
+						}
+
+						// Get the item and open it
+						const item = Zotero.Items.get(zoteroAttachmentId);
+						if (!item) {
+							Zotero.debug(`DeepTutorChatBox: No item found for ID ${zoteroAttachmentId}`);
+							continue; // Skip this document and continue with the next one
+						}
+
+						// Open the document in the reader
+						await Zotero.FileHandlers.open(item, {
+							location: {
+								pageIndex: 0 // Start at first page
+							}
+						});
+						Zotero.debug(`DeepTutorChatBox: Opened document ${i + 1}/${documentIds.length}: ${zoteroAttachmentId} in reader`);
+						
+						// Add a small delay between opening documents to avoid overwhelming the UI
+						if (i < documentIds.length - 1) {
+							await new Promise(resolve => setTimeout(resolve, 500));
 						}
 					}
-
-					// Get the item and open it
-					const item = Zotero.Items.get(zoteroAttachmentId);
-					if (!item) {
-						Zotero.debug(`DeepTutorChatBox: No item found for ID ${zoteroAttachmentId}`);
-						return;
+					catch (error) {
+						Zotero.debug(`DeepTutorChatBox: Error opening document ${documentId}: ${error.message}`);
+						Zotero.debug(`DeepTutorChatBox: Error stack: ${error.stack}`);
+						// Continue with the next document even if this one fails
 					}
-
-					// Open the document in the reader
-					await Zotero.FileHandlers.open(item, {
-						location: {
-							pageIndex: 0 // Start at first page
-						}
-					});
-					Zotero.debug(`DeepTutorChatBox: Opened document ${zoteroAttachmentId} in reader`);
 				}
-				catch (error) {
-					Zotero.debug(`DeepTutorChatBox: Error opening first document: ${error.message}`);
-					Zotero.debug(`DeepTutorChatBox: Error stack: ${error.stack}`);
-				}
+				
+				Zotero.debug(`DeepTutorChatBox: Finished opening all ${documentIds.length} documents`);
 			}
 		};
-		openFirstDocument();
+		openAllDocuments();
 	}, [documentIds, sessionId]); // Dependencies array
 
 	// Load context documents when documentIds change
@@ -1733,6 +1811,218 @@ const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
 		loadContextDocuments();
 	}, [documentIds, sessionId]);
 
+	// Handle click outside context popup
+	useEffect(() => {
+		const handleClickOutside = (event) => {
+			if (contextPopupRef.current && !contextPopupRef.current.contains(event.target)) {
+				Zotero.debug(`DeepTutorChatBox: Clicked outside context popup, closing`);
+				setShowContextPopup(false);
+			}
+		};
+
+		if (showContextPopup) {
+			document.addEventListener('mousedown', handleClickOutside);
+			return () => {
+				document.removeEventListener('mousedown', handleClickOutside);
+			};
+		}
+	}, [showContextPopup]);
+
+	const updateRecentSessions = async (sessionId) => {
+		try {
+			const session = await getSessionById(sessionId);
+			if (!session) {
+				Zotero.debug(`DeepTutorChatBox: No session found for ID ${sessionId}`);
+				return;
+			}
+
+			Zotero.debug(`DeepTutorChatBox: Updating recent sessions with session ${sessionId}`);
+			setRecentSessions((prev) => {
+				const newMap = new Map(prev);
+				// Only add if not already present or if it's a different session
+				if (!newMap.has(sessionId)) {
+					newMap.set(sessionId, {
+						name: session.sessionName || `Session ${sessionId.slice(0, 8)}`,
+						lastUpdatedTime: new Date().toISOString() // Use current time for new sessions
+					});
+					Zotero.debug(`DeepTutorChatBox: Added new session to recent sessions map, now has ${newMap.size} sessions`);
+				}
+				else {
+					// Update the existing session's lastUpdatedTime with current time
+					const existingSession = newMap.get(sessionId);
+					newMap.set(sessionId, {
+						...existingSession,
+						lastUpdatedTime: new Date().toISOString() // Use current time for updates
+					});
+					Zotero.debug(`DeepTutorChatBox: Updated existing session in recent sessions map`);
+				}
+
+				// Store in preferences
+				const sessionsObject = Object.fromEntries(newMap);
+				Zotero.Prefs.set('deeptutor.recentSessions', JSON.stringify(sessionsObject));
+				Zotero.debug(`DeepTutorChatBox: Stored ${newMap.size} sessions in preferences`);
+
+				return newMap;
+			});
+		}
+		catch (error) {
+			Zotero.debug(`DeepTutorChatBox: Error updating recent sessions: ${error.message}`);
+		}
+	};
+
+	// Add SessionTabBar component
+	const SessionTabBar = () => {
+		// Convert Map to sorted array and sort by lastUpdatedTime
+		const sortedSessions = Array.from(recentSessions.entries())
+            .sort((a, b) => {
+            	const timeA = new Date(a[1].lastUpdatedTime || 0).getTime();
+            	const timeB = new Date(b[1].lastUpdatedTime || 0).getTime();
+            	return timeB - timeA; // Sort in descending order (most recent first)
+            });
+
+		Zotero.debug(`DeepTutorChatBox: Rendering SessionTabBar with ${sortedSessions.length} sessions`);
+		const visibleSessions = sortedSessions.slice(0, MAX_VISIBLE_SESSIONS);
+		const hiddenSessions = sortedSessions.slice(MAX_VISIBLE_SESSIONS);
+
+		const truncateSessionName = (name) => {
+			return name.length > 11 ? name.substring(0, 11) + '...' : name;
+		};
+
+		const handleSessionClick = async (sessionId) => {
+			try {
+				// Get the session data
+				const session = await getSessionById(sessionId);
+				if (!session) {
+					Zotero.debug(`DeepTutorChatBox: No session found for ID ${sessionId}`);
+					return;
+				}
+
+				// Update recent sessions with new timestamp
+				await updateRecentSessions(sessionId);
+
+				// Update the current session through props
+				if (currentSession?.id !== sessionId) {
+					Zotero.debug(`DeepTutorChatBox: Switching to session ${sessionId}`);
+					// Use the onSessionSelect prop to switch sessions
+					if (onSessionSelect) {
+						onSessionSelect(session.id);
+					}
+				}
+			}
+			catch (error) {
+				Zotero.debug(`DeepTutorChatBox: Error handling session click: ${error.message}`);
+			}
+		};
+
+		const handleCloseSession = async (sessionId, event) => {
+			event.stopPropagation(); // Prevent session click when closing
+            
+			// Check if we're closing the active session
+			const isActiveSession = sessionId === currentSession?.id;
+            
+			setRecentSessions((prev) => {
+				const newMap = new Map(prev);
+				newMap.delete(sessionId);
+                
+				// Store in preferences
+				const sessionsObject = Object.fromEntries(newMap);
+				Zotero.Prefs.set('deeptutor.recentSessions', JSON.stringify(sessionsObject));
+                
+				return newMap;
+			});
+
+			// If we closed the active session and there are other sessions, load the next one
+			if (isActiveSession) {
+				const remainingSessions = Array.from(recentSessions.entries())
+                    .filter(([id]) => id !== sessionId)
+                    .sort((a, b) => {
+                    	const timeA = new Date(a[1].lastUpdatedTime || 0).getTime();
+                    	const timeB = new Date(b[1].lastUpdatedTime || 0).getTime();
+                    	return timeB - timeA;
+                    });
+
+				if (remainingSessions.length > 0) {
+					const [nextSessionId, nextSessionData] = remainingSessions[0];
+					try {
+						const session = await getSessionById(nextSessionId);
+						if (session && onSessionSelect) {
+							onSessionSelect(session.id);
+						}
+					}
+					catch (error) {
+						Zotero.debug(`DeepTutorChatBox: Error loading next session: ${error.message}`);
+					}
+				}
+			}
+		};
+
+		return (
+			<div style={styles.sessionTabBar}>
+				{visibleSessions.map(([sessionId, sessionData]) => (
+					<button
+						key={sessionId}
+						style={{
+							...styles.sessionTab,
+							...(sessionId === currentSession?.id ? styles.activeSessionTab : {})
+						}}
+						onClick={() => handleSessionClick(sessionId)}
+					>
+						{truncateSessionName(sessionData.name)}
+						<button
+							style={styles.sessionTabClose}
+							onClick={e => handleCloseSession(sessionId, e)}
+						>
+							<img
+								src={SessionTabClosePath}
+								alt="Close"
+								style={styles.sessionTabCloseIcon}
+							/>
+						</button>
+					</button>
+				))}
+				{hiddenSessions.length > 0 && (
+					<div style={{ position: 'relative' }}>
+						<button
+							style={styles.sessionTab}
+							onClick={() => setShowSessionPopup(!showSessionPopup)}
+						>
+                            More ({hiddenSessions.length})
+						</button>
+						{showSessionPopup && (
+							<div style={styles.sessionPopup}>
+								{hiddenSessions.map(([sessionId, sessionData]) => (
+									<div
+										key={sessionId}
+										style={styles.sessionPopupItem}
+										onClick={() => {
+											handleSessionClick(sessionId);
+											setShowSessionPopup(false);
+										}}
+										onMouseEnter={(e) => {
+											e.target.style.background = '#D9D9D9';
+										}}
+										onMouseLeave={(e) => {
+											e.target.style.background = '#FFFFFF';
+										}}
+									>
+										{truncateSessionName(sessionData.name)}
+									</div>
+								))}
+							</div>
+						)}
+					</div>
+				)}
+			</div>
+		);
+	};
+
+	// Communicate iniWait state changes to parent component
+	useEffect(() => {
+		if (onInitWaitChange) {
+			onInitWaitChange(iniWait);
+			Zotero.debug(`DeepTutorChatBox: Communicated iniWait state change to parent: ${iniWait}`);
+		}
+	}, [iniWait, onInitWaitChange]);
 	return (
 		<div style={styles.container}>
 			{isLoading && <LoadingPopup />}
@@ -1880,13 +2170,14 @@ const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
 
 			<div style={styles.bottomBar}>
 				<textarea
+					ref={textareaRef}
 					style={{
 						...styles.textInput,
 						opacity: isStreaming || iniWait ? 0.5 : 1,
 						cursor: isStreaming || iniWait ? "not-allowed" : "text"
 					}}
 					value={inputValue}
-					onChange={e => setInputValue(e.target.value)}
+					onChange={handleInputChange}
 					onKeyDown={(e) => {
 						if (e.key === "Enter" && !e.shiftKey && !isStreaming && !iniWait) {
 							e.preventDefault(); // Prevent adding a new line
@@ -1920,7 +2211,8 @@ const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
 
 DeepTutorChatBox.propTypes = {
 	currentSession: PropTypes.object,
-	onSessionSelect: PropTypes.func
+	onSessionSelect: PropTypes.func,
+	onInitWaitChange: PropTypes.func
 };
 
 export default DeepTutorChatBox;

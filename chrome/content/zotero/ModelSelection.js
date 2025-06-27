@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { 
   getUserById, 
   getPreSignedUrl, 
@@ -195,15 +195,18 @@ const styles = {
     display: 'flex',
     flexDirection: 'row',
     width: '100%',
+    background: '#F8F6F7',
     marginBottom: '1.25rem',
     justifyContent: 'space-between',
     gap: '0.25rem',
+    borderRadius: '0.625rem',
     boxSizing: 'border-box',
   },
   modelTypeButton: {
     flex: '1 1 0',
     minHeight: '3rem',
     borderRadius: '0.625rem',
+    padding: '0.75rem 0.9375rem',
     border: 'none',
     fontWeight: 400,
     fontSize: '1rem',
@@ -266,7 +269,7 @@ const styles = {
     alignItems: 'flex-start',
     gap: '0.625rem',
     fontSize: '1rem',
-    lineHeight: '100%',
+    lineHeight: '135%',
     letterSpacing: '0%',
     color: '#000000',
     height: 'auto',
@@ -285,7 +288,7 @@ const styles = {
     color: '#000000',
     gap: '0.625rem',
     fontSize: '1rem',
-    lineHeight: '100%',
+    lineHeight: '135%',
     fontWeight: '400',
     letterSpacing: '0%',
     width: '100%',
@@ -431,7 +434,7 @@ const styles = {
   },
 };
 
-function ModelSelection({ onSubmit, user }) {
+const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false }, ref) => {
   const [fileList, setFileList] = useState([]);
   const [originalFileList, setOriginalFileList] = useState([]);
   const [modelName, setModelName] = useState('');
@@ -448,7 +451,19 @@ function ModelSelection({ onSubmit, user }) {
   const [buttonLayout, setButtonLayout] = useState('row');
   const [isCreateHovered, setIsCreateHovered] = useState(false);
   const [hoveredSearchItem, setHoveredSearchItem] = useState(null);
+  const [isInitializing, setIsInitializing] = useState(false);
   const buttonRef = useRef(null);
+
+  // Combine internal initialization state with external freeze state
+  const isEffectivelyFrozen = isInitializing || externallyFrozen;
+
+  // Debug logging for external freeze state changes
+  useEffect(() => {
+    if (externallyFrozen !== undefined) {
+      Zotero.debug(`ModelSelection: External freeze state changed to: ${externallyFrozen}`);
+      Zotero.debug(`ModelSelection: Effective frozen state: ${isEffectivelyFrozen}`);
+    }
+  }, [externallyFrozen, isEffectivelyFrozen]);
 
   // Use requestAnimationFrame to track button width
   useEffect(() => {
@@ -521,7 +536,7 @@ function ModelSelection({ onSubmit, user }) {
         
         const attachments = items.reduce((arr, item) => {
           if (item.isAttachment() && item.isPDFAttachment()) {
-            const fileName = item.getField('title') || item.name || item.attachmentFilename;
+            const fileName = item.getField('filename') || item.getField('title') || item.name || item.attachmentFilename;
             Zotero.debug(`BBBBB: Found PDF attachment: ${fileName}`);
             return arr.concat([{ id: item.id, name: fileName }]);
           }
@@ -532,7 +547,7 @@ function ModelSelection({ onSubmit, user }) {
                 .filter(x => x.isPDFAttachment())
                 .map(x => ({ 
                   id: x.id, 
-                  name: x.getField('title') || x.name || x.attachmentFilename 
+                  name: x.getField('filename') || x.getField('title') || x.name || x.attachmentFilename 
                 }))
             );
           }
@@ -579,7 +594,7 @@ function ModelSelection({ onSubmit, user }) {
       }
 
       // Add to fileList with correct name property
-      const fileName = item.getField('title') || item.name || item.attachmentFilename;
+      const fileName = item.getField('filename') || item.getField('title') || item.name || item.attachmentFilename;
       Zotero.debug(`BBBBB: Using file name: ${fileName}`);
       
       setFileList(prev => {
@@ -658,15 +673,21 @@ function ModelSelection({ onSubmit, user }) {
 
       Zotero.debug(`ModelSelection: Found ${pdfAttachments.length} PDF attachments`);
       
-      // Store original PDF attachments
-      setOriginalFileList(pdfAttachments);
+      // Store original PDF attachments (append to existing list)
+      setOriginalFileList(prev => {
+        // Filter out PDFs that already exist in the current originalFileList
+        const newPdfs = pdfAttachments.filter(pdf => 
+          !prev.some(existingFile => existingFile.id === pdf.id)
+        );
+        return [...prev, ...newPdfs];
+      });
 
       // Process all PDFs concurrently using Promise.all
       const pdfProcessingPromises = pdfAttachments.map(async (pdf) => {
         try {
           const { text } = await Zotero.PDFWorker.getFullText(pdf.id);
           if (text) {
-            const fileName = pdf.getField('title') || pdf.name || pdf.attachmentFilename;
+            const fileName = pdf.getField('filename') || pdf.getField('title') || pdf.name || pdf.attachmentFilename;
             Zotero.debug(`NNNNN ModelSelection: Using file name: ${fileName}`);
             return {
               id: pdf.id,
@@ -734,8 +755,9 @@ function ModelSelection({ onSubmit, user }) {
       return;
     }
 
-    // Clear any existing error message
+    // Clear any existing error message and start initializing
     setErrorMessage('');
+    setIsInitializing(true);
 
     // Determine the final session name
     const finalSessionName = modelName.trim() || backupModelName || "Default Session";
@@ -744,22 +766,107 @@ function ModelSelection({ onSubmit, user }) {
     try {
       // Handle file uploads if fileList exists
       const uploadedDocumentIds = [];
+      Zotero.debug(`ModelSelection: fileList length: ${fileList.length}`);
+      Zotero.debug(`ModelSelection: originalFileList length: ${originalFileList.length}`);
       if (fileList.length > 0) {
         for (const file of originalFileList) {
           try {
             const fileName = file.name;
             Zotero.debug('ModelSelection: Processing file:', fileName);
 
-            // Get the file as a Data URL and convert to Blob
-            const dataURI = await file.attachmentDataURI;
-            if (!dataURI) {
-                throw new Error(`Failed to get file data for: ${fileName}`);
+            // Direct file reading approach (more memory-efficient than dataURI + fetch)
+            Zotero.debug(`ModelSelection: ========== Starting direct file reading for: ${fileName} ==========`);
+            const processStartTime = Date.now();
+            
+            let blob;
+            try {
+                // Get file path and check if file exists
+                Zotero.debug(`ModelSelection: Getting file path for item ID: ${file.id}`);
+                const pathStartTime = Date.now();
+                
+                const filePath = await file.getFilePathAsync();
+                const pathDuration = Date.now() - pathStartTime;
+                
+                Zotero.debug(`ModelSelection: File path retrieved in ${pathDuration}ms: ${filePath}`);
+                
+                if (!filePath) {
+                    throw new Error(`No file path available for: ${fileName}`);
+                }
+                
+                // Check file existence
+                Zotero.debug(`ModelSelection: Checking if file exists: ${filePath}`);
+                const existsStartTime = Date.now();
+                
+                const fileExists = await IOUtils.exists(filePath);
+                const existsDuration = Date.now() - existsStartTime;
+                
+                Zotero.debug(`ModelSelection: File existence check completed in ${existsDuration}ms - exists: ${fileExists}`);
+                
+                if (!fileExists) {
+                    throw new Error(`File not found on disk: ${filePath}`);
+                }
+                
+                // Check file size to avoid memory issues
+                Zotero.debug(`ModelSelection: Getting file statistics...`);
+                const statStartTime = Date.now();
+                
+                const fileStats = await IOUtils.stat(filePath);
+                const statDuration = Date.now() - statStartTime;
+                
+                const fileSizeBytes = fileStats.size;
+                const fileSizeMB = fileSizeBytes / (1024 * 1024);
+                
+                Zotero.debug(`ModelSelection: File stats retrieved in ${statDuration}ms`);
+                Zotero.debug(`ModelSelection: File size: ${fileSizeBytes} bytes (${fileSizeMB.toFixed(2)} MB)`);
+                Zotero.debug(`ModelSelection: File modified: ${new Date(fileStats.lastModified).toISOString()}`);
+                
+                // Set reasonable size limit (100MB for now, can be adjusted)
+                const MAX_FILE_SIZE_MB = 100;
+                if (fileSizeMB > MAX_FILE_SIZE_MB) {
+                    throw new Error(`File too large: ${fileSizeMB.toFixed(2)}MB (max: ${MAX_FILE_SIZE_MB}MB)`);
+                }
+                
+                // Read file data directly
+                Zotero.debug(`ModelSelection: Starting direct file read operation...`);
+                const readStartTime = Date.now();
+                
+                const fileData = await IOUtils.read(filePath);
+                const readDuration = Date.now() - readStartTime;
+                
+                Zotero.debug(`ModelSelection: File read completed in ${readDuration}ms`);
+                Zotero.debug(`ModelSelection: Read ${fileData.length} bytes from disk`);
+                Zotero.debug(`ModelSelection: File data type: ${fileData.constructor.name}`);
+                Zotero.debug(`ModelSelection: Read speed: ${(fileSizeMB / (readDuration / 1000)).toFixed(2)} MB/s`);
+                
+                // Create blob directly from file data
+                Zotero.debug(`ModelSelection: Creating blob from file data...`);
+                const blobStartTime = Date.now();
+                
+                // Use Blob constructor from main window (required in Zotero's XPCOM context)
+                const BlobConstructor = Zotero.getMainWindow().Blob;
+                blob = new BlobConstructor([fileData], { type: 'application/pdf' });
+                const blobDuration = Date.now() - blobStartTime;
+                const totalDuration = Date.now() - processStartTime;
+                
+                Zotero.debug(`ModelSelection: Blob created in ${blobDuration}ms`);
+                Zotero.debug(`ModelSelection: Final blob - size: ${blob.size} bytes, type: ${blob.type}`);
+                Zotero.debug(`ModelSelection: Data integrity check - original: ${fileSizeBytes}, blob: ${blob.size}, match: ${fileSizeBytes === blob.size}`);
+                Zotero.debug(`ModelSelection: ========== Direct file reading completed in ${totalDuration}ms ==========`);               
+            } catch (fileError) {
+                // Limit error message size to prevent log overflow
+                const errorMsg = fileError.message.length > 500 
+                    ? fileError.message.substring(0, 500) + '...[truncated]'
+                    : fileError.message;
+                const errorStack = fileError.stack && fileError.stack.length > 1000
+                    ? fileError.stack.substring(0, 1000) + '...[truncated]'
+                    : fileError.stack;
+                
+                Zotero.debug(`ModelSelection: Direct file reading ERROR - ${errorMsg}`);
+                if (errorStack) {
+                    Zotero.debug(`ModelSelection: File reading stack: ${errorStack}`);
+                }
+                throw new Error(`Failed to read file data: ${errorMsg}`);
             }
-
-            // Convert Data URL to Blob
-            const response = await window.fetch(dataURI);
-            const blob = await response.blob();
-            Zotero.debug('ModelSelection: Converted file to Blob:', blob);
 
             // 1. Get pre-signed URL for the file
             const preSignedUrlData = await getPreSignedUrl(user.id, fileName);
@@ -781,6 +888,7 @@ function ModelSelection({ onSubmit, user }) {
 
             Zotero.debug('ModelSelection: File uploaded successfully:', fileName);
             uploadedDocumentIds.push(preSignedUrlData.documentId);
+            Zotero.debug(`ModelSelection: Uploaded document IDs: ${uploadedDocumentIds}`);
             
           } catch (fileError) {
             Zotero.debug('ModelSelection: Error uploading file:', fileError);
@@ -837,6 +945,7 @@ function ModelSelection({ onSubmit, user }) {
     } catch (error) {
       Zotero.debug('ModelSelection: Error creating session:', error);
       setErrorMessage('Failed to create session. Please try again.');
+      setIsInitializing(false);
     }
   };
 
@@ -903,8 +1012,14 @@ function ModelSelection({ onSubmit, user }) {
         Zotero.debug(`BBBBB: Found ${pdfAttachments.length} total PDF attachments from dropped items`);
         Zotero.debug(`BBBBB: Current fileList length before update: ${fileList.length}`);
         
-        // Store original PDF attachments
-        setOriginalFileList(pdfAttachments);
+        // Store original PDF attachments (append to existing list)
+        setOriginalFileList(prev => {
+          // Filter out PDFs that already exist in the current originalFileList
+          const newPdfs = pdfAttachments.filter(pdf => 
+            !prev.some(existingFile => existingFile.id === pdf.id)
+          );
+          return [...prev, ...newPdfs];
+        });
         Zotero.debug("BBBBB: Updated originalFileList with PDF attachments");
 
         // Process all PDFs concurrently using Promise.all
@@ -913,7 +1028,7 @@ function ModelSelection({ onSubmit, user }) {
             Zotero.debug(`BBBBB: Processing PDF: ${pdf.name}`);
             const { text } = await Zotero.PDFWorker.getFullText(pdf.id);
             if (text) {
-              const fileName = pdf.getField('title') || pdf.name || pdf.attachmentFilename;
+              const fileName = pdf.attachmentFilename || pdf.getField('filename') || pdf.getField('title') || pdf.name || pdf.attachmentFilename;
               Zotero.debug(`BBBBBF: Successfully extracted text from PDF: ${fileName}`);
               return {
                 id: pdf.id,
@@ -977,6 +1092,16 @@ function ModelSelection({ onSubmit, user }) {
   const handleSearchItemMouseEnter = (id) => setHoveredSearchItem(id);
   const handleSearchItemMouseLeave = () => setHoveredSearchItem(null);
 
+  // Public method to reset initializing state when component is about to close
+  const resetInitializingState = () => {
+    setIsInitializing(false);
+  };
+
+  // Expose public methods via ref
+  useImperativeHandle(ref, () => ({
+    resetInitializingState
+  }));
+
   return (
     <div style={styles.container}>
       <div style={styles.mainSection}>
@@ -987,8 +1112,13 @@ function ModelSelection({ onSubmit, user }) {
               type="text"
               value={modelName}
               onChange={e => setModelName(e.target.value)}
-              style={styles.input1}
+              style={{
+                ...styles.input1,
+                opacity: isEffectivelyFrozen ? 0.5 : 1,
+                cursor: isEffectivelyFrozen ? 'not-allowed' : 'text'
+              }}
               placeholder={backupModelName}
+              disabled={isEffectivelyFrozen}
             />
           </div>
 
@@ -1006,8 +1136,13 @@ function ModelSelection({ onSubmit, user }) {
                   <div key={file.id} style={styles.newFileListItem}>
                     <span style={styles.newFileListName}>{file.name}</span>
                     <button 
-                      style={styles.newFileListDelete}
-                      onClick={() => handleRemoveFile(file.id)}
+                      style={{
+                        ...styles.newFileListDelete,
+                        opacity: isEffectivelyFrozen ? 0.5 : 1,
+                        cursor: isEffectivelyFrozen ? 'not-allowed' : 'pointer'
+                      }}
+                      onClick={() => !isEffectivelyFrozen && handleRemoveFile(file.id)}
+                      disabled={isEffectivelyFrozen}
                     >
                       <img src={DeleteImg} alt="Delete" width="15" height="17" />
                     </button>
@@ -1025,16 +1160,21 @@ function ModelSelection({ onSubmit, user }) {
             >
               <img src={RegisSearchPath} alt="Search" style={styles.searchIcon} />
               <input
-                style={styles.searchInput}
+                style={{
+                  ...styles.searchInput,
+                  opacity: isEffectivelyFrozen ? 0.5 : 1,
+                  cursor: isEffectivelyFrozen ? 'not-allowed' : 'text'
+                }}
                 type="text"
                 value={searchValue}
-                onChange={e => setSearchValue(e.target.value)}
+                onChange={e => !isEffectivelyFrozen && setSearchValue(e.target.value)}
                 placeholder="Search for an Item"
+                disabled={isEffectivelyFrozen}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => e.preventDefault()}
               />
             </div>
-            {showSearchPopup && (
+            {showSearchPopup && !isEffectivelyFrozen && (
               <div style={styles.searchPopup}>
                 {filteredAttachments.length > 0 ? (
                   filteredAttachments.map(attachment => (
@@ -1061,14 +1201,16 @@ function ModelSelection({ onSubmit, user }) {
           <div 
             style={{
               ...styles.dragArea,
-              ...(isDragging ? styles.dragAreaActive : {})
+              ...(isDragging && !isEffectivelyFrozen ? styles.dragAreaActive : {}),
+              opacity: isEffectivelyFrozen ? 0.5 : 1,
+              cursor: isEffectivelyFrozen ? 'not-allowed' : 'default'
             }}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
+            onDragOver={!isEffectivelyFrozen ? handleDragOver : (e) => e.preventDefault()}
+            onDragLeave={!isEffectivelyFrozen ? handleDragLeave : (e) => e.preventDefault()}
+            onDrop={!isEffectivelyFrozen ? handleDrop : (e) => e.preventDefault()}
           >
             <img src={RegisDragPath} alt="Drag" style={{ width: '2.125rem', height: '2.5rem' }} />
-            Drag an Item Here
+            {isEffectivelyFrozen ? 'Initializing Session...' : 'Drag an Item Here'}
           </div>
         </div>
 
@@ -1077,24 +1219,39 @@ function ModelSelection({ onSubmit, user }) {
           <div style={styles.modelTypeRow}>
             <button
               ref={buttonRef}
-              style={getModelTypeButtonStyle(selectedType === 'lite')}
-              onClick={() => handleTypeSelection('lite')}
+              style={{
+                ...getModelTypeButtonStyle(selectedType === 'lite'),
+                opacity: isEffectivelyFrozen ? 0.5 : 1,
+                cursor: isEffectivelyFrozen ? 'not-allowed' : 'pointer'
+              }}
+              onClick={() => !isEffectivelyFrozen && handleTypeSelection('lite')}
+              disabled={isEffectivelyFrozen}
             >
               <img src={LitePath} alt="Lite" style={{ width: '1.5rem', height: '1.5rem' }} />
               LITE
             </button>
             <button
               ref={buttonRef}
-              style={getModelTypeButtonStyle(selectedType === 'normal')}
-              onClick={() => handleTypeSelection('normal')}
+              style={{
+                ...getModelTypeButtonStyle(selectedType === 'normal'),
+                opacity: isEffectivelyFrozen ? 0.5 : 1,
+                cursor: isEffectivelyFrozen ? 'not-allowed' : 'pointer'
+              }}
+              onClick={() => !isEffectivelyFrozen && handleTypeSelection('normal')}
+              disabled={isEffectivelyFrozen}
             >
               <img src={BasicPath} alt="Basic" style={{ width: '1.5rem', height: '1.5rem' }} />
               STANDARD
             </button>
             <button
               ref={buttonRef}
-              style={getModelTypeButtonStyle(selectedType === 'advanced')}
-              onClick={() => handleTypeSelection('advanced')}
+              style={{
+                ...getModelTypeButtonStyle(selectedType === 'advanced'),
+                opacity: isEffectivelyFrozen ? 0.5 : 1,
+                cursor: isEffectivelyFrozen ? 'not-allowed' : 'pointer'
+              }}
+              onClick={() => !isEffectivelyFrozen && handleTypeSelection('advanced')}
+              disabled={isEffectivelyFrozen}
             >
               <img src={AdvancedPath} alt="Advanced" style={{ width: '1.5rem', height: '1.5rem' }} />
               ADVANCED
@@ -1104,17 +1261,13 @@ function ModelSelection({ onSubmit, user }) {
             <div style={styles.modelDescription}>
               <div style={styles.modelFeature}>
                 <span style={styles.modelIcon}>🙌</span>
-                <span>Popular model - Great for most papers</span>
-              </div>
-              <div style={styles.modelFeature}>
-                <span style={styles.modelIcon}>💰</span>
-                <span>Free for all users</span>
+                <span>Our quickest model - for a quick grasp of the content.</span>
               </div>
               <div style={styles.modelLimitations}>
-                <span>❌ No summary</span>
-                <span>❌ No image understanding</span>
-                <span>❌ No advanced model like graphRAG</span>
-                <span>❌ No source content</span>
+                <span>✅ Free for all users</span>
+                <span>✅ Process raw text the fastest</span>
+                <span>✅ Source content highlight</span>
+                <span>✅ Multiple files understanding</span>
               </div>
             </div>
           )}
@@ -1124,16 +1277,12 @@ function ModelSelection({ onSubmit, user }) {
                 <span style={styles.modelIcon}>🙌</span>
                 <span>Popular model - Great for most papers</span>
               </div>
-              <div style={styles.modelFeature}>
-                <span style={styles.modelIcon}>💰</span>
-                <span>Available with Premium Subscription</span>
-              </div>
               <div style={styles.modelLimitations}>
                 <span>✅ Image understanding</span>
                 <span>✅ Inference mode with DeepSeek</span>
-                <span>✅ High quality summary</span>
-                <span>✅ Source content highlight</span>
+                <span>✅ Higher quality summary</span>
                 <span>✅ Markdown based RAG model</span>
+                <span>✅ Available with Premium Subscription</span>
               </div>
             </div>
           )}
@@ -1141,17 +1290,14 @@ function ModelSelection({ onSubmit, user }) {
             <div style={styles.modelDescription}>
               <div style={styles.modelFeature}>
                 <span style={styles.modelIcon}>🙌</span>
-                <span>Deep but Slow - Our most powerful model.<br />Take 5 - 10 min to prepare the content</span>
-              </div>
-              <div style={styles.modelFeature}>
-                <span style={styles.modelIcon}>💰</span>
-                <span>Available with Premium Subscription</span>
+                <span>Deep but Slow - Our most powerful model. It will take 5 - 10 min to prepare the content</span>
               </div>
               <div style={styles.modelLimitations}>
                 <span>✅ Everything in standard mode</span>
-                <span>🌟 Deeper understanding on figures, equations, and tables</span>
-                <span>🌟 Further enhanced context relavency</span>
-                <span>🌟 More advanced model using GraphRAG</span>
+                <span>✅ Deeper understanding on figures, equations, tables and graphs</span>
+                <span>✅ Further enhanced context relavency</span>
+                <span>✅ More advanced model using GraphRAG</span>
+                <span>✅ Available with Premium Subscription</span>
               </div>
             </div>
           )}
@@ -1159,12 +1305,18 @@ function ModelSelection({ onSubmit, user }) {
       </div>
 
       <button
-        style={createButtonDynamicStyle}
-        onClick={handleSubmit}
-        onMouseEnter={handleCreateMouseEnter}
-        onMouseLeave={handleCreateMouseLeave}
+        style={{
+          ...createButtonDynamicStyle,
+          opacity: isEffectivelyFrozen ? 0.8 : 1,
+          cursor: isEffectivelyFrozen ? 'not-allowed' : 'pointer',
+          background: isEffectivelyFrozen ? '#6B7B84' : (isCreateHovered ? '#007BD5' : SKY)
+        }}
+        onClick={!isEffectivelyFrozen ? handleSubmit : undefined}
+        onMouseEnter={!isEffectivelyFrozen ? handleCreateMouseEnter : undefined}
+        onMouseLeave={!isEffectivelyFrozen ? handleCreateMouseLeave : undefined}
+        disabled={isEffectivelyFrozen}
       >
-        Create
+        {isEffectivelyFrozen ? 'Initializing...' : 'Create'}
       </button>
 
       {errorMessage && (
@@ -1185,6 +1337,6 @@ function ModelSelection({ onSubmit, user }) {
       )}
     </div>
   );
-}
+});
 
 export default ModelSelection;
