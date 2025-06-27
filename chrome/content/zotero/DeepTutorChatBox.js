@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-unused-vars
 import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import {
@@ -8,7 +9,11 @@ import {
 	getSessionById
 } from './api/libs/api';
 const markdownit = require('markdown-it');
-const md = markdownit();
+const md = markdownit(
+	{ html: true,
+		linkify: true,
+		typographer: true }
+);
 const mk = require('resource://zotero/markdown-it-katex.js');
 md.use(mk, {
 	throwOnError: false,
@@ -1168,8 +1173,8 @@ const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
 			return "";
 		}
 		
-		// Replace <hr> with <hr/> for JSX compatibility
-		return html.replace(/<hr>/g, "<hr/>");
+		// Replace <hr> with <hr/> for JSX compatibility and remove all line breaks
+		return html.replace(/<hr>/g, "").replace(/\n/g, "");
 	};
 
 	const renderMessage = (message, index) => {
@@ -1659,6 +1664,59 @@ const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
 	return (
 		<div style={styles.container}>
 			{isLoading && <LoadingPopup />}
+            
+			{/* Add CSS styles for markdown tables */}
+			<style dangerouslySetInnerHTML={{
+				__html: `
+					.markdown table {
+						border-collapse: collapse;
+						width: 100%;
+						margin: 1rem 0;
+						font-size: 0.875rem;
+						line-height: 1.4;
+						border: 0.0625rem solid #E0E0E0;
+						border-radius: 0.5rem;
+						overflow: hidden;
+						box-shadow: 0 0.0625rem 0.125rem rgba(0,0,0,0.1);
+					}
+					.markdown thead {
+						background: #F8F6F7;
+					}
+					.markdown tbody {
+						background: #FFFFFF;
+					}
+					.markdown tr {
+						border-bottom: 0.0625rem solid #E0E0E0;
+					}
+					.markdown tr:last-child {
+						border-bottom: none;
+					}
+					.markdown tr:hover {
+						background: #F5F5F5;
+					}
+					.markdown th {
+						padding: 0.75rem 1rem;
+						text-align: left;
+						font-weight: 600;
+						color: #1C1B1F;
+						border-bottom: 0.125rem solid #E0E0E0;
+						background: #F8F6F7;
+						font-size: 0.875rem;
+						line-height: 1.4;
+						white-space: nowrap;
+					}
+					.markdown td {
+						padding: 0.75rem 1rem;
+						text-align: left;
+						color: #1C1B1F;
+						border-bottom: 0.0625rem solid #E0E0E0;
+						font-size: 0.875rem;
+						line-height: 1.4;
+						word-break: break-word;
+						vertical-align: top;
+					}
+				`
+			}} />
             
 			<div style={styles.sessionNameDiv}>
 				{currentSession?.sessionName || "New Session"}
