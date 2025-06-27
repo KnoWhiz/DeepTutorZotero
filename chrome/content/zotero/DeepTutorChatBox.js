@@ -1176,6 +1176,78 @@ const DeepTutorChatBox = ({ currentSession, onSessionSelect }) => {
 		// Replace <hr> with <hr/> for JSX compatibility and remove all line breaks
 		return html.replace(/<hr>/g, "").replace(/\n/g, "");
 	};
+	const handleSourceClick = async (source) => {
+		if (!source) {
+			Zotero.debug("DeepTutorChatBox: Source button clicked with empty source object");
+			return;
+		}
+
+		// Determine which attachment the source refers to
+		const docIdx
+            = (source.refinedIndex !== undefined && source.refinedIndex !== null)
+            	? source.refinedIndex
+            	: source.index;
+
+		if (docIdx === undefined || docIdx === null || docIdx < 0 || docIdx >= documentIds.length) {
+			Zotero.debug(`DeepTutorChatBox: Invalid source index (index=${source.index}, refinedIndex=${source.refinedIndex})`);
+			return;
+		}
+
+		const attachmentId = documentIds[docIdx];
+		if (!attachmentId) {
+			Zotero.debug(`DeepTutorChatBox: No attachment ID found for docIdx ${docIdx}`);
+			return;
+		}
+
+		Zotero.debug(`DeepTutorChatBox: Source button clicked for attachment ${attachmentId}, page ${source.page}`);
+
+		try {
+			const storageKey = `deeptutor_mapping_${sessionId}`;
+			let zoteroAttachmentId = attachmentId;
+
+			const mappingStr = Zotero.Prefs.get(storageKey);
+			if (mappingStr) {
+				const mapping = JSON.parse(mappingStr);
+				if (mapping[attachmentId]) {
+					zoteroAttachmentId = mapping[attachmentId];
+				}
+			}
+
+			const item = Zotero.Items.get(zoteroAttachmentId);
+			if (!item) {
+				Zotero.debug(`DeepTutorChatBox: No item found for ID ${zoteroAttachmentId}`);
+				return;
+			}
+
+			// Open the PDF on the correct page
+			await Zotero.FileHandlers.open(item, {
+				location: { pageIndex: source.page - 1 }
+			});
+			Zotero.debug(`DeepTutorChatBox: Opened PDF at page ${source.page}`);
+
+			// Get the reader instance for the current tab
+			const reader = Zotero.Reader.getByTabID(Zotero.getMainWindow().Zotero_Tabs.selectedID);
+			if (!reader) {
+				Zotero.debug("DeepTutorChatBox: No reader instance found");
+				return;
+			}
+			
+			// Use the new public setFindQuery method
+			const searchQuery = source.referenceString || "test";
+			Zotero.debug(`DeepTutorChatBox: Setting find query to "${searchQuery}"`);
+			
+			reader._internalReader.setFindQuery(searchQuery, {
+				primary: true,
+				openPopup: false,
+				activateSearch: true
+			});
+			
+			Zotero.debug(`DeepTutorChatBox: Successfully set find query and activated search`);
+		}
+		catch (error) {
+			Zotero.debug(`DeepTutorChatBox: Error handling source click: ${error.message}`);
+		}
+	};
 
 	const renderMessage = (message, index) => {
 		// Return nothing if it's the first message and from user
