@@ -126,7 +126,8 @@ md.use(markdownItContainer, 'source', {
 				Zotero.debug(`DeepTutorChatBox: Successfully parsed source data - page: ${sourceObj.page}`);
 				
 				// Use a safe placeholder span that React won't remove
-				return `<span class="deeptutor-source-placeholder" data-source-id="${sourceId}" data-source-data="${encodeURIComponent(sourceData)}" data-page="${sourceObj.page || 'Unknown'}">[${sourceId}]</span>`;
+				// NOTE: Don't re-encode sourceData as it's already encoded from container syntax
+				return `<span class="deeptutor-source-placeholder" data-source-id="${sourceId}" data-source-data="${sourceData}" data-page="${sourceObj.page || 'Unknown'}">[${sourceId}]</span>`;
 			} catch (error) {
 				// Fallback if parsing fails
 				Zotero.debug(`DeepTutorChatBox: Error parsing source data: ${error.message}`);
