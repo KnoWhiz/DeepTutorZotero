@@ -87,73 +87,69 @@ try {
 		};
 	};
 }
-const md = markdownit(
-	{ html: true,
-		linkify: true,
-		typographer: true }
-);
+const md = markdownit({
+	html: true,
+	linkify: true,
+	typographer: true,
+	tables: true,        // Enable built-in table support
+	breaks: false,       // GFM line breaks (optional)
+	strikethrough: true  // Enable strikethrough support
+});
+
 const mk = require('resource://zotero/markdown-it-katex.js');
 md.use(mk, {
 	throwOnError: false,
 	errorColor: "#cc0000"
 });
 
-// Configure markdown-it-container for source buttons
-Zotero.debug(`DeepTutorChatBox: Configuring markdown-it-container for source buttons`);
-md.use(markdownItContainer, 'source', {
-	validate: function(params) {
-		const trimmed = params.trim();
-		const match = trimmed.match(/^source\s+(\d+)\s+(.*)$/);
-		Zotero.debug(`DeepTutorChatBox: Container validation - params: "${trimmed}", match: ${!!match}`);
-		return match;
-	},
-	render: function (tokens, idx) {
-		const token = tokens[idx];
-		const info = token.info.trim();
-		const match = info.match(/^source\s+(\d+)\s+(.*)$/);
-		
-		Zotero.debug(`DeepTutorChatBox: Container render - token info: "${info}", nesting: ${tokens[idx].nesting}, match: ${!!match}`);
-		
-		if (tokens[idx].nesting === 1) {
-			// opening tag - create the source button
-			const sourceId = match ? match[1] : '1';
-			const sourceData = match ? match[2] : '';
-			
-			try {
-				// Parse the source data (it should be JSON-encoded)
-				Zotero.debug(`DeepTutorChatBox: Parsing source data - sourceId: ${sourceId}, sourceData length: ${sourceData.length}`);
-				const sourceObj = JSON.parse(decodeURIComponent(sourceData));
-				Zotero.debug(`DeepTutorChatBox: Successfully parsed source data - page: ${sourceObj.page}`);
-				
-				// Use a safe placeholder span that React won't remove
-				// NOTE: Don't re-encode sourceData as it's already encoded from container syntax
-				return `<span class="deeptutor-source-placeholder" data-source-id="${sourceId}" data-source-data="${sourceData}" data-page="${sourceObj.page || 'Unknown'}">[${sourceId}]</span>`;
-			} catch (error) {
-				// Fallback if parsing fails
-				Zotero.debug(`DeepTutorChatBox: Error parsing source data: ${error.message}`);
-				// Use a safe placeholder span for fallback case
-				return `<span class="deeptutor-source-placeholder" data-source-id="${sourceId}" data-page="Unknown">[${sourceId}]</span>`;
-			}
-		} else {
-			// closing tag - return empty since button is self-contained
-			return '';
-		}
-	}
-});
-
-// Test the markdown-it-container setup
+// Try to add enhanced table support with plugins
 try {
-	const testContainerSyntax = `\n\n:::source 1 %7B%22index%22%3A0%2C%22page%22%3A1%7D\n:::\n\n`;
-	const testResult = md.render(testContainerSyntax);
-	Zotero.debug(`DeepTutorChatBox: Container test - input: "${testContainerSyntax}"`);
-	Zotero.debug(`DeepTutorChatBox: Container test - output: "${testResult}"`);
-	if (testResult.includes('<span') && testResult.includes('deeptutor-source-placeholder')) {
-		Zotero.debug(`DeepTutorChatBox: Container test PASSED - source placeholders are being rendered correctly`);
+	// Try to load markdown-it-table plugin for enhanced table features
+	const markdownItTable = require('markdown-it-table');
+	md.use(markdownItTable);
+	Zotero.debug(`DeepTutorChatBox: markdown-it-table plugin loaded successfully`);
+} catch (e) {
+	Zotero.debug(`DeepTutorChatBox: markdown-it-table plugin not found, using built-in table support`);
+	
+	// Try alternative GFM plugin that includes tables
+	try {
+		const markdownItGfm = require('markdown-it-gfm');
+		md.use(markdownItGfm);
+		Zotero.debug(`DeepTutorChatBox: markdown-it-gfm plugin loaded successfully`);
+	} catch (e2) {
+		Zotero.debug(`DeepTutorChatBox: markdown-it-gfm plugin not found, using basic table support only`);
+	}
+}
+
+// Configure markdown-it-container for source buttons
+// DISABLED - Using direct HTML replacement approach instead to avoid table conflicts
+// The container plugin interferes with table parsing, so we'll use post-processing instead
+
+// Test removed - no longer using container plugin
+
+// Test the markdown-it table setup with HTML support
+try {
+	const testTableSyntax = `
+| Header 1 | Header 2 | Header 3 |
+|----------|----------|----------|
+| Cell 1   | Cell 2   | Cell 3   |
+| Cell A <span>HTML</span> | Cell B | Cell C |
+`;
+	const testTableResult = md.render(testTableSyntax);
+	Zotero.debug(`DeepTutorChatBox: Table test - input: "${testTableSyntax.trim()}"`);
+	Zotero.debug(`DeepTutorChatBox: Table test - output: "${testTableResult}"`);
+	if (testTableResult.includes('<table') && testTableResult.includes('<th') && testTableResult.includes('<td')) {
+		Zotero.debug(`DeepTutorChatBox: Table test PASSED - tables are being rendered correctly`);
+		if (testTableResult.includes('<span>HTML</span>')) {
+			Zotero.debug(`DeepTutorChatBox: HTML support test PASSED - HTML in tables is preserved`);
+		} else {
+			Zotero.debug(`DeepTutorChatBox: HTML support test FAILED - HTML in tables was escaped`);
+		}
 	} else {
-		Zotero.debug(`DeepTutorChatBox: Container test FAILED - no source placeholders found in output`);
+		Zotero.debug(`DeepTutorChatBox: Table test FAILED - no table elements found in output`);
 	}
 } catch (error) {
-	Zotero.debug(`DeepTutorChatBox: Container test ERROR: ${error.message}`);
+	Zotero.debug(`DeepTutorChatBox: Table test ERROR: ${error.message}`);
 }
 
 // Enums
@@ -690,6 +686,100 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect, onInitWaitChan
 			handleSourceClick(testSourceData);
 		};
 		
+		// Debug function for testing table with source buttons
+		window.testDeepTutorTableWithSources = () => {
+			const testTableWithSources = `
+Here's a comparison table with source references:
+
+| Metric | Value 1 | Value 2 | Reference |
+|--------|---------|---------|-----------|
+| Accuracy | 95.2% [<1>] | 89.7% [<2>] | Study A vs Study B |
+| Precision | 0.92 [<1>] | 0.88 [<2>] | Measurement data |
+| Recall | 0.89 | 0.85 [<3>] | Performance metrics |
+
+The table above shows [<1>] the comparison results.
+`;
+			
+			const testSources = [
+				{
+					index: 0,
+					refinedIndex: 0,
+					page: 15,
+					referenceString: "accuracy measurement",
+					sourceAnnotation: { pageNum: 15, startChar: 100, endChar: 120, success: true, similarity: 0.95 }
+				},
+				{
+					index: 1,
+					refinedIndex: 1,
+					page: 23,
+					referenceString: "precision data",
+					sourceAnnotation: { pageNum: 23, startChar: 200, endChar: 220, success: true, similarity: 0.88 }
+				},
+				{
+					index: 2,
+					refinedIndex: 2,
+					page: 31,
+					referenceString: "recall metrics",
+					sourceAnnotation: { pageNum: 31, startChar: 300, endChar: 320, success: true, similarity: 0.92 }
+				}
+			];
+			
+			const testMessage = {
+				id: 'test-table-message',
+				subMessages: [{
+					text: testTableWithSources,
+					sources: testSources,
+					contentType: ContentType.TEXT
+				}],
+				role: MessageRole.TUTOR,
+				creationTime: new Date().toISOString()
+			};
+			
+			Zotero.debug(`DeepTutorChatBox: Testing table with source buttons using direct HTML approach`);
+			setMessages(prev => [...prev, testMessage]);
+		};
+		
+		// Debug function for testing simple tables without source buttons
+		window.testDeepTutorTable = () => {
+			const testTableText = `
+Here's a comparison table for testing:
+
+| Metric | Value A | Value B | Value C | Status |
+|--------|---------|---------|---------|--------|
+| Accuracy | 95.2% | 89.7% | 92.1% | Good |
+| Precision | 0.92 | 0.88 | 0.90 | Excellent |
+| Recall | 0.89 | 0.85 | 0.87 | Good |
+| F1-Score | 0.905 | 0.865 | 0.885 | Very Good |
+
+The table above shows performance metrics across different models.
+
+## Another Table Example
+
+| Feature | Description | Priority | Estimated Hours |
+|---------|-------------|----------|-----------------|
+| User Authentication | Login/logout functionality | High | 16 |
+| Data Export | Export to CSV/PDF | Medium | 12 |
+| Real-time Updates | Live data synchronization | Low | 24 |
+| Mobile Support | Responsive design | Medium | 20 |
+
+This demonstrates multiple table formats working correctly.
+`;
+			
+			const testMessage = {
+				id: 'test-simple-table-message',
+				subMessages: [{
+					text: testTableText,
+					sources: [],
+					contentType: ContentType.TEXT
+				}],
+				role: MessageRole.TUTOR,
+				creationTime: new Date().toISOString()
+			};
+			
+			Zotero.debug(`DeepTutorChatBox: Testing simple table without source buttons`);
+			setMessages(prev => [...prev, testMessage]);
+		};
+		
 		// Cleanup function
 		return () => {
 			document.removeEventListener('click', handleDocumentClick);
@@ -698,6 +788,12 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect, onInitWaitChan
 			}
 			if (window.testDeepTutorSourceButton) {
 				delete window.testDeepTutorSourceButton;
+			}
+			if (window.testDeepTutorTableWithSources) {
+				delete window.testDeepTutorTableWithSources;
+			}
+			if (window.testDeepTutorTable) {
+				delete window.testDeepTutorTable;
 			}
 		};
 	}, [sessionId, documentIds]); // Re-setup when session or documents change
@@ -1484,7 +1580,7 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect, onInitWaitChan
 		Zotero.debug(`DeepTutorChatBox: formatResponseForMarkdown - Original text length: ${text.length}`);
 		Zotero.debug(`DeepTutorChatBox: formatResponseForMarkdown - Available sources: ${subMessage?.sources?.length || 0}`);
 		
-		// Replace source references with container syntax
+		// Replace source references with HTML spans directly (table-friendly approach)
 		formattedText = formattedText.replace(/\[<(\d{1,2})>\]/g, (match, sourceId) => {
 			const sourceIndex = parseInt(sourceId, 10) - 1; // Convert to 0-based index
 			
@@ -1494,7 +1590,7 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect, onInitWaitChan
 			if (subMessage && subMessage.sources && subMessage.sources[sourceIndex]) {
 				const source = subMessage.sources[sourceIndex];
 				
-				// Encode source data as JSON for the container
+				// Create source data JSON
 				const sourceDataJson = JSON.stringify({
 					index: source.index || sourceIndex,
 					refinedIndex: source.refinedIndex !== undefined ? source.refinedIndex : source.index || sourceIndex,
@@ -1503,10 +1599,10 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect, onInitWaitChan
 					sourceAnnotation: source.sourceAnnotation || {}
 				});
 				
-				// Create container syntax with proper spacing and newlines
-				const containerSyntax = `\n\n:::source ${sourceId} ${encodeURIComponent(sourceDataJson)}\n:::\n\n`;
-				Zotero.debug(`DeepTutorChatBox: Generated container syntax for source ${sourceId}: "${containerSyntax}"`);
-				return containerSyntax;
+				// Create HTML span directly (no container syntax to avoid table conflicts)
+				const htmlSpan = `<span class="deeptutor-source-placeholder" data-source-id="${sourceId}" data-source-data="${encodeURIComponent(sourceDataJson)}" data-page="${source.page || 'Unknown'}">[${sourceId}]</span>`;
+				Zotero.debug(`DeepTutorChatBox: Generated HTML span for source ${sourceId}: "${htmlSpan}"`);
+				return htmlSpan;
 			} else {
 				// Fallback if source not found
 				const fallbackData = JSON.stringify({
@@ -1516,9 +1612,9 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect, onInitWaitChan
 					referenceString: '',
 					sourceAnnotation: {}
 				});
-				const containerSyntax = `\n\n:::source ${sourceId} ${encodeURIComponent(fallbackData)}\n:::\n\n`;
-				Zotero.debug(`DeepTutorChatBox: Generated fallback container syntax for source ${sourceId}: "${containerSyntax}"`);
-				return containerSyntax;
+				const htmlSpan = `<span class="deeptutor-source-placeholder" data-source-id="${sourceId}" data-source-data="${encodeURIComponent(fallbackData)}" data-page="Unknown">[${sourceId}]</span>`;
+				Zotero.debug(`DeepTutorChatBox: Generated fallback HTML span for source ${sourceId}: "${htmlSpan}"`);
+				return htmlSpan;
 			}
 		});
 		
@@ -2385,6 +2481,7 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect, onInitWaitChan
 						border-radius: 0.5rem;
 						overflow: hidden;
 						box-shadow: 0 0.0625rem 0.125rem rgba(0,0,0,0.1);
+						background: #FFFFFF;
 					}
 					.markdown thead {
 						background: #F8F6F7;
@@ -2409,8 +2506,10 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect, onInitWaitChan
 						border-bottom: 0.125rem solid #E0E0E0;
 						background: #F8F6F7;
 						font-size: 0.875rem;
-						line-height: 1.4;
-						white-space: nowrap;
+						line-height: 1.6;
+						white-space: normal;
+						min-height: 2em;
+						vertical-align: top;
 					}
 					.markdown td {
 						padding: 0.75rem 1rem;
@@ -2418,9 +2517,29 @@ const DeepTutorChatBox = ({ currentSession, key, onSessionSelect, onInitWaitChan
 						color: #1C1B1F;
 						border-bottom: 0.0625rem solid #E0E0E0;
 						font-size: 0.875rem;
-						line-height: 1.4;
+						line-height: 1.6;
 						word-break: break-word;
 						vertical-align: top;
+						min-height: 2em;
+					}
+					
+					
+					/* Special styling for source buttons within tables */
+					.markdown table .deeptutor-source-button {
+						width: 1.2em !important;
+						height: 1.2em !important;
+						font-size: 0.65em !important;
+						margin: 0 0.15em !important;
+						vertical-align: middle !important;
+					}
+					
+					/* Special styling for source placeholders within tables */
+					.markdown table .deeptutor-source-placeholder {
+						width: 1.2em !important;
+						height: 1.2em !important;
+						font-size: 0.65em !important;
+						margin: 0 0.15em !important;
+						vertical-align: middle !important;
 					}
 					.deeptutor-source-button {
 						background: #0687E5 !important;
