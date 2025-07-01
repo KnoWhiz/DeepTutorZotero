@@ -1574,11 +1574,39 @@ This demonstrates multiple table formats working correctly.
 			return '';
 		}
 		
-		// Convert source references [<1>] to markdown-it-container syntax
-		let formattedText = text;
+		// First, escape problematic mathematical symbols for XML compatibility
+		let formattedText = text
+			// Convert Ca$^{2+}$ to Ca<sup>2+</sup>
+			.replace(/Ca\$\^\{?2\+\}\$?/g, 'Ca<sup>2+</sup>')
+			// Convert other LaTeX superscripts: $^{text}$ to <sup>text</sup>
+			.replace(/\$\^\{([^}]+)\}\$/g, '<sup>$1</sup>')
+			// Convert standalone superscripts: $^text$ to <sup>text</sup>
+			.replace(/\$\^([a-zA-Z0-9\+\-]+)\$/g, '<sup>$1</sup>')
+			// Convert Greek letters to HTML entities
+			.replace(/β/g, '&beta;')
+			.replace(/α/g, '&alpha;')
+			.replace(/γ/g, '&gamma;')
+			.replace(/δ/g, '&delta;')
+			.replace(/ε/g, '&epsilon;')
+			.replace(/θ/g, '&theta;')
+			.replace(/λ/g, '&lambda;')
+			.replace(/μ/g, '&mu;')
+			.replace(/π/g, '&pi;')
+			.replace(/ρ/g, '&rho;')
+			.replace(/σ/g, '&sigma;')
+			.replace(/τ/g, '&tau;')
+			.replace(/φ/g, '&phi;')
+			.replace(/χ/g, '&chi;')
+			.replace(/ψ/g, '&psi;')
+			.replace(/ω/g, '&omega;')
+			// Convert any remaining standalone $ to HTML entity
+			.replace(/\$/g, '&#36;')
+			// Convert standalone ^ to HTML entity (for any remaining cases)
+			.replace(/\^/g, '&#94;');
 		
 		Zotero.debug(`DeepTutorChatBox: formatResponseForMarkdown - Original text length: ${text.length}`);
 		Zotero.debug(`DeepTutorChatBox: formatResponseForMarkdown - Available sources: ${subMessage?.sources?.length || 0}`);
+		Zotero.debug(`DeepTutorChatBox: formatResponseForMarkdown - Applied mathematical symbol escaping`);
 		
 		// Replace source references with HTML spans directly (table-friendly approach)
 		formattedText = formattedText.replace(/\[<(\d{1,2})>\]/g, (match, sourceId) => {
@@ -1659,9 +1687,8 @@ This demonstrates multiple table formats working correctly.
 			// Replace <track> tags to be self-closing
 			.replace(/<track([^>]*?)>/g, "<track$1/>")
 			// Replace <wbr> tags to be self-closing
-			.replace(/<wbr([^>]*?)>/g, "<wbr$1/>")
-			// Remove line breaks
-			.replace(/\n/g, "");
+			.replace(/<wbr([^>]*?)>/g, "<wbr$1/>");
+			// Note: Newlines are preserved to maintain proper XML structure
 		
 		return processedHtml;
 	};
@@ -1785,6 +1812,15 @@ This demonstrates multiple table formats working correctly.
 							const processedResult = processMarkdownResult(result);
 							Zotero.debug(`DeepTutorChatBox: Processed result length: ${processedResult.length}`);
 							Zotero.debug(`DeepTutorChatBox: Processed result (first 1000 chars): ${processedResult.substring(0, 1000)}`);
+							
+							// Compare HTML vs XML conversion
+							if (result !== processedResult) {
+								Zotero.debug(`1234567890  DeepTutorChatBox: XML conversion made changes - HTML vs XML comparison:`);
+								Zotero.debug(`1234567890  DeepTutorChatBox: Original HTML: ${result}`);
+								Zotero.debug(`1234567890DeepTutorChatBox: Converted XML: ${processedResult}`);
+							} else {
+								Zotero.debug(`DeepTutorChatBox: XML conversion made no changes - HTML was already XML-compatible`);
+							}
 							
 							return (
 								<div key={subIndex} style={styles.messageText}>

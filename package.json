@@ -23,6 +23,7 @@
     "amazon-cognito-identity-js": "^6.3.12",
     "bluebird": "^3.7.2",
     "classnames": "^2.2.6",
+    "html-react-parser": "^5.2.5",
     "markdown-it": "^14.1.0",
     "markdown-it-container": "^4.0.0",
     "markdown-it-katex": "^2.0.3",
