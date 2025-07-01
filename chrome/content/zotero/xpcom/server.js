@@ -394,7 +394,16 @@ Zotero.Server.DataListener.prototype._generateResponse = function (status, conte
 		response += "X-Zotero-Version: "+Zotero.version+"\r\n";
 		response += "X-Zotero-Connector-API-Version: "+CONNECTOR_API_VERSION+"\r\n";
 		
-		if (this.origin === ZOTERO_CONFIG.BOOKMARKLET_ORIGIN) {
+		// Check for DeepTutor domains
+		var isDeepTutorDomain = this.origin && (
+			this.origin.startsWith('https://deeptutor.knowhiz.us') ||
+			this.origin.startsWith('https://staging.deeptutor.knowhiz.us') ||
+			this.origin.startsWith('http://deeptutor.knowhiz.us') ||
+			this.origin.startsWith('http://staging.deeptutor.knowhiz.us') ||
+			this.origin.startsWith('http://localhost:3000')
+		);
+		
+		if (this.origin === ZOTERO_CONFIG.BOOKMARKLET_ORIGIN || isDeepTutorDomain) {
 			response += "Access-Control-Allow-Origin: " + this.origin + "\r\n";
 			response += "Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n";
 			response += "Access-Control-Allow-Headers: Content-Type,X-Zotero-Connector-API-Version,X-Zotero-Version\r\n";
@@ -454,7 +463,9 @@ Zotero.Server.DataListener.prototype._processEndpoint = Zotero.Promise.coroutine
 		//
 		// [1] https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Simple_requests
 		var whitelistedEndpoints = [
-			'/connector/ping'
+			'/connector/ping',
+			'/deeptutor/sendText',
+			'/deeptutor/health'
 		];
 		var simpleRequestContentTypes = [
 			'application/x-www-form-urlencoded',

@@ -406,7 +406,9 @@ var DeepTutor = class DeepTutor extends React.Component {
 		this._modelSelectionFreezeTimer = null;
 
 		// Initialize localhost server
+		console.log("🔧 DeepTutor: Initializing localhost server...");
 		this.localhostServer = new DeepTutorLocalhostServer();
+		console.log("📋 DeepTutor: Localhost server instance created");
 	}
 
 	async componentDidMount() {
@@ -414,15 +416,26 @@ var DeepTutor = class DeepTutor extends React.Component {
 		this._loadingPromiseResolve();
 		Zotero.debug("DeepTutor: Component mounted");
 
+		// Make instance available globally for testing
+		if (typeof window !== "undefined") {
+			window.deepTutorInstance = this;
+			console.log("🌐 DeepTutor: Instance made available globally as window.deepTutorInstance");
+		}
+
 		// Start the localhost server
 		try {
+			console.log("🚀 DeepTutor: Attempting to start localhost server...");
 			const serverStarted = await this.localhostServer.start();
 			if (serverStarted) {
+				console.log("✅ DeepTutor: Localhost server started successfully!");
+				console.log("🌐 Server URL:", this.localhostServer.getServerUrl());
 				Zotero.debug(`DeepTutor: Localhost server started at ${this.localhostServer.getServerUrl()}`);
 			} else {
+				console.log("❌ DeepTutor: Failed to start localhost server");
 				Zotero.debug("DeepTutor: Failed to start localhost server");
 			}
 		} catch (error) {
+			console.error("❌ DeepTutor: Error starting localhost server:", error.message);
 			Zotero.debug(`DeepTutor: Error starting localhost server: ${error.message}`);
 		}
 
@@ -1509,6 +1522,56 @@ var DeepTutor = class DeepTutor extends React.Component {
 		else {
 			// iniWait became false, but keep frozen until timer expires
 			Zotero.debug(`DeepTutor: iniWait became false, but keeping model selection frozen until timer expires`);
+		}
+	};
+
+	/**
+	 * Test method for localhost server - can be called from browser console
+	 * Usage: window.deepTutorInstance.testLocalhostServer()
+	 */
+	testLocalhostServer = async () => {
+		try {
+			console.log("🧪 DeepTutor: Testing localhost server...");
+			
+			if (!this.localhostServer) {
+				console.error("❌ DeepTutor: Localhost server not initialized");
+				return;
+			}
+			
+			console.log("📊 DeepTutor: Server status:", {
+				isRunning: this.localhostServer.isServerRunning(),
+				serverUrl: this.localhostServer.getServerUrl(),
+				port: this.localhostServer.port
+			});
+			
+			// Check available endpoints
+			const allEndpoints = this.localhostServer.getAvailableEndpoints();
+			const deeptutorEndpoints = this.localhostServer.getDeepTutorEndpoints();
+			
+			console.log("🔗 DeepTutor: All available endpoints:", allEndpoints);
+			console.log("🎯 DeepTutor: DeepTutor endpoints:", deeptutorEndpoints);
+			
+			// Test sending a message
+			const testMessage = "Test message from DeepTutor console!";
+			console.log("📤 DeepTutor: Sending test message:", testMessage);
+			
+			const result = await this.localhostServer.sendText(testMessage);
+			console.log("📥 DeepTutor: Send result:", result);
+			
+			// Test health endpoint if server is running
+			if (this.localhostServer.isServerRunning()) {
+				try {
+					const healthResponse = await fetch(`${this.localhostServer.getServerUrl()}/deeptutor/health`);
+					const healthData = await healthResponse.json();
+					console.log("🏥 DeepTutor: Health check result:", healthData);
+				} catch (healthError) {
+					console.error("❌ DeepTutor: Health check failed:", healthError.message);
+				}
+			}
+			
+			console.log("✅ DeepTutor: Localhost server test completed");
+		} catch (error) {
+			console.error("❌ DeepTutor: Localhost server test failed:", error.message);
 		}
 	};
 

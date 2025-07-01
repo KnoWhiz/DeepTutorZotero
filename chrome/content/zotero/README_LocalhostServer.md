@@ -1,22 +1,29 @@
-# DeepTutor Localhost Server
+# DeepTutor Localhost Server Integration
 
-This document describes the localhost server functionality that is automatically started when DeepTutor runs. The server provides an API endpoint that allows external applications to send text messages to DeepTutor, which will be displayed as popups.
+This document describes the DeepTutor server integration that works with Zotero's existing HTTP server infrastructure. The integration provides an API endpoint that allows external applications to send text messages to DeepTutor, which will be displayed as popups.
 
 ## Overview
 
-The localhost server is a simple HTTP server that runs on port 3001 by default. It provides a REST API endpoint called `sendText` that accepts POST requests with text content and displays it as a popup in the DeepTutor interface.
+The DeepTutor server integration leverages Zotero's existing HTTP server infrastructure instead of creating a separate server. It registers custom endpoints with Zotero's server to provide text messaging functionality.
 
 ## Features
 
-- **Automatic Startup**: The server starts automatically when DeepTutor is initialized
-- **Cross-Platform Support**: Works in Firefox/Thunderbird (XPCOM), Node.js, and browser environments
+- **Zotero Integration**: Uses Zotero's existing HTTP server infrastructure
+- **Automatic Startup**: The integration starts automatically when DeepTutor is initialized
 - **Popup Display**: Shows received text in a styled popup with close functionality
 - **Health Check**: Provides a health endpoint for monitoring server status
-- **CORS Support**: Includes proper CORS headers for cross-origin requests
+- **CORS Support**: Inherits CORS support from Zotero's server implementation
+
+## How It Works
+
+1. **Server Detection**: Checks if Zotero.Server is available
+2. **Server Initialization**: Initializes Zotero's HTTP server if not already running
+3. **Endpoint Registration**: Registers custom endpoints with Zotero's server
+4. **Request Handling**: Processes incoming requests and displays popups
 
 ## API Endpoints
 
-### POST /sendText
+### POST /deeptutor/sendText
 
 Sends text to be displayed as a popup in DeepTutor.
 
@@ -36,16 +43,16 @@ Sends text to be displayed as a popup in DeepTutor.
 }
 ```
 
-### GET /health
+### GET /deeptutor/health
 
-Checks the health status of the server.
+Checks the health status of the DeepTutor integration.
 
 **Response:**
 ```json
 {
   "status": "healthy",
-  "server": "DeepTutor Localhost Server",
-  "port": 3001,
+  "server": "DeepTutor Integration with Zotero HTTP Server",
+  "port": 23119,
   "timestamp": "2024-01-01T12:00:00.000Z"
 }
 ```
@@ -55,7 +62,8 @@ Checks the health status of the server.
 ### 1. Using curl from command line
 
 ```bash
-curl -X POST http://localhost:3001/sendText \
+# First, find the Zotero server port (usually 23119)
+curl -X POST http://localhost:23119/deeptutor/sendText \
   -H "Content-Type: application/json" \
   -d '{"text":"Hello from command line!"}'
 ```
@@ -63,7 +71,7 @@ curl -X POST http://localhost:3001/sendText \
 ### 2. Using JavaScript fetch API
 
 ```javascript
-const response = await fetch("http://localhost:3001/sendText", {
+const response = await fetch("http://localhost:23119/deeptutor/sendText", {
   method: "POST",
   headers: {
     "Content-Type": "application/json"
@@ -75,154 +83,116 @@ const result = await response.json();
 console.log(result);
 ```
 
-### 3. Using Python requests
-
-```python
-import requests
-
-response = requests.post(
-    "http://localhost:3001/sendText",
-    json={"text": "Hello from Python!"}
-)
-
-print(response.json())
-```
-
-### 4. Programmatically from within DeepTutor
+### 3. Testing from browser console
 
 ```javascript
-// Import the test functions
-import { sendTextFromDeepTutor } from './testLocalhostServer.js';
+// Test the server integration
+testDeepTutorServer();
 
-// Send text programmatically
-await sendTextFromDeepTutor("Hello from DeepTutor!");
+// Test the DeepTutor instance
+testDeepTutorInstance();
+
+// Test environment detection
+testEnvironment();
 ```
 
-## Server Configuration
+## Server Port
 
-### Port Configuration
+The DeepTutor integration uses Zotero's HTTP server port, which is typically **23119** by default. You can check the actual port by:
 
-The server runs on port 3001 by default. You can change this by modifying the constructor call in `DeepTutor.jsx`:
-
-```javascript
-// In DeepTutor.jsx constructor
-this.localhostServer = new DeepTutorLocalhostServer(3002); // Custom port
-```
-
-### Environment Detection
-
-The server automatically detects the environment and uses the appropriate implementation:
-
-- **Firefox/Thunderbird**: Uses XPCOM for native HTTP server functionality
-- **Node.js**: Uses Node.js built-in HTTP server
-- **Browser**: Uses polling mechanism with localStorage as fallback
-
-## Popup Features
-
-The popup that displays received text includes:
-
-- **Styled Design**: Matches DeepTutor's visual theme with blue accent colors
-- **Close Button**: X button in the top-right corner
-- **Auto-Close**: Automatically disappears after 10 seconds
-- **Scrollable Content**: Handles long text with scrollbars
-- **XSS Protection**: HTML content is properly escaped
-- **Responsive**: Adapts to different screen sizes
-
-## Error Handling
-
-The server includes comprehensive error handling:
-
-- **Invalid JSON**: Returns 400 error for malformed requests
-- **Missing Text**: Uses default message if no text provided
-- **Server Errors**: Returns 500 error for internal server issues
-- **Network Issues**: Graceful handling of connection problems
+1. Looking at the console output when DeepTutor starts
+2. Running `testEnvironment()` in the browser console
+3. Checking `Zotero.Server.port` in the browser console
 
 ## Testing
 
-Use the provided test functions in `testLocalhostServer.js` to verify functionality:
+### Browser Console Testing
+
+Load the test script and run the following functions:
 
 ```javascript
-import { testLocalhostServer } from './testLocalhostServer.js';
+// Test the server integration
+testDeepTutorServer();
 
-// Run all tests
-await testLocalhostServer();
+// Test the DeepTutor instance
+testDeepTutorInstance();
 
-// Test specific functionality
-await testSendTextViaFetch();
-await testHealthEndpoint();
+// Test environment detection
+testEnvironment();
 ```
 
-## Security Considerations
+### Manual Testing
 
-- **Localhost Only**: Server only accepts connections from localhost
-- **No Authentication**: Intended for local development and testing
-- **XSS Protection**: All displayed text is HTML-escaped
-- **CORS Headers**: Properly configured for cross-origin requests
+1. **Health Check:**
+   ```bash
+   curl http://localhost:23119/deeptutor/health
+   ```
+
+2. **Send Text:**
+   ```bash
+   curl -X POST http://localhost:23119/deeptutor/sendText \
+     -H "Content-Type: application/json" \
+     -d '{"text":"Test message"}'
+   ```
 
 ## Troubleshooting
 
-### Server Won't Start
+### Server Not Starting
 
-1. Check if port 3001 is already in use
-2. Verify that the environment supports HTTP server creation
-3. Check browser console for error messages
+1. Check if Zotero.Server is available:
+   ```javascript
+   console.log(typeof Zotero?.Server);
+   ```
 
-### Popup Not Displaying
+2. Check if endpoints are registered:
+   ```javascript
+   console.log(Zotero.Server.Endpoints["/deeptutor/sendText"]);
+   ```
 
-1. Verify the server is running by calling the health endpoint
-2. Check that the request is properly formatted
-3. Look for JavaScript errors in the browser console
+3. Check server port:
+   ```javascript
+   console.log(Zotero.Server.port);
+   ```
 
-### Connection Refused
+### Endpoints Not Working
 
-1. Ensure DeepTutor is running and the server has started
-2. Check firewall settings
-3. Verify the correct port is being used
+1. Verify the server is running:
+   ```javascript
+   testEnvironment();
+   ```
 
-## Integration with External Applications
+2. Check for endpoint registration:
+   ```javascript
+   console.log(Object.keys(Zotero.Server.Endpoints || {}));
+   ```
 
-The localhost server allows external applications to communicate with DeepTutor:
+3. Test with the provided test functions:
+   ```javascript
+   testDeepTutorServer();
+   ```
 
-### Example: Integration with Python Script
+## Integration Details
 
-```python
-import requests
-import time
+The DeepTutor server integration:
 
-def send_message_to_deeptutor(message):
-    try:
-        response = requests.post(
-            "http://localhost:3001/sendText",
-            json={"text": message},
-            timeout=5
-        )
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        print(f"Error sending message: {e}")
-        return None
+1. **Uses Zotero's Server Infrastructure**: Leverages the existing `Zotero.Server` implementation
+2. **Registers Custom Endpoints**: Adds `/deeptutor/sendText` and `/deeptutor/health` endpoints
+3. **Handles HTTP Requests**: Processes incoming requests using Zotero's request handling system
+4. **Displays Popups**: Creates styled popups in the browser window
+5. **Provides Error Handling**: Includes proper error handling and logging
 
-# Send a message
-result = send_message_to_deeptutor("Processing complete!")
-if result and result.get("success"):
-    print("Message sent successfully")
-```
+## Security
 
-### Example: Integration with Shell Script
+- **Localhost Only**: The server only accepts connections from localhost
+- **CORS Protection**: Inherits CORS protection from Zotero's server implementation
+- **Input Validation**: Validates incoming requests and sanitizes text content
+- **XSS Prevention**: Escapes HTML content to prevent XSS attacks
 
-```bash
-#!/bin/bash
+## Dependencies
 
-send_message() {
-    local message="$1"
-    curl -X POST http://localhost:3001/sendText \
-        -H "Content-Type: application/json" \
-        -d "{\"text\":\"$message\"}" \
-        -s
-}
-
-# Send a message
-send_message "Backup completed successfully!"
-```
+- **Zotero.Server**: Requires Zotero's HTTP server infrastructure
+- **Components**: Uses Mozilla's XPCOM components for server functionality
+- **Browser APIs**: Uses standard browser APIs for popup display
 
 ## License
 
