@@ -125,6 +125,13 @@ const browserifyConfigs = [
 		config: {
 			standalone: 'markdown-it-katex'
 		}
+	},
+	{
+		src: 'node_modules/xmldom/lib/dom.js',
+		dest: 'resource/xmldom.js',
+		config: {
+			standalone: 'xmldom'
+		}
 	}
 ];
 
@@ -152,6 +159,7 @@ const jsFiles = [
 	'resource/vs/language/typescript/tsWorker.js',
 	'resource/monacopilot.mjs',
 	'resource/monacopilot-core.mjs',
+	'resource/xmldom.js',
 ];
 
 const scssFiles = [
