@@ -96,12 +96,12 @@ const md = markdownit({
 	strikethrough: true  // Enable strikethrough support
 });
 
-// TEMPORARILY COMMENTED OUT: markdown-it-katex plugin to test XML parsing issues
-// const mk = require('resource://zotero/markdown-it-katex.js');
-// md.use(mk, {
-// 	throwOnError: false,
-// 	errorColor: "#cc0000"
-// });
+// Re-enable markdown-it-katex plugin now that XML parsing is fixed
+const mk = require('resource://zotero/markdown-it-katex.js');
+md.use(mk, {
+	throwOnError: false,
+	errorColor: "#cc0000"
+});
 
 // Try to add enhanced table support with plugins
 try {
@@ -799,8 +799,7 @@ This demonstrates multiple table formats working correctly.
 		};
 	}, [sessionId, documentIds]); // Re-setup when session or documents change
 
-	// TEMPORARILY COMMENTED OUT: Convert placeholder spans to actual buttons to test XML parsing issues
-	/*
+	// Re-enable placeholder to button conversion now that XML parsing is fixed
 	// Convert placeholder spans to actual buttons after React renders
 	useEffect(() => {
 		const convertPlaceholdersToButtons = () => {
@@ -838,7 +837,6 @@ This demonstrates multiple table formats working correctly.
 			clearTimeout(timeoutId);
 		};
 	}, [messages]); // Run after messages update
-	*/
 
 	// Function to adjust textarea height based on content
 	const adjustTextareaHeight = () => {
@@ -1578,8 +1576,7 @@ This demonstrates multiple table formats working correctly.
 			return '';
 		}
 		
-		// TEMPORARILY COMMENTED OUT: Mathematical symbol processing to test XML parsing issues
-		/*
+		// Re-enable mathematical symbol processing now that XML parsing is fixed
 		// First, escape problematic mathematical symbols for XML compatibility
 		let formattedText = text
 			// Convert Ca$^{2+}$ to Ca<sup>2+</sup>
@@ -1609,17 +1606,12 @@ This demonstrates multiple table formats working correctly.
 			.replace(/\$/g, '&#36;')
 			// Convert standalone ^ to HTML entity (for any remaining cases)
 			.replace(/\^/g, '&#94;');
-		*/
-		
-		// TEMPORARY: Skip mathematical processing, use original text
-		let formattedText = text;
 		
 		Zotero.debug(`DeepTutorChatBox: formatResponseForMarkdown - Original text length: ${text.length}`);
 		Zotero.debug(`DeepTutorChatBox: formatResponseForMarkdown - Available sources: ${subMessage?.sources?.length || 0}`);
-		Zotero.debug(`DeepTutorChatBox: formatResponseForMarkdown - SKIPPED mathematical symbol escaping for testing`);
+		Zotero.debug(`DeepTutorChatBox: formatResponseForMarkdown - Applied mathematical symbol escaping and source processing`);
 		
-		// TEMPORARILY COMMENTED OUT: Source button processing to test XML parsing issues
-		/*
+		// Re-enable source button processing now that XML parsing is fixed
 		// Replace source references with HTML spans directly (table-friendly approach)
 		formattedText = formattedText.replace(/\[<(\d{1,2})>\]/g, (match, sourceId) => {
 			const sourceIndex = parseInt(sourceId, 10) - 1; // Convert to 0-based index
@@ -1657,7 +1649,6 @@ This demonstrates multiple table formats working correctly.
 				return htmlSpan;
 			}
 		});
-		*/
 		
 		Zotero.debug(`DeepTutorChatBox: formatResponseForMarkdown - Final formatted text length: ${formattedText.length}`);
 		if (formattedText !== text) {
@@ -2742,7 +2733,7 @@ This demonstrates multiple table formats working correctly.
 		<div style={styles.container}>
 			{isLoading && <LoadingPopup />}
             
-			{/* Add CSS styles for markdown tables only - source button styles commented out for testing */}
+			{/* Add CSS styles for markdown tables and source buttons */}
 			<style dangerouslySetInnerHTML={{
 				__html: `
 					.markdown table {
@@ -2797,10 +2788,7 @@ This demonstrates multiple table formats working correctly.
 						min-height: 2em;
 					}
 					
-					/* TEMPORARILY COMMENTED OUT: Source button styles to test XML parsing issues
-					
 					/* Special styling for source buttons within tables */
-					/*
 					.markdown table .deeptutor-source-button {
 						width: 1.2em !important;
 						height: 1.2em !important;
@@ -2810,7 +2798,6 @@ This demonstrates multiple table formats working correctly.
 					}
 					
 					/* Special styling for source placeholders within tables */
-					/*
 					.markdown table .deeptutor-source-placeholder {
 						width: 1.2em !important;
 						height: 1.2em !important;
@@ -2892,7 +2879,6 @@ This demonstrates multiple table formats working correctly.
 						0% { opacity: 0.3; }
 						100% { opacity: 0.6; }
 					}
-					*/
 				`
 			}} />
             
