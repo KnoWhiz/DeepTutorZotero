@@ -70,8 +70,9 @@ class DeepTutorLocalhostServer {
 			console.log("✅ DeepTutor: Server integration started successfully!");
 			console.log("📍 Server URL:", this.serverUrl);
 			console.log("🔗 Available endpoints:");
-			console.log("   - POST /deeptutor/sendText - Send text to display as popup");
-			console.log("   - GET  /deeptutor/health   - Check server status");
+			console.log("   - POST /deeptutor/sendText      - Send text to display as popup");
+			console.log("   - POST /deeptutor/googleOauthCode - Receive Google OAuth code");
+			console.log("   - GET  /deeptutor/health        - Check server status");
 			console.log("🧪 Test with: curl http://localhost:" + Zotero.Server.port + "/deeptutor/health");
 			
 			if (typeof Zotero !== "undefined") {
@@ -116,7 +117,7 @@ class DeepTutorLocalhostServer {
 			init: function(request) {
 				console.log("📨 DeepTutor: Received sendText request");
 				
-				if (request.method !== "POST") {
+			if (request.method !== "POST") {
 					return [405, "text/plain", "Method not allowed"];
 				}
 
@@ -261,6 +262,167 @@ class DeepTutorLocalhostServer {
 			}
 		};
 
+		// Register googleOauthCode endpoint
+		Zotero.Server.Connector.DeepTutorGoogleOauthCode = function() {};
+		Zotero.Server.Endpoints["/deeptutor/googleOauthCode"] = Zotero.Server.Connector.DeepTutorGoogleOauthCode;
+		Zotero.Server.Connector.DeepTutorGoogleOauthCode.prototype = {
+			supportedMethods: ["POST", "OPTIONS"],
+			supportedDataTypes: ["application/json"],
+			permitBookmarklet: true,
+			
+			init: function(request) {
+				console.log("🔐 DeepTutor: Received googleOauthCode request");
+				
+				if (request.method !== "POST") {
+					return [405, "text/plain", "Method not allowed"];
+				}
+
+				try {
+					const data = request.data;
+					if (!data || !data.oauthCode) {
+						return [400, "application/json", JSON.stringify({
+							error: "Missing 'code' field in request body"
+						})];
+					}
+
+					const code = data.oauthCode;
+					console.log("🔐 DeepTutor: Received OAuth code:", code.substring(0, 20) + (code.length > 20 ? "..." : ""));
+					
+					if (typeof Zotero !== "undefined") {
+						Zotero.debug(`DeepTutor: Received googleOauthCode request with code: ${code}`);
+					}
+
+					// Display popup with the OAuth code
+					this.displayPopup(code);
+
+					return [200, "application/json", JSON.stringify({
+						success: true,
+						message: "OAuth code received and popup displayed",
+						receivedCode: code
+					})];
+				} catch (error) {
+					console.error("❌ DeepTutor: Error processing googleOauthCode request:", error.message);
+					return [500, "application/json", JSON.stringify({
+						error: "Internal server error"
+					})];
+				}
+			},
+			
+			displayPopup: function(code) {
+				try {
+					if (typeof Zotero !== "undefined") {
+						Zotero.debug(`DeepTutor: Displaying OAuth code popup: ${code}`);
+					}
+
+					// Create popup content
+					const popupContent = `
+						<div style="
+							position: fixed;
+							top: 50%;
+							left: 50%;
+							transform: translate(-50%, -50%);
+							background: white;
+							border: 2px solid #4285F4;
+							border-radius: 10px;
+							padding: 20px;
+							box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+							z-index: 10000;
+							max-width: 400px;
+							max-height: 300px;
+							overflow: auto;
+							font-family: Arial, sans-serif;
+						">
+							<div style="
+								display: flex;
+								justify-content: space-between;
+								align-items: center;
+								margin-bottom: 15px;
+								border-bottom: 1px solid #eee;
+								padding-bottom: 10px;
+							">
+								<h3 style="
+									margin: 0;
+									color: #4285F4;
+									font-size: 18px;
+								">Google OAuth Code</h3>
+								<button onclick="this.parentElement.parentElement.remove()" style="
+									background: none;
+									border: none;
+									font-size: 20px;
+									cursor: pointer;
+									color: #999;
+									padding: 0;
+									width: 25px;
+									height: 25px;
+									display: flex;
+									align-items: center;
+									justify-content: center;
+								">×</button>
+							</div>
+							<div style="
+								color: #333;
+								line-height: 1.5;
+								white-space: pre-wrap;
+								word-wrap: break-word;
+								font-family: monospace;
+								background: #f5f5f5;
+								padding: 10px;
+								border-radius: 5px;
+								border: 1px solid #ddd;
+							">${this.escapeHtml(code)}</div>
+							<div style="
+								text-align: center;
+								margin-top: 15px;
+								padding-top: 10px;
+								border-top: 1px solid #eee;
+							">
+								<button onclick="this.parentElement.parentElement.remove()" style="
+									background: #4285F4;
+									color: white;
+									border: none;
+									padding: 8px 16px;
+									border-radius: 5px;
+									cursor: pointer;
+									font-size: 14px;
+								">Close</button>
+							</div>
+						</div>
+					`;
+
+					// Create and append popup element
+					const popupElement = document.createElement("div");
+					popupElement.innerHTML = popupContent;
+					document.body.appendChild(popupElement.firstElementChild);
+
+					// Auto-remove popup after 10 seconds
+					setTimeout(() => {
+						if (popupElement.firstElementChild && popupElement.firstElementChild.parentNode) {
+							popupElement.firstElementChild.remove();
+						}
+					}, 10000);
+				} catch (error) {
+					if (typeof Zotero !== "undefined") {
+						Zotero.debug(`DeepTutor: Error displaying OAuth code popup: ${error.message}`);
+					}
+
+					// Fallback: use Zotero alert
+					try {
+						Zotero.alert(null, "Google OAuth Code", code);
+					} catch (alertError) {
+						if (typeof Zotero !== "undefined") {
+							Zotero.debug(`DeepTutor: Error showing Zotero alert: ${alertError.message}`);
+						}
+					}
+				}
+			},
+			
+			escapeHtml: function(text) {
+				const div = document.createElement("div");
+				div.textContent = text;
+				return div.innerHTML;
+			}
+		};
+
 		// Register health endpoint
 		Zotero.Server.Connector.DeepTutorHealth = function() {};
 		Zotero.Server.Endpoints["/deeptutor/health"] = Zotero.Server.Connector.DeepTutorHealth;
@@ -299,6 +461,7 @@ class DeepTutorLocalhostServer {
 			// Remove our endpoints
 			if (this.endpointRegistered) {
 				delete Zotero.Server.Endpoints["/deeptutor/sendText"];
+				delete Zotero.Server.Endpoints["/deeptutor/googleOauthCode"];
 				delete Zotero.Server.Endpoints["/deeptutor/health"];
 				this.endpointRegistered = false;
 				console.log("🔧 DeepTutor: Endpoints removed");
@@ -359,6 +522,32 @@ class DeepTutorLocalhostServer {
 			return await response.json();
 		} catch (error) {
 			console.error(`DeepTutor: Error sending text via API: ${error.message}`);
+			throw error;
+		}
+	}
+
+	/**
+	 * Provides a method to send OAuth code via the API (for testing)
+	 * @param {string} code - The OAuth code to send
+	 * @returns {Promise<Object>} - The response from the server
+	 */
+	async sendOAuthCode(code) {
+		try {
+			if (!this.isRunning) {
+				throw new Error("Server integration not running");
+			}
+
+			const response = await fetch(`${this.getServerUrl()}/deeptutor/googleOauthCode`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json"
+				},
+				body: JSON.stringify({ code })
+			});
+
+			return await response.json();
+		} catch (error) {
+			console.error(`DeepTutor: Error sending OAuth code via API: ${error.message}`);
 			throw error;
 		}
 	}
