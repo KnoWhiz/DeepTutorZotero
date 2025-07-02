@@ -26,6 +26,85 @@ class DeepTutorLocalhostServer {
 		this.isRunning = false;
 		this.serverUrl = null;
 		this.endpointRegistered = false;
+		this.googleOAuthEnabled = false; // Flag to control Google OAuth endpoint availability
+	}
+
+	/**
+	 * Enables the Google OAuth endpoint (called when Google sign-in popup is shown)
+	 */
+	enableGoogleOAuth() {
+		this.googleOAuthEnabled = true;
+		console.log("🔐 DeepTutor: Google OAuth endpoint enabled");
+		if (typeof Zotero !== "undefined") {
+			Zotero.debug("DeepTutor: Google OAuth endpoint enabled");
+		}
+	}
+
+	/**
+	 * Disables the Google OAuth endpoint (called when Google sign-in popup is closed)
+	 */
+	disableGoogleOAuth() {
+		this.googleOAuthEnabled = false;
+		console.log("🔐 DeepTutor: Google OAuth endpoint disabled");
+		if (typeof Zotero !== "undefined") {
+			Zotero.debug("DeepTutor: Google OAuth endpoint disabled");
+		}
+	}
+
+	/**
+	 * Opens the Google sign-in URL in the default browser
+	 * @returns {Promise<boolean>} - Returns true if URL was opened successfully
+	 */
+	async openGoogleSignInUrl() {
+		try {
+			const url = "https://staging.deeptutor.knowhiz.us/dzGoogleSignIn";
+			console.log("🌐 DeepTutor: Opening Google sign-in URL:", url);
+			
+			if (typeof Zotero !== "undefined") {
+				Zotero.debug(`DeepTutor: Opening Google sign-in URL: ${url}`);
+			}
+
+			// Try multiple methods to open the URL
+			try {
+				// Primary: Use Zotero's proper API for opening external URLs
+				Zotero.launchURL(url);
+				console.log("✅ DeepTutor: Successfully opened Google sign-in URL");
+				return true;
+			} catch (error) {
+				console.error("❌ DeepTutor: Failed to open URL with Zotero.launchURL:", error.message);
+				
+				// Fallback: Try XPCOM nsIExternalProtocolService
+				try {
+					if (typeof Cc !== "undefined" && typeof Ci !== "undefined") {
+						const extps = Cc["@mozilla.org/uriloader/external-protocol-service;1"]
+							.getService(Ci.nsIExternalProtocolService);
+						const uri = Cc["@mozilla.org/network/io-service;1"]
+							.getService(Ci.nsIIOService)
+							.newURI(url, null, null);
+						extps.loadURI(uri);
+						console.log("✅ DeepTutor: Successfully opened URL via XPCOM");
+						return true;
+					}
+				} catch (fallbackError) {
+					console.error("❌ DeepTutor: Failed to open URL with XPCOM:", fallbackError.message);
+				}
+				
+				// Final fallback: Copy URL to clipboard
+				if (navigator.clipboard) {
+					await navigator.clipboard.writeText(url);
+					console.log("📋 DeepTutor: Copied Google sign-in URL to clipboard");
+					if (typeof Zotero !== "undefined") {
+						Zotero.alert(null, "DeepTutor", "Google sign-in URL copied to clipboard!\nPlease paste it in your browser to access the sign-in page.");
+					}
+					return true;
+				}
+				
+				return false;
+			}
+		} catch (error) {
+			console.error("❌ DeepTutor: Error opening Google sign-in URL:", error.message);
+			return false;
+		}
 	}
 
 	/**
@@ -266,6 +345,7 @@ class DeepTutorLocalhostServer {
 		Zotero.Server.Connector.DeepTutorGoogleOauthCode = function() {};
 		Zotero.Server.Endpoints["/deeptutor/googleOauthCode"] = Zotero.Server.Connector.DeepTutorGoogleOauthCode;
 		Zotero.Server.Connector.DeepTutorGoogleOauthCode.prototype = {
+			server: this, // Reference to the server instance
 			supportedMethods: ["POST", "OPTIONS"],
 			supportedDataTypes: ["application/json"],
 			permitBookmarklet: true,
@@ -277,28 +357,38 @@ class DeepTutorLocalhostServer {
 					return [405, "text/plain", "Method not allowed"];
 				}
 
+				// Check if Google OAuth endpoint is enabled
+				if (!this.server || !this.server.googleOAuthEnabled) {
+					console.log("🔐 DeepTutor: Google OAuth endpoint is disabled");
+					return [403, "application/json", JSON.stringify({
+						error: "Google OAuth endpoint is not available. Please start the Google sign-in process first."
+					})];
+				}
+
 				try {
 					const data = request.data;
-					if (!data || !data.oauthCode) {
+					// Accept both 'code' and 'oauthCode' field names for flexibility
+					const oauthCode = data?.oauthCode || data?.code;
+					
+					if (!oauthCode) {
 						return [400, "application/json", JSON.stringify({
-							error: "Missing 'code' field in request body"
+							error: "Missing 'code' or 'oauthCode' field in request body"
 						})];
 					}
 
-					const code = data.oauthCode;
-					console.log("🔐 DeepTutor: Received OAuth code:", code.substring(0, 20) + (code.length > 20 ? "..." : ""));
+					console.log("🔐 DeepTutor: Received OAuth code:", oauthCode.substring(0, 20) + (oauthCode.length > 20 ? "..." : ""));
 					
 					if (typeof Zotero !== "undefined") {
-						Zotero.debug(`DeepTutor: Received googleOauthCode request with code: ${code}`);
+						Zotero.debug(`DeepTutor: Received googleOauthCode request with code: ${oauthCode}`);
 					}
 
 					// Display popup with the OAuth code
-					this.displayPopup(code);
+					this.displayPopup(oauthCode);
 
 					return [200, "application/json", JSON.stringify({
 						success: true,
 						message: "OAuth code received and popup displayed",
-						receivedCode: code
+						receivedCode: oauthCode
 					})];
 				} catch (error) {
 					console.error("❌ DeepTutor: Error processing googleOauthCode request:", error.message);

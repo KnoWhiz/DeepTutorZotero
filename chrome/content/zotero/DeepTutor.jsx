@@ -409,6 +409,10 @@ var DeepTutor = class DeepTutor extends React.Component {
 		console.log("🔧 DeepTutor: Initializing localhost server...");
 		this.localhostServer = new DeepTutorLocalhostServer();
 		console.log("📋 DeepTutor: Localhost server instance created");
+
+		// Bind Google OAuth methods
+		this.handleGoogleSignIn = this.handleGoogleSignIn.bind(this);
+		this.handleGoogleSignInClose = this.handleGoogleSignInClose.bind(this);
 	}
 
 	async componentDidMount() {
@@ -458,6 +462,11 @@ var DeepTutor = class DeepTutor extends React.Component {
 		// Clear any pending timer
 		if (this._modelSelectionFreezeTimer) {
 			clearTimeout(this._modelSelectionFreezeTimer);
+		}
+
+		// Disable Google OAuth endpoint
+		if (this.localhostServer) {
+			this.localhostServer.disableGoogleOAuth();
 		}
 
 		// Stop localhost server
@@ -1526,6 +1535,55 @@ var DeepTutor = class DeepTutor extends React.Component {
 	};
 
 	/**
+	 * Handles Google sign-in button click
+	 * Opens the Google sign-in URL in browser and enables the OAuth endpoint
+	 */
+	handleGoogleSignIn = async () => {
+		try {
+			console.log("🔐 DeepTutor: Google sign-in button clicked");
+			
+			// Enable the Google OAuth endpoint
+			if (this.localhostServer) {
+				this.localhostServer.enableGoogleOAuth();
+			}
+			
+			// Open the Google sign-in URL in browser
+			const urlOpened = await this.localhostServer.openGoogleSignInUrl();
+			
+			if (urlOpened) {
+				console.log("✅ DeepTutor: Google sign-in URL opened successfully");
+				Zotero.debug("DeepTutor: Google sign-in URL opened successfully");
+			} else {
+				console.error("❌ DeepTutor: Failed to open Google sign-in URL");
+				Zotero.debug("DeepTutor: Failed to open Google sign-in URL");
+			}
+		} catch (error) {
+			console.error("❌ DeepTutor: Error handling Google sign-in:", error.message);
+			Zotero.debug(`DeepTutor: Error handling Google sign-in: ${error.message}`);
+		}
+	};
+
+	/**
+	 * Handles Google sign-in popup close
+	 * Disables the OAuth endpoint when popup is closed
+	 */
+	handleGoogleSignInClose = () => {
+		try {
+			console.log("🔐 DeepTutor: Google sign-in popup closed");
+			
+			// Disable the Google OAuth endpoint
+			if (this.localhostServer) {
+				this.localhostServer.disableGoogleOAuth();
+			}
+			
+			Zotero.debug("DeepTutor: Google sign-in popup closed, OAuth endpoint disabled");
+		} catch (error) {
+			console.error("❌ DeepTutor: Error handling Google sign-in close:", error.message);
+			Zotero.debug(`DeepTutor: Error handling Google sign-in close: ${error.message}`);
+		}
+	};
+
+	/**
 	 * Test method for localhost server - can be called from browser console
 	 * Usage: window.deepTutorInstance.testLocalhostServer()
 	 */
@@ -1669,6 +1727,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 								this.switchPane(this.getSessionHistoryPaneOrNoSession());
 								this.toggleSignInPopup();
 							}}
+							onGoogleSignIn={this.handleGoogleSignIn}
 						/>}
 						{this.state.currentPane === 'signUp' && <DeepTutorSignUp onSignUpSignIn={() => {
 							this.toggleSignInPopup();
@@ -1801,6 +1860,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 								    this.toggleSignInPopup();
 								    // Auth state change will be handled by the listener
 							    }}
+								onGoogleSignIn={this.handleGoogleSignIn}
 							/>
 						</div>
 					</div>

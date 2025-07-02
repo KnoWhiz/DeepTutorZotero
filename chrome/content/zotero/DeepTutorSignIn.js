@@ -181,7 +181,7 @@ const styles = {
 
 const GoogleImg = 'chrome://zotero/content/DeepTutorMaterials/SignIn/Google.png';
 
-export default function DeepTutorSignIn({ onSignInSignUp, onSignInSuccess }) {
+export default function DeepTutorSignIn({ onSignInSignUp, onSignInSuccess, onGoogleSignIn }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -266,19 +266,25 @@ export default function DeepTutorSignIn({ onSignInSignUp, onSignInSuccess }) {
       setMessage('');
 
       Zotero.debug('DeepTutor SignIn: Attempting Google sign in');
-      const result = await signInWithGoogle();
+      
+      // Use the provided Google sign-in handler if available, otherwise fall back to original method
+      if (onGoogleSignIn) {
+        await onGoogleSignIn();
+        setMessage('Google sign-in process started!');
+      } else {
+        const result = await signInWithGoogle();
+        Zotero.debug('DeepTutor SignIn: Google sign in successful');
+        setMessage('Google login successful!');
 
-      Zotero.debug('DeepTutor SignIn: Google sign in successful');
-      setMessage('Google login successful!');
+        // Initialize empty Map for recent sessions
+        const emptyMap = new Map();
+        Zotero.Prefs.set('deeptutor.recentSessions', JSON.stringify(Object.fromEntries(emptyMap)));
 
-      // Initialize empty Map for recent sessions
-      const emptyMap = new Map();
-      Zotero.Prefs.set('deeptutor.recentSessions', JSON.stringify(Object.fromEntries(emptyMap)));
-
-      // Wait a moment for auth state to be properly saved
-      setTimeout(() => {
-        onSignInSuccess();
-      }, 500);
+        // Wait a moment for auth state to be properly saved
+        setTimeout(() => {
+          onSignInSuccess();
+        }, 500);
+      }
 
     } catch (error) {
       Zotero.debug(`DeepTutor SignIn: Google sign in failed: ${error.message}`);
