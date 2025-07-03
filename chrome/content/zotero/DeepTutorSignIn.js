@@ -289,12 +289,14 @@ export default function DeepTutorSignIn({ onSignInSignUp, onSignInSuccess, local
 				throw new Error('Failed to open Google sign-in URL');
 			}
 
-			// Also call the original signInWithGoogle function to handle the complete authentication flow
+			// Call the simplified signInWithGoogle function (now just returns immediately)
 			try {
 				const result = await signInWithGoogle();
-				Zotero.debug('DeepTutor SignIn: Google sign in successful');
-				setMessage('Google login successful!');
-
+				Zotero.debug('DeepTutor SignIn: signInWithGoogle called successfully');
+				
+				// The actual authentication will happen when the localhost server receives the OAuth code
+				// We don't need to call onSignInSuccess here since it will be triggered by the auth state change
+				// when the OAuth code is processed by the localhost server
 				// Initialize empty Map for recent sessions
 				const emptyMap = new Map();
 				Zotero.Prefs.set('deeptutor.recentSessions', JSON.stringify(Object.fromEntries(emptyMap)));
@@ -303,6 +305,7 @@ export default function DeepTutorSignIn({ onSignInSignUp, onSignInSuccess, local
 				setTimeout(() => {
 					onSignInSuccess();
 				}, 500);
+				setMessage('Google sign-in URL opened! Please complete authentication in your browser. The sign-in will complete automatically once you finish the Google authentication.');
 			} catch (signInError) {
 				Zotero.debug(`DeepTutor SignIn: signInWithGoogle failed: ${signInError.message}`);
 				// Don't throw here - the URL was opened successfully, so we just log the error

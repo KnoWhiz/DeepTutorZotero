@@ -640,101 +640,85 @@ export const confirmForgotPassword = async (email, confirmationCode, newPassword
 	});
 };
 
-// Google Sign In (OAuth)
+// Google Sign In (OAuth) - Simplified version that doesn't show dialog
 export const signInWithGoogle = () => {
 	return new Promise((resolve, reject) => {
-		const domain = amplifyConfig.oauth.domain;
-		const clientId = amplifyConfig.aws_user_pools_web_client_id;
-
-		// Use one of the configured redirect URIs instead of urn:ietf:wg:oauth:2.0:oob
-		// We'll use the staging URL as it's most likely to be configured for OAuth
-		const redirectUri = encodeURIComponent('https://staging.deeptutor.knowhiz.us/');
-		const scope = encodeURIComponent(amplifyConfig.oauth.scope.join(' '));
-
-		const googleAuthUrl = `https://${domain}/oauth2/authorize?` +
-			`identity_provider=Google&` +
-			`redirect_uri=${redirectUri}&` +
-			`response_type=code&` +
-			`client_id=${clientId}&` +
-			`scope=${scope}`;
-
-		Zotero.debug(`DeepTutor Auth: Opening Google OAuth URL: ${googleAuthUrl}`);
-
-		// Create a dialog to handle the OAuth flow
-		const dialogWindow = window.openDialog(
-			'chrome://zotero/content/DeepTutorGoogleAuth.xhtml',
-			'deeptutor-google-auth',
-			'chrome,centerscreen,modal,resizable=yes,width=600,height=700',
-			{
-				url: googleAuthUrl,
-				onAuthComplete: async (authCode) => {
-					try {
-						Zotero.debug(`DeepTutor Auth: Received auth code: ${authCode ? 'present' : 'missing'}`);
-
-						if (!authCode) {
-							throw new Error('No authorization code received');
-						}
-
-						// Exchange authorization code for tokens
-						const tokenResponse = await exchangeCodeForTokens(authCode);
-						Zotero.debug('DeepTutor Auth: Token exchange successful');
-
-						// Parse and validate the ID token
-						const { accessToken, idToken, refreshToken } = tokenResponse;
-						const userInfo = parseJwtToken(idToken);
-
-						// Print user data for debugging
-						Zotero.debug('DeepTutor Auth: Google Sign In - User Info from JWT:');
-						Zotero.debug(JSON.stringify(userInfo, null, 2));
-
-						// Create a mock Cognito user for consistency with existing auth flow
-						const cognitoUser = {
-							username: userInfo.email,
-							attributes: {
-								email: userInfo.email,
-								name: userInfo.name,
-								sub: userInfo.sub
-							}
-						};
-
-						// Print final user object for debugging
-						Zotero.debug('DeepTutor Auth: Google Sign In - Final User Object:');
-						Zotero.debug(JSON.stringify(cognitoUser, null, 2));
-
-						// Create a mock session object
-						const session = {
-							isValid: () => true,
-							getAccessToken: () => ({ getJwtToken: () => accessToken }),
-							getIdToken: () => ({ getJwtToken: () => idToken }),
-							getRefreshToken: () => ({ getToken: () => refreshToken })
-						};
-
-						// Update auth state
-						authState.setAuthenticated(cognitoUser, session);
-
-						resolve({
-							user: cognitoUser,
-							session: session,
-							accessToken: accessToken,
-							idToken: idToken
-						});
-					} catch (error) {
-						Zotero.debug(`DeepTutor Auth: Google sign in error: ${error.message}`);
-						reject(error);
-					}
-				},
-				onAuthError: (error) => {
-					Zotero.debug(`DeepTutor Auth: Google auth dialog error: ${error}`);
-					reject(new Error(`Google authentication failed: ${error}`));
-				}
-			}
-		);
-
-		// Handle dialog close without completion
-		if (!dialogWindow) {
-			reject(new Error('Failed to open Google authentication dialog'));
-		}
+		// This function now just resolves immediately since the actual OAuth flow
+		// will be handled by the localhost server when it receives the OAuth code
+		Zotero.debug('DeepTutor Auth: signInWithGoogle called - OAuth flow will be handled by localhost server');
+		
+		// Return a mock success response since the real authentication will happen
+		// when the localhost server receives the OAuth code
+		resolve({
+			user: null,
+			session: null,
+			accessToken: null,
+			idToken: null,
+			pending: true
+		});
 	});
+};
+
+// Extracted OAuth completion logic - can be called directly by localhost server
+export const completeGoogleOAuth = async (authCode) => {
+	try {
+		Zotero.debug(`DeepTutor Auth: Processing OAuth code: ${authCode ? 'present' : 'missing'}`);
+
+		if (!authCode) {
+			throw new Error('No authorization code received');
+		}
+
+		// Exchange authorization code for tokens
+		const tokenResponse = await exchangeCodeForTokens(authCode);
+		Zotero.debug('DeepTutor Auth: Token exchange successful');
+
+		// Parse and validate the ID token
+		const { accessToken, idToken, refreshToken } = tokenResponse;
+		const userInfo = parseJwtToken(idToken);
+
+		// Print user data for debugging
+		Zotero.debug('DeepTutor Auth: Google Sign In - User Info from JWT:');
+		Zotero.debug(JSON.stringify(userInfo, null, 2));
+
+		// Create a mock Cognito user for consistency with existing auth flow
+		const cognitoUser = {
+			username: userInfo.email,
+			attributes: {
+				email: userInfo.email,
+				name: userInfo.name,
+				sub: userInfo.sub
+			}
+		};
+
+		// Print final user object for debugging
+		Zotero.debug('DeepTutor Auth: Google Sign In - Final User Object:');
+		Zotero.debug(JSON.stringify(cognitoUser, null, 2));
+
+		// Create a mock session object
+		const session = {
+			isValid: () => true,
+			getAccessToken: () => ({ getJwtToken: () => accessToken }),
+			getIdToken: () => ({ getJwtToken: () => idToken }),
+			getRefreshToken: () => ({ getToken: () => refreshToken })
+		};
+
+		// Update auth state
+		authState.setAuthenticated(cognitoUser, session);
+
+		return {
+			success: true,
+			user: cognitoUser,
+			session: session,
+			accessToken: accessToken,
+			idToken: idToken
+		};
+	} catch (error) {
+		Zotero.debug(`DeepTutor Auth: Google OAuth completion error: ${error.message}`);
+		return {
+			success: false,
+			error: error.message
+		};
+	}
 };
 
 // Helper function to exchange authorization code for tokens

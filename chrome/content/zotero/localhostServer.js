@@ -10,13 +10,13 @@
 
 "use strict";
 
-// Import the completeAuth function from DeepTutorGoogleAuthScript
-let completeAuth = null;
+// Import the completeGoogleOAuth function from cognitoAuth
+let completeGoogleOAuth = null;
 try {
-	const authScript = require('./DeepTutorGoogleAuthScript.js');
-	completeAuth = authScript.completeAuth;
+	const cognitoAuth = require('./auth/cognitoAuth.js');
+	completeGoogleOAuth = cognitoAuth.completeGoogleOAuth;
 } catch (error) {
-	console.log("🔐 DeepTutor: Could not import completeAuth function:", error.message);
+	console.log("🔐 DeepTutor: Could not import completeGoogleOAuth function:", error.message);
 }
 
 /**
@@ -63,7 +63,7 @@ class DeepTutorLocalhostServer {
 
 
 	/**
-	 * Handles OAuth code authentication by calling the existing completeAuth function
+	 * Handles OAuth code authentication by calling the completeGoogleOAuth function
 	 * @param {string} authCode - The authorization code received from Google
 	 * @returns {Promise<Object>} - Returns the authentication result
 	 */
@@ -75,29 +75,43 @@ class DeepTutorLocalhostServer {
 				Zotero.debug(`DeepTutor: Processing OAuth code for authentication`);
 			}
 
-			// Check if the completeAuth function is available
-			if (!completeAuth) {
-				console.log("🔐 DeepTutor: completeAuth function not available, using fallback");
+			// Check if the completeGoogleOAuth function is available
+			if (!completeGoogleOAuth) {
+				console.log("🔐 DeepTutor: completeGoogleOAuth function not available, using fallback");
 				return {
 					success: false,
 					error: "Authentication system not available"
 				};
 			}
 
-			// Call the imported completeAuth function
-			console.log("🔐 DeepTutor: Calling completeAuth function with code");
-			completeAuth(authCode);
+			// Call the imported completeGoogleOAuth function
+			console.log("🔐 DeepTutor: Calling completeGoogleOAuth function with code");
+			const result = await completeGoogleOAuth(authCode);
 
-			console.log("🔐 DeepTutor: Authentication completed successfully");
-			
-			if (typeof Zotero !== "undefined") {
-				Zotero.debug(`DeepTutor: Authentication completed successfully`);
+			if (result.success) {
+				console.log("🔐 DeepTutor: Authentication completed successfully");
+				
+				if (typeof Zotero !== "undefined") {
+					Zotero.debug(`DeepTutor: Authentication completed successfully`);
+				}
+
+				return {
+					success: true,
+					message: "Authentication completed successfully",
+					user: result.user
+				};
+			} else {
+				console.error("❌ DeepTutor: OAuth authentication failed:", result.error);
+				
+				if (typeof Zotero !== "undefined") {
+					Zotero.debug(`DeepTutor: OAuth authentication failed: ${result.error}`);
+				}
+
+				return {
+					success: false,
+					error: result.error
+				};
 			}
-
-			return {
-				success: true,
-				message: "Authentication completed successfully"
-			};
 		} catch (error) {
 			console.error("❌ DeepTutor: OAuth code authentication failed:", error.message);
 			
