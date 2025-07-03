@@ -10,6 +10,15 @@
 
 "use strict";
 
+// Import the completeAuth function from DeepTutorGoogleAuthScript
+let completeAuth = null;
+try {
+	const authScript = require('./DeepTutorGoogleAuthScript.js');
+	completeAuth = authScript.completeAuth;
+} catch (error) {
+	console.log("🔐 DeepTutor: Could not import completeAuth function:", error.message);
+}
+
 /**
  * DeepTutor Localhost Server Class
  *
@@ -48,6 +57,58 @@ class DeepTutorLocalhostServer {
 		console.log("🔐 DeepTutor: Google OAuth endpoint disabled");
 		if (typeof Zotero !== "undefined") {
 			Zotero.debug("DeepTutor: Google OAuth endpoint disabled");
+		}
+	}
+
+
+
+	/**
+	 * Handles OAuth code authentication by calling the existing completeAuth function
+	 * @param {string} authCode - The authorization code received from Google
+	 * @returns {Promise<Object>} - Returns the authentication result
+	 */
+	async handleOAuthCode(authCode) {
+		try {
+			console.log("🔐 DeepTutor: Processing OAuth code for authentication");
+			
+			if (typeof Zotero !== "undefined") {
+				Zotero.debug(`DeepTutor: Processing OAuth code for authentication`);
+			}
+
+			// Check if the completeAuth function is available
+			if (!completeAuth) {
+				console.log("🔐 DeepTutor: completeAuth function not available, using fallback");
+				return {
+					success: false,
+					error: "Authentication system not available"
+				};
+			}
+
+			// Call the imported completeAuth function
+			console.log("🔐 DeepTutor: Calling completeAuth function with code");
+			completeAuth(authCode);
+
+			console.log("🔐 DeepTutor: Authentication completed successfully");
+			
+			if (typeof Zotero !== "undefined") {
+				Zotero.debug(`DeepTutor: Authentication completed successfully`);
+			}
+
+			return {
+				success: true,
+				message: "Authentication completed successfully"
+			};
+		} catch (error) {
+			console.error("❌ DeepTutor: OAuth code authentication failed:", error.message);
+			
+			if (typeof Zotero !== "undefined") {
+				Zotero.debug(`DeepTutor: OAuth code authentication failed: ${error.message}`);
+			}
+
+			return {
+				success: false,
+				error: error.message
+			};
 		}
 	}
 
@@ -195,8 +256,8 @@ class DeepTutorLocalhostServer {
 			
 			init: function(request) {
 				console.log("📨 DeepTutor: Received sendText request");
-				
-			if (request.method !== "POST") {
+
+				if (request.method !== "POST") {
 					return [405, "text/plain", "Method not allowed"];
 				}
 
@@ -350,7 +411,7 @@ class DeepTutorLocalhostServer {
 			supportedDataTypes: ["application/json"],
 			permitBookmarklet: true,
 			
-			init: function(request) {
+			init: async function(request) {
 				console.log("🔐 DeepTutor: Received googleOauthCode request");
 				
 				if (request.method !== "POST") {
@@ -382,14 +443,34 @@ class DeepTutorLocalhostServer {
 						Zotero.debug(`DeepTutor: Received googleOauthCode request with code: ${oauthCode}`);
 					}
 
-					// Display popup with the OAuth code
-					this.displayPopup(oauthCode);
+					// Process the OAuth code for authentication
+					const authResult = await this.server.handleOAuthCode(oauthCode);
 
-					return [200, "application/json", JSON.stringify({
-						success: true,
-						message: "OAuth code received and popup displayed",
-						receivedCode: oauthCode
-					})];
+					if (authResult.success) {
+						console.log("🔐 DeepTutor: OAuth authentication successful");
+						
+						// Display success popup
+						this.displayAuthSuccessPopup(authResult.user);
+
+						return [200, "application/json", JSON.stringify({
+							success: true,
+							message: "OAuth authentication successful",
+							user: {
+								email: authResult.user.username,
+								name: authResult.user.attributes.name
+							}
+						})];
+					} else {
+						console.error("❌ DeepTutor: OAuth authentication failed:", authResult.error);
+						
+						// Display error popup
+						this.displayAuthErrorPopup(authResult.error);
+
+						return [400, "application/json", JSON.stringify({
+							success: false,
+							error: authResult.error
+						})];
+					}
 				} catch (error) {
 					console.error("❌ DeepTutor: Error processing googleOauthCode request:", error.message);
 					return [500, "application/json", JSON.stringify({
@@ -398,13 +479,18 @@ class DeepTutorLocalhostServer {
 				}
 			},
 			
-			displayPopup: function(code) {
+			displayAuthSuccessPopup: function(user) {
 				try {
-					if (typeof Zotero !== "undefined") {
-						Zotero.debug(`DeepTutor: Displaying OAuth code popup: ${code}`);
+					// Check if we're in a DOM environment
+					if (typeof document === "undefined" || !document.body) {
+						console.log("🔐 DeepTutor: No DOM available, using Zotero alert for success");
+						if (typeof Zotero !== "undefined") {
+							Zotero.alert(null, "Google Sign-In Success",
+								`Successfully signed in as: ${user.username}\nName: ${user.attributes.name}`);
+						}
+						return;
 					}
 
-					// Create popup content
 					const popupContent = `
 						<div style="
 							position: fixed;
@@ -434,7 +520,7 @@ class DeepTutorLocalhostServer {
 									margin: 0;
 									color: #4285F4;
 									font-size: 18px;
-								">Google OAuth Code</h3>
+								">Google Sign-In Success</h3>
 								<button onclick="this.parentElement.parentElement.remove()" style="
 									background: none;
 									border: none;
@@ -459,7 +545,10 @@ class DeepTutorLocalhostServer {
 								padding: 10px;
 								border-radius: 5px;
 								border: 1px solid #ddd;
-							">${this.escapeHtml(code)}</div>
+							">
+								Signed in as: <b>${user.username}</b><br/>
+								Name: ${user.attributes.name}
+							</div>
 							<div style="
 								text-align: center;
 								margin-top: 15px;
@@ -479,29 +568,126 @@ class DeepTutorLocalhostServer {
 						</div>
 					`;
 
-					// Create and append popup element
 					const popupElement = document.createElement("div");
 					popupElement.innerHTML = popupContent;
 					document.body.appendChild(popupElement.firstElementChild);
 
-					// Auto-remove popup after 10 seconds
 					setTimeout(() => {
 						if (popupElement.firstElementChild && popupElement.firstElementChild.parentNode) {
 							popupElement.firstElementChild.remove();
 						}
 					}, 10000);
 				} catch (error) {
+					console.error("❌ DeepTutor: Error displaying auth success popup:", error.message);
+					// Fallback to Zotero alert
 					if (typeof Zotero !== "undefined") {
-						Zotero.debug(`DeepTutor: Error displaying OAuth code popup: ${error.message}`);
+						Zotero.alert(null, "Google Sign-In Success",
+							`Successfully signed in as: ${user.username}\nName: ${user.attributes.name}`);
+					}
+				}
+			},
+
+			displayAuthErrorPopup: function(errorMsg) {
+				try {
+					// Check if we're in a DOM environment
+					if (typeof document === "undefined" || !document.body) {
+						console.log("🔐 DeepTutor: No DOM available, using Zotero alert for error");
+						if (typeof Zotero !== "undefined") {
+							Zotero.alert(null, "Google Sign-In Failed", `Error: ${errorMsg}`);
+						}
+						return;
 					}
 
-					// Fallback: use Zotero alert
-					try {
-						Zotero.alert(null, "Google OAuth Code", code);
-					} catch (alertError) {
-						if (typeof Zotero !== "undefined") {
-							Zotero.debug(`DeepTutor: Error showing Zotero alert: ${alertError.message}`);
+					const popupContent = `
+						<div style="
+							position: fixed;
+							top: 50%;
+							left: 50%;
+							transform: translate(-50%, -50%);
+							background: white;
+							border: 2px solid #dc3545;
+							border-radius: 10px;
+							padding: 20px;
+							box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+							z-index: 10000;
+							max-width: 400px;
+							max-height: 300px;
+							overflow: auto;
+							font-family: Arial, sans-serif;
+						">
+							<div style="
+								display: flex;
+								justify-content: space-between;
+								align-items: center;
+								margin-bottom: 15px;
+								border-bottom: 1px solid #eee;
+								padding-bottom: 10px;
+							">
+								<h3 style="
+									margin: 0;
+									color: #dc3545;
+									font-size: 18px;
+								">Google Sign-In Failed</h3>
+								<button onclick="this.parentElement.parentElement.remove()" style="
+									background: none;
+									border: none;
+									font-size: 20px;
+									cursor: pointer;
+									color: #999;
+									padding: 0;
+									width: 25px;
+									height: 25px;
+									display: flex;
+									align-items: center;
+									justify-content: center;
+								">×</button>
+							</div>
+							<div style="
+								color: #333;
+								line-height: 1.5;
+								white-space: pre-wrap;
+								word-wrap: break-word;
+								font-family: monospace;
+								background: #f5f5f5;
+								padding: 10px;
+								border-radius: 5px;
+								border: 1px solid #ddd;
+							">
+								Error: ${errorMsg}
+							</div>
+							<div style="
+								text-align: center;
+								margin-top: 15px;
+								padding-top: 10px;
+								border-top: 1px solid #eee;
+							">
+								<button onclick="this.parentElement.parentElement.remove()" style="
+									background: #dc3545;
+									color: white;
+									border: none;
+									padding: 8px 16px;
+									border-radius: 5px;
+									cursor: pointer;
+									font-size: 14px;
+								">Close</button>
+							</div>
+						</div>
+					`;
+
+					const popupElement = document.createElement("div");
+					popupElement.innerHTML = popupContent;
+					document.body.appendChild(popupElement.firstElementChild);
+
+					setTimeout(() => {
+						if (popupElement.firstElementChild && popupElement.firstElementChild.parentNode) {
+							popupElement.firstElementChild.remove();
 						}
+					}, 10000);
+				} catch (error) {
+					console.error("❌ DeepTutor: Error displaying auth error popup:", error.message);
+					// Fallback to Zotero alert
+					if (typeof Zotero !== "undefined") {
+						Zotero.alert(null, "Google Sign-In Failed", `Error: ${errorMsg}`);
 					}
 				}
 			},

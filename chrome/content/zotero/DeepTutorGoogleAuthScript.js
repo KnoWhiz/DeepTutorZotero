@@ -160,6 +160,16 @@ window.onCancel = onCancel;
 window.submitManualCode = submitManualCode;
 window.copyOAuthURL = copyOAuthURL;
 
+// Export completeAuth function for module access
+if (typeof module !== "undefined" && module.exports) {
+	module.exports = {
+		completeAuth: completeAuth,
+		submitManualCode: submitManualCode,
+		onCancel: onCancel,
+		copyOAuthURL: copyOAuthURL
+	};
+}
+
 // Initialize when the dialog loads
 window.addEventListener('load', onLoad);
 

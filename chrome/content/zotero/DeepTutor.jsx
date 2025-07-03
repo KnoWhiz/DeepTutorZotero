@@ -434,6 +434,9 @@ var DeepTutor = class DeepTutor extends React.Component {
 				console.log("✅ DeepTutor: Localhost server started successfully!");
 				console.log("🌐 Server URL:", this.localhostServer.getServerUrl());
 				Zotero.debug(`DeepTutor: Localhost server started at ${this.localhostServer.getServerUrl()}`);
+
+				// Auth functions are no longer needed since we use the existing completeAuth function
+				console.log("🔧 DeepTutor: Using existing completeAuth function for authentication");
 			} else {
 				console.log("❌ DeepTutor: Failed to start localhost server");
 				Zotero.debug("DeepTutor: Failed to start localhost server");
@@ -1541,6 +1544,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 	handleGoogleSignIn = async () => {
 		try {
 			console.log("🔐 DeepTutor: Google sign-in button clicked");
+			Zotero.debug("DeepTutor: Google sign-in button clicked");
 			
 			// Enable the Google OAuth endpoint
 			if (this.localhostServer) {
