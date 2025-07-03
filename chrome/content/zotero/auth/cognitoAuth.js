@@ -13,10 +13,12 @@ function getServices() {
 			try {
 				if (typeof ChromeUtils !== 'undefined') {
 					Services = ChromeUtils.import("resource://gre/modules/Services.jsm").Services;
-				} else if (typeof Components !== 'undefined' && Components.utils) {
+				}
+				else if (typeof Components !== 'undefined' && Components.utils) {
 					Services = Components.utils.import("resource://gre/modules/Services.jsm").Services;
 				}
-			} catch (e) {
+			}
+			catch (e) {
 				Zotero.debug('DeepTutor Auth: Could not import Services:', e.message);
 			}
 		}
@@ -44,7 +46,8 @@ function loadCognitoLibrary() {
 			if (services && services.scriptloader) {
 				Zotero.debug('DeepTutor Auth: Using Services.scriptloader method');
 				services.scriptloader.loadSubScript("resource://zotero/amazon-cognito-identity-js.js", window);
-			} else {
+			}
+			else {
 				// Method 2: Try using fetch and eval
 				Zotero.debug('DeepTutor Auth: Services not available, trying fetch method');
 				try {
@@ -63,7 +66,8 @@ function loadCognitoLibrary() {
 					eval(script);
 
 					Zotero.debug('DeepTutor Auth: Script loaded via fetch and eval');
-				} catch (fetchError) {
+				}
+				catch (fetchError) {
 					Zotero.debug(`DeepTutor Auth: Fetch method failed: ${fetchError.message}`);
 					throw new Error(`Failed to load via fetch: ${fetchError.message}`);
 				}
@@ -78,15 +82,17 @@ function loadCognitoLibrary() {
 						initializeUserPool();
 						Zotero.debug('DeepTutor Auth: Amazon Cognito Identity JS library loaded successfully');
 						resolve();
-					} else {
+					}
+					else {
 						throw new Error('Library loaded but AmazonCognitoIdentity not found in global scope');
 					}
-				} catch (checkError) {
+				}
+				catch (checkError) {
 					reject(checkError);
 				}
 			}, 50);
-
-		} catch (error) {
+		}
+		catch (error) {
 			Zotero.debug(`DeepTutor Auth: Failed to load Amazon Cognito Identity JS library: ${error.message}`);
 			const services = getServices();
 			Zotero.debug(`DeepTutor Auth: Services available: ${services !== null && services !== undefined}`);
@@ -168,13 +174,14 @@ class AuthState {
 					name: user.attributes.name,
 					sub: user.attributes.sub
 				};
-			} else {
+			}
+			else {
 				// For regular Cognito users - extract what we need
 				completeUserData = {
 					username: user.username,
 					attributes: {
 						email: user.username, // Cognito uses username as email
-						sub: user.username    // Will be updated if we can get real attributes
+						sub: user.username // Will be updated if we can get real attributes
 					},
 					isGoogleOAuth: false,
 					email: user.username
@@ -185,7 +192,7 @@ class AuthState {
 					user.getUserAttributes((err, attributes) => {
 						if (!err && attributes) {
 							const attrs = {};
-							attributes.forEach(attr => {
+							attributes.forEach((attr) => {
 								attrs[attr.getName()] = attr.getValue();
 							});
 							completeUserData.attributes = attrs;
@@ -205,7 +212,8 @@ class AuthState {
 			const userDataString = JSON.stringify(completeUserData);
 			Zotero.Prefs.set('deeptutor.auth.userData', userDataString);
 			Zotero.debug(`DeepTutor Auth: Saved complete user data to preferences: ${userDataString}`);
-		} catch (error) {
+		}
+		catch (error) {
 			Zotero.debug(`DeepTutor Auth: Error saving user data: ${error.message}`);
 		}
 
@@ -270,13 +278,15 @@ class AuthState {
 					};
 
 					Zotero.debug(`DeepTutor Auth: Restored user from storage: ${storedUserData.isGoogleOAuth ? 'Google OAuth' : 'Regular Cognito'} user`);
-				} else {
+				}
+				else {
 					Zotero.debug('DeepTutor Auth: No user data found in preferences');
 					// If no user data, clear authentication state
 					this.setUnauthenticated();
 					return;
 				}
-			} catch (error) {
+			}
+			catch (error) {
 				Zotero.debug(`DeepTutor Auth: Error restoring user data from storage: ${error.message}`);
 				// If we can't parse user data, clear authentication state
 				this.setUnauthenticated();
@@ -286,7 +296,8 @@ class AuthState {
 			// Notify listeners that auth state has been restored
 			this.notifyListeners();
 			Zotero.debug('DeepTutor Auth: Authentication state restored successfully');
-		} else {
+		}
+		else {
 			Zotero.debug('DeepTutor Auth: No authentication state found in storage');
 		}
 	}
@@ -321,7 +332,8 @@ async function initializeAuthState() {
 		Zotero.debug('DeepTutor Auth: Initializing auth state...');
 		await authState.restoreFromStorage();
 		Zotero.debug('DeepTutor Auth: Auth state initialization complete');
-	} catch (error) {
+	}
+	catch (error) {
 		Zotero.debug(`DeepTutor Auth: Error during auth state initialization: ${error.message}`);
 	}
 }
@@ -464,7 +476,8 @@ export const signOut = async () => {
 
 		authState.setUnauthenticated();
 		return Promise.resolve();
-	} catch (error) {
+	}
+	catch (error) {
 		Zotero.debug(`DeepTutor Auth: Sign out error: ${error.message}`);
 		authState.setUnauthenticated();
 		return Promise.resolve();
@@ -527,7 +540,8 @@ export const getCurrentUser = async () => {
 					accessToken: session.getAccessToken().getJwtToken(),
 					idToken: session.getIdToken().getJwtToken()
 				});
-			} else {
+			}
+			else {
 				authState.setUnauthenticated();
 				reject(new Error('Session is not valid'));
 			}
@@ -564,7 +578,8 @@ export const refreshSession = async () => {
 					accessToken: session.getAccessToken().getJwtToken(),
 					idToken: session.getIdToken().getJwtToken()
 				});
-			} else {
+			}
+			else {
 				// Try to refresh the session
 				const refreshToken = session.getRefreshToken();
 				currentUser.refreshSession(refreshToken, (refreshErr, refreshedSession) => {
@@ -712,7 +727,8 @@ export const completeGoogleOAuth = async (authCode) => {
 			accessToken: accessToken,
 			idToken: idToken
 		};
-	} catch (error) {
+	}
+	catch (error) {
 		Zotero.debug(`DeepTutor Auth: Google OAuth completion error: ${error.message}`);
 		return {
 			success: false,
@@ -725,7 +741,7 @@ export const completeGoogleOAuth = async (authCode) => {
 async function exchangeCodeForTokens(authCode) {
 	const domain = amplifyConfig.oauth.domain;
 	const clientId = amplifyConfig.aws_user_pools_web_client_id;
-	const redirectUri = 'https://staging.deeptutor.knowhiz.us/';
+	const redirectUri = 'http://localhost:3000/';
 
 	const tokenEndpoint = `https://${domain}/oauth2/token`;
 
@@ -759,7 +775,8 @@ async function exchangeCodeForTokens(authCode) {
 			tokenType: tokenData.token_type,
 			expiresIn: tokenData.expires_in
 		};
-	} catch (error) {
+	}
+	catch (error) {
 		Zotero.debug(`DeepTutor Auth: Token exchange error: ${error.message}`);
 		throw error;
 	}
@@ -780,7 +797,8 @@ function parseJwtToken(token) {
 		const decodedPayload = Zotero.Utilities.Internal.Base64.decode(paddedPayload);
 
 		return JSON.parse(decodedPayload);
-	} catch (error) {
+	}
+	catch (error) {
 		Zotero.debug(`DeepTutor Auth: JWT parsing error: ${error.message}`);
 		throw new Error('Failed to parse JWT token');
 	}

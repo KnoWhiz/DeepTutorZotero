@@ -15,7 +15,8 @@ let completeGoogleOAuth = null;
 try {
 	const cognitoAuth = require('./auth/cognitoAuth.js');
 	completeGoogleOAuth = cognitoAuth.completeGoogleOAuth;
-} catch (error) {
+}
+catch (error) {
 	console.log("🔐 DeepTutor: Could not import completeGoogleOAuth function:", error.message);
 }
 
@@ -26,6 +27,7 @@ try {
  */
 
 class DeepTutorLocalhostServer {
+
 	/**
 	 * Constructor for the DeepTutor server integration
 	 * @param {number} port - The port number (default: 3017, but uses Zotero's server port)
@@ -59,7 +61,6 @@ class DeepTutorLocalhostServer {
 			Zotero.debug("DeepTutor: Google OAuth endpoint disabled");
 		}
 	}
-
 
 
 	/**
@@ -100,7 +101,8 @@ class DeepTutorLocalhostServer {
 					message: "Authentication completed successfully",
 					user: result.user
 				};
-			} else {
+			}
+			else {
 				console.error("❌ DeepTutor: OAuth authentication failed:", result.error);
 				
 				if (typeof Zotero !== "undefined") {
@@ -112,7 +114,8 @@ class DeepTutorLocalhostServer {
 					error: result.error
 				};
 			}
-		} catch (error) {
+		}
+		catch (error) {
 			console.error("❌ DeepTutor: OAuth code authentication failed:", error.message);
 			
 			if (typeof Zotero !== "undefined") {
@@ -136,22 +139,23 @@ class DeepTutorLocalhostServer {
 			let amplifyConfig;
 			try {
 				amplifyConfig = require('./auth/amplifyconfiguration.js').default;
-			} catch (error) {
+			}
+			catch (error) {
 				console.error("❌ DeepTutor: Could not import amplify configuration:", error.message);
 				return false;
 			}
 
 			const domain = amplifyConfig.oauth.domain;
 			const clientId = amplifyConfig.aws_user_pools_web_client_id;
-			const redirectUri = encodeURIComponent('https://staging.deeptutor.knowhiz.us/');
+			const redirectUri = encodeURIComponent('http://localhost:3000/');
 			const scope = encodeURIComponent(amplifyConfig.oauth.scope.join(' '));
 
-			const url = `https://${domain}/oauth2/authorize?` +
-				`identity_provider=Google&` +
-				`redirect_uri=${redirectUri}&` +
-				`response_type=code&` +
-				`client_id=${clientId}&` +
-				`scope=${scope}`;
+			const url = `https://${domain}/oauth2/authorize?`
+				+ `identity_provider=Google&`
+				+ `redirect_uri=${redirectUri}&`
+				+ `response_type=code&`
+				+ `client_id=${clientId}&`
+				+ `scope=${scope}`;
 
 			console.log("🌐 DeepTutor: Opening Google sign-in URL:", url);
 			
@@ -165,7 +169,8 @@ class DeepTutorLocalhostServer {
 				Zotero.launchURL(url);
 				console.log("✅ DeepTutor: Successfully opened Google sign-in URL");
 				return true;
-			} catch (error) {
+			}
+			catch (error) {
 				console.error("❌ DeepTutor: Failed to open URL with Zotero.launchURL:", error.message);
 				
 				// Fallback: Try XPCOM nsIExternalProtocolService
@@ -180,7 +185,8 @@ class DeepTutorLocalhostServer {
 						console.log("✅ DeepTutor: Successfully opened URL via XPCOM");
 						return true;
 					}
-				} catch (fallbackError) {
+				}
+				catch (fallbackError) {
 					console.error("❌ DeepTutor: Failed to open URL with XPCOM:", fallbackError.message);
 				}
 				
@@ -196,7 +202,8 @@ class DeepTutorLocalhostServer {
 				
 				return false;
 			}
-		} catch (error) {
+		}
+		catch (error) {
 			console.error("❌ DeepTutor: Error opening Google sign-in URL:", error.message);
 			return false;
 		}
@@ -253,7 +260,8 @@ class DeepTutorLocalhostServer {
 				Zotero.debug(`DeepTutor: Server integration started successfully at ${this.serverUrl}`);
 			}
 			return true;
-		} catch (error) {
+		}
+		catch (error) {
 			console.error("❌ DeepTutor: Failed to start server integration:", error.message);
 			console.error("❌ DeepTutor: Error stack:", error.stack);
 			if (typeof Zotero !== "undefined") {
@@ -281,14 +289,14 @@ class DeepTutorLocalhostServer {
 		}
 
 		// Register sendText endpoint
-		Zotero.Server.Connector.DeepTutorSendText = function() {};
+		Zotero.Server.Connector.DeepTutorSendText = function () {};
 		Zotero.Server.Endpoints["/deeptutor/sendText"] = Zotero.Server.Connector.DeepTutorSendText;
 		Zotero.Server.Connector.DeepTutorSendText.prototype = {
 			supportedMethods: ["POST", "OPTIONS"],
 			supportedDataTypes: ["application/json"],
 			permitBookmarklet: true,
 			
-			init: function(request) {
+			init: function (request) {
 				console.log("📨 DeepTutor: Received sendText request");
 
 				if (request.method !== "POST") {
@@ -318,7 +326,8 @@ class DeepTutorLocalhostServer {
 						message: "Text received and popup displayed",
 						receivedText: text
 					})];
-				} catch (error) {
+				}
+				catch (error) {
 					console.error("❌ DeepTutor: Error processing sendText request:", error.message);
 					return [500, "application/json", JSON.stringify({
 						error: "Internal server error"
@@ -326,7 +335,7 @@ class DeepTutorLocalhostServer {
 				}
 			},
 			
-			displayPopup: function(text) {
+			displayPopup: function (text) {
 				try {
 					if (typeof Zotero !== "undefined") {
 						Zotero.debug(`DeepTutor: Displaying popup with text: ${text}`);
@@ -413,7 +422,8 @@ class DeepTutorLocalhostServer {
 							popupElement.firstElementChild.remove();
 						}
 					}, 10000);
-				} catch (error) {
+				}
+				catch (error) {
 					if (typeof Zotero !== "undefined") {
 						Zotero.debug(`DeepTutor: Error displaying popup: ${error.message}`);
 					}
@@ -421,7 +431,8 @@ class DeepTutorLocalhostServer {
 					// Fallback: use Zotero alert
 					try {
 						Zotero.alert(null, "DeepTutor Message", text);
-					} catch (alertError) {
+					}
+					catch (alertError) {
 						if (typeof Zotero !== "undefined") {
 							Zotero.debug(`DeepTutor: Error showing Zotero alert: ${alertError.message}`);
 						}
@@ -429,7 +440,7 @@ class DeepTutorLocalhostServer {
 				}
 			},
 			
-			escapeHtml: function(text) {
+			escapeHtml: function (text) {
 				const div = document.createElement("div");
 				div.textContent = text;
 				return div.innerHTML;
@@ -437,7 +448,7 @@ class DeepTutorLocalhostServer {
 		};
 
 		// Register googleOauthCode endpoint
-		Zotero.Server.Connector.DeepTutorGoogleOauthCode = function() {};
+		Zotero.Server.Connector.DeepTutorGoogleOauthCode = function () {};
 		Zotero.Server.Endpoints["/deeptutor/googleOauthCode"] = Zotero.Server.Connector.DeepTutorGoogleOauthCode;
 		Zotero.Server.Connector.DeepTutorGoogleOauthCode.prototype = {
 			server: this, // Reference to the server instance
@@ -445,7 +456,7 @@ class DeepTutorLocalhostServer {
 			supportedDataTypes: ["application/json"],
 			permitBookmarklet: true,
 			
-			init: async function(request) {
+			init: async function (request) {
 				console.log("🔐 DeepTutor: Received googleOauthCode request");
 				
 				if (request.method !== "POST") {
@@ -483,8 +494,7 @@ class DeepTutorLocalhostServer {
 					if (authResult.success) {
 						console.log("🔐 DeepTutor: OAuth authentication successful");
 						
-						// Display success popup
-						this.displayAuthSuccessPopup(authResult.user);
+						// Success popup removed as requested
 
 						return [200, "application/json", JSON.stringify({
 							success: true,
@@ -494,7 +504,8 @@ class DeepTutorLocalhostServer {
 								name: authResult.user.attributes.name
 							}
 						})];
-					} else {
+					}
+					else {
 						console.error("❌ DeepTutor: OAuth authentication failed:", authResult.error);
 						
 						// Display error popup
@@ -505,7 +516,8 @@ class DeepTutorLocalhostServer {
 							error: authResult.error
 						})];
 					}
-				} catch (error) {
+				}
+				catch (error) {
 					console.error("❌ DeepTutor: Error processing googleOauthCode request:", error.message);
 					return [500, "application/json", JSON.stringify({
 						error: "Internal server error"
@@ -513,7 +525,7 @@ class DeepTutorLocalhostServer {
 				}
 			},
 			
-			displayAuthSuccessPopup: function(user) {
+			displayAuthSuccessPopup: function (user) {
 				try {
 					// Check if we're in a DOM environment
 					if (typeof document === "undefined" || !document.body) {
@@ -611,7 +623,8 @@ class DeepTutorLocalhostServer {
 							popupElement.firstElementChild.remove();
 						}
 					}, 10000);
-				} catch (error) {
+				}
+				catch (error) {
 					console.error("❌ DeepTutor: Error displaying auth success popup:", error.message);
 					// Fallback to Zotero alert
 					if (typeof Zotero !== "undefined") {
@@ -621,7 +634,7 @@ class DeepTutorLocalhostServer {
 				}
 			},
 
-			displayAuthErrorPopup: function(errorMsg) {
+			displayAuthErrorPopup: function (errorMsg) {
 				try {
 					// Check if we're in a DOM environment
 					if (typeof document === "undefined" || !document.body) {
@@ -717,7 +730,8 @@ class DeepTutorLocalhostServer {
 							popupElement.firstElementChild.remove();
 						}
 					}, 10000);
-				} catch (error) {
+				}
+				catch (error) {
 					console.error("❌ DeepTutor: Error displaying auth error popup:", error.message);
 					// Fallback to Zotero alert
 					if (typeof Zotero !== "undefined") {
@@ -726,7 +740,7 @@ class DeepTutorLocalhostServer {
 				}
 			},
 			
-			escapeHtml: function(text) {
+			escapeHtml: function (text) {
 				const div = document.createElement("div");
 				div.textContent = text;
 				return div.innerHTML;
@@ -734,13 +748,13 @@ class DeepTutorLocalhostServer {
 		};
 
 		// Register health endpoint
-		Zotero.Server.Connector.DeepTutorHealth = function() {};
+		Zotero.Server.Connector.DeepTutorHealth = function () {};
 		Zotero.Server.Endpoints["/deeptutor/health"] = Zotero.Server.Connector.DeepTutorHealth;
 		Zotero.Server.Connector.DeepTutorHealth.prototype = {
 			supportedMethods: ["GET", "OPTIONS"],
 			permitBookmarklet: true,
 			
-			init: function(_request) {
+			init: function (_request) {
 				console.log("🏥 DeepTutor: Health check request received");
 
 				const healthData = {
@@ -785,7 +799,8 @@ class DeepTutorLocalhostServer {
 				Zotero.debug("DeepTutor: Server integration stopped successfully");
 			}
 			return true;
-		} catch (error) {
+		}
+		catch (error) {
 			console.error(`DeepTutor: Error stopping server integration: ${error.message}`);
 			if (typeof Zotero !== "undefined") {
 				Zotero.debug(`DeepTutor: Error stopping server integration: ${error.message}`);
@@ -830,7 +845,8 @@ class DeepTutorLocalhostServer {
 			});
 
 			return await response.json();
-		} catch (error) {
+		}
+		catch (error) {
 			console.error(`DeepTutor: Error sending text via API: ${error.message}`);
 			throw error;
 		}
@@ -856,7 +872,8 @@ class DeepTutorLocalhostServer {
 			});
 
 			return await response.json();
-		} catch (error) {
+		}
+		catch (error) {
 			console.error(`DeepTutor: Error sending OAuth code via API: ${error.message}`);
 			throw error;
 		}
@@ -888,6 +905,7 @@ class DeepTutorLocalhostServer {
 // Export the server class
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = DeepTutorLocalhostServer;
-} else if (typeof window !== "undefined") {
+}
+else if (typeof window !== "undefined") {
 	window.DeepTutorLocalhostServer = DeepTutorLocalhostServer;
 }
