@@ -132,7 +132,27 @@ class DeepTutorLocalhostServer {
 	 */
 	async openGoogleSignInUrl() {
 		try {
-			const url = "https://staging.deeptutor.knowhiz.us/dzGoogleSignIn";
+			// Import amplify configuration to generate proper OAuth URL
+			let amplifyConfig;
+			try {
+				amplifyConfig = require('./auth/amplifyconfiguration.js').default;
+			} catch (error) {
+				console.error("❌ DeepTutor: Could not import amplify configuration:", error.message);
+				return false;
+			}
+
+			const domain = amplifyConfig.oauth.domain;
+			const clientId = amplifyConfig.aws_user_pools_web_client_id;
+			const redirectUri = encodeURIComponent('https://staging.deeptutor.knowhiz.us/');
+			const scope = encodeURIComponent(amplifyConfig.oauth.scope.join(' '));
+
+			const url = `https://${domain}/oauth2/authorize?` +
+				`identity_provider=Google&` +
+				`redirect_uri=${redirectUri}&` +
+				`response_type=code&` +
+				`client_id=${clientId}&` +
+				`scope=${scope}`;
+
 			console.log("🌐 DeepTutor: Opening Google sign-in URL:", url);
 			
 			if (typeof Zotero !== "undefined") {
