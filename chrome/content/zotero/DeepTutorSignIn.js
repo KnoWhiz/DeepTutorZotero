@@ -181,7 +181,7 @@ const styles = {
 
 const GoogleImg = 'chrome://zotero/content/DeepTutorMaterials/SignIn/Google.png';
 
-export default function DeepTutorSignIn({ onSignInSignUp, onSignInSuccess, onGoogleSignIn }) {
+export default function DeepTutorSignIn({ onSignInSignUp, onSignInSuccess, localhostServer }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -259,40 +259,63 @@ export default function DeepTutorSignIn({ onSignInSignUp, onSignInSuccess, onGoo
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    try {
-      setIsLoading(true);
-      setError('');
-      setMessage('');
+  	const handleGoogleSignIn = async () => {
+		try {
+			setIsLoading(true);
+			setError('');
+			setMessage('');
 
-      Zotero.debug('DeepTutor SignIn: Attempting Google sign in');
-      
-      // Use the provided Google sign-in handler if available, otherwise fall back to original method
-      if (onGoogleSignIn) {
-        await onGoogleSignIn();
-        setMessage('Google sign-in process started!');
-      } else {
-        const result = await signInWithGoogle();
-        Zotero.debug('DeepTutor SignIn: Google sign in successful');
-        setMessage('Google login successful!');
+			Zotero.debug('DeepTutor SignIn: Attempting Google sign in');
 
-        // Initialize empty Map for recent sessions
-        const emptyMap = new Map();
-        Zotero.Prefs.set('deeptutor.recentSessions', JSON.stringify(Object.fromEntries(emptyMap)));
+			// Check if localhostServer is available
+			if (!localhostServer) {
+				throw new Error('Localhost server not available');
+			}
 
-        // Wait a moment for auth state to be properly saved
-        setTimeout(() => {
-          onSignInSuccess();
-        }, 500);
-      }
+			// Enable the Google OAuth endpoint
+			localhostServer.enableGoogleOAuth();
+			console.log("🔐 DeepTutor SignIn: Google OAuth endpoint enabled");
 
-    } catch (error) {
-      Zotero.debug(`DeepTutor SignIn: Google sign in failed: ${error.message}`);
-      setError('Google login failed, please try again');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+			// Open the Google sign-in URL in browser
+			const urlOpened = await localhostServer.openGoogleSignInUrl();
+
+			if (urlOpened) {
+				console.log("✅ DeepTutor SignIn: Google sign-in URL opened successfully");
+				Zotero.debug("DeepTutor SignIn: Google sign-in URL opened successfully");
+				setMessage('Google sign-in process started! Please complete authentication in your browser.');
+			} else {
+				console.error("❌ DeepTutor SignIn: Failed to open Google sign-in URL");
+				Zotero.debug("DeepTutor SignIn: Failed to open Google sign-in URL");
+				throw new Error('Failed to open Google sign-in URL');
+			}
+
+			// Also call the original signInWithGoogle function to handle the complete authentication flow
+			try {
+				const result = await signInWithGoogle();
+				Zotero.debug('DeepTutor SignIn: Google sign in successful');
+				setMessage('Google login successful!');
+
+				// Initialize empty Map for recent sessions
+				const emptyMap = new Map();
+				Zotero.Prefs.set('deeptutor.recentSessions', JSON.stringify(Object.fromEntries(emptyMap)));
+
+				// Wait a moment for auth state to be properly saved
+				setTimeout(() => {
+					onSignInSuccess();
+				}, 500);
+			} catch (signInError) {
+				Zotero.debug(`DeepTutor SignIn: signInWithGoogle failed: ${signInError.message}`);
+				// Don't throw here - the URL was opened successfully, so we just log the error
+				console.warn("⚠️ DeepTutor SignIn: signInWithGoogle failed, but URL was opened:", signInError.message);
+			}
+
+		} catch (error) {
+			Zotero.debug(`DeepTutor SignIn: Google sign in failed: ${error.message}`);
+			setError(`Google login failed: ${error.message}`);
+		} finally {
+			setIsLoading(false);
+		}
+	};
 
   const handleForgotPassword = async () => {
     if (!email) {
