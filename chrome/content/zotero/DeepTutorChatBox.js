@@ -2485,22 +2485,23 @@ This demonstrates multiple table formats working correctly.
 						let filePath = null;
 
 						if (item) {
-							// Try to get the title from the item or its parent
-							if (item.getDisplayTitle) {
+							// Prioritize attachment filename first
+							if (item.attachmentFilename) {
+								documentName = item.attachmentFilename;
+								Zotero.debug(`DeepTutorChatBox: Using attachment filename: ${documentName}`);
+							}
+							// Fall back to display title if no filename
+							else if (item.getDisplayTitle) {
 								documentName = item.getDisplayTitle();
 								// Zotero.debug(`DeepTutorChatBox: Found item title: ${documentName}`);
 							}
+							// Finally try parent item title
 							else if (item.parentItem) {
 								const parentItem = Zotero.Items.get(item.parentItem);
 								if (parentItem && parentItem.getDisplayTitle) {
 									documentName = parentItem.getDisplayTitle();
 									// Zotero.debug(`DeepTutorChatBox: Found parent item title: ${documentName}`);
 								}
-							}
-							// If we still don't have a good name, try using the filename
-							if (documentName === documentId && item.attachmentFilename) {
-								documentName = item.attachmentFilename;
-								// Zotero.debug(`DeepTutorChatBox: Using attachment filename: ${documentName}`);
 							}
 
 							// Get the file path if it's an attachment
