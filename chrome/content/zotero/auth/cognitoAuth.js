@@ -37,19 +37,15 @@ function loadCognitoLibrary() {
 		return Promise.resolve();
 	}
 
-	return new Promise(async (resolve, reject) => {
+		return new Promise(async (resolve, reject) => {
 		try {
-			Zotero.debug('DeepTutor Auth: Loading Amazon Cognito Identity JS library...');
-
 			// Method 1: Try using Services.scriptloader
 			const services = getServices();
 			if (services && services.scriptloader) {
-				Zotero.debug('DeepTutor Auth: Using Services.scriptloader method');
 				services.scriptloader.loadSubScript("resource://zotero/amazon-cognito-identity-js.js", window);
 			}
 			else {
 				// Method 2: Try using fetch and eval
-				Zotero.debug('DeepTutor Auth: Services not available, trying fetch method');
 				try {
 					const response = await fetch('resource://zotero/amazon-cognito-identity-js.js');
 					if (!response.ok) {
@@ -64,46 +60,38 @@ function loadCognitoLibrary() {
 						})();
 					`;
 					eval(script);
-
-					Zotero.debug('DeepTutor Auth: Script loaded via fetch and eval');
 				}
 				catch (fetchError) {
-					Zotero.debug(`DeepTutor Auth: Fetch method failed: ${fetchError.message}`);
 					throw new Error(`Failed to load via fetch: ${fetchError.message}`);
 				}
 			}
 
-			// Give a moment for the library to initialize
-			setTimeout(() => {
-				try {
-					// Check if library was loaded successfully
-					if (typeof window.AmazonCognitoIdentity !== 'undefined') {
-						({ CognitoUserPool, CognitoUser, AuthenticationDetails, CognitoUserAttribute } = window.AmazonCognitoIdentity);
-						initializeUserPool();
-						Zotero.debug('DeepTutor Auth: Amazon Cognito Identity JS library loaded successfully');
-						resolve();
-					}
-					else {
-						throw new Error('Library loaded but AmazonCognitoIdentity not found in global scope');
-					}
+					// Give a moment for the library to initialize
+		setTimeout(() => {
+			try {
+				// Check if library was loaded successfully
+				if (typeof window.AmazonCognitoIdentity !== 'undefined') {
+					({ CognitoUserPool, CognitoUser, AuthenticationDetails, CognitoUserAttribute } = window.AmazonCognitoIdentity);
+					initializeUserPool();
+					resolve();
 				}
-				catch (checkError) {
-					reject(checkError);
+				else {
+					throw new Error('Library loaded but AmazonCognitoIdentity not found in global scope');
 				}
-			}, 50);
-		}
-		catch (error) {
-			Zotero.debug(`DeepTutor Auth: Failed to load Amazon Cognito Identity JS library: ${error.message}`);
-			const services = getServices();
-			Zotero.debug(`DeepTutor Auth: Services available: ${services !== null && services !== undefined}`);
-			Zotero.debug(`DeepTutor Auth: Services.scriptloader available: ${services && typeof services.scriptloader !== 'undefined'}`);
-			Zotero.debug(`DeepTutor Auth: Window object: ${typeof window !== 'undefined'}`);
-			reject(new Error(`Failed to load Amazon Cognito Identity JS library. Please ensure the library is built and available. Error: ${error.message}`));
-		}
+			}
+			catch (checkError) {
+				reject(checkError);
+			}
+		}, 50);
+			}
+	catch (error) {
+		reject(new Error(`Failed to load Amazon Cognito Identity JS library. Please ensure the library is built and available. Error: ${error.message}`));
+	}
 	});
 }
 
 import amplifyConfig from './amplifyconfiguration.js';
+import { DT_BASE_URL } from '../api/libs/api.js';
 
 // Initialize Cognito User Pool (will be set after library loads)
 let userPool = null;
@@ -741,7 +729,7 @@ export const completeGoogleOAuth = async (authCode) => {
 async function exchangeCodeForTokens(authCode) {
 	const domain = amplifyConfig.oauth.domain;
 	const clientId = amplifyConfig.aws_user_pools_web_client_id;
-	const redirectUri = 'http://localhost:3000/';
+	const redirectUri = `https://${DT_BASE_URL}/`;
 
 	const tokenEndpoint = `https://${domain}/oauth2/token`;
 

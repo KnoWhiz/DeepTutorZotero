@@ -403,8 +403,6 @@ Zotero.Server.DataListener.prototype._generateResponse = function (status, conte
 		var isDeepTutorDomain = this.origin && (
 			this.origin.startsWith('https://deeptutor.knowhiz.us')
 			|| this.origin.startsWith('https://staging.deeptutor.knowhiz.us')
-			|| this.origin.startsWith('http://deeptutor.knowhiz.us')
-			|| this.origin.startsWith('http://staging.deeptutor.knowhiz.us')
 			|| this.origin.startsWith('http://localhost:3000')
 		);
 		
