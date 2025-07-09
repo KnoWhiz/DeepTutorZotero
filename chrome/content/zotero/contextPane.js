@@ -32,51 +32,22 @@ var ZoteroContextPane = new function () {
 	let _librarySidenav;
 	let _readerSidenav;
 
-	Object.defineProperty(this, 'activeEditor', {
-		get: () => _contextPaneInner.activeEditor
-	});
-
-	Object.defineProperty(this, 'sidenav', {
-		get: () => (Zotero_Tabs.selectedType == "library"
-			? _librarySidenav
-			: _readerSidenav)
-	});
-
-	Object.defineProperty(this, 'splitter', {
-		get: () => (_isStacked()
-			? _contextPaneSplitterStacked
-			: _contextPaneSplitter)
-	});
-
-	Object.defineProperty(this, 'collapsed', {
-		get: () => {
-			return this.splitter.getAttribute('state') === 'collapsed';
-		},
-		set: (collapsed) => {
-			_contextPane.setAttribute('collapsed', !!collapsed);
-			_contextPaneInner.setAttribute('collapsed', !!collapsed);
-			_contextPaneSplitter.setAttribute('state', collapsed ? 'collapsed' : 'open');
-			_contextPaneSplitter.setAttribute('collapse', 'after');
-			_contextPaneSplitterStacked.setAttribute('state', collapsed ? 'collapsed' : 'open');
-			_contextPaneSplitterStacked.setAttribute('collapse', 'after');
-			_update();
-		}
-	});
-
+	// Add back the methods
 	this.update = _update;
-
+	
 	this.focus = () => {
-		return _contextPaneInner.handleFocus();
+		return _contextPaneInner && _contextPaneInner.handleFocus();
 	};
-
+	
 	this.showLoadingMessage = (isShow) => {
-		_loadingMessageContainer.classList.toggle('hidden', !isShow);
+		_loadingMessageContainer && _loadingMessageContainer.classList.toggle('hidden', !isShow);
 	};
-
+	
 	this.updateAddToNote = _updateAddToNote;
-
+	
 	this.togglePane = _togglePane;
 
+	// Initialize elements first
 	this.init = function () {
 		if (!Zotero) {
 			return;
@@ -98,6 +69,42 @@ var ZoteroContextPane = new function () {
 		window.addEventListener('resize', _update);
 		Zotero.Reader.onChangeSidebarWidth = _updatePaneWidth;
 		Zotero.Reader.onToggleSidebar = _updatePaneWidth;
+		
+		// Initialize properties after elements are available
+		Object.defineProperties(this, {
+			'activeEditor': {
+				get: () => _contextPaneInner.activeEditor
+			},
+			'sidenav': {
+				get: () => (Zotero_Tabs.selectedType == "library"
+					? _librarySidenav
+					: _readerSidenav)
+			},
+			'splitter': {
+				get: () => (_isStacked()
+					? _contextPaneSplitterStacked
+					: _contextPaneSplitter)
+			},
+			'collapsed': {
+				get: () => {
+					return this.splitter && this.splitter.getAttribute('state') === 'collapsed';
+				},
+				set: (collapsed) => {
+					if (!_contextPane || !_contextPaneInner) return;
+					_contextPane.setAttribute('collapsed', !!collapsed);
+					_contextPaneInner.setAttribute('collapsed', !!collapsed);
+					if (_contextPaneSplitter) {
+						_contextPaneSplitter.setAttribute('state', collapsed ? 'collapsed' : 'open');
+						_contextPaneSplitter.setAttribute('collapse', 'after');
+					}
+					if (_contextPaneSplitterStacked) {
+						_contextPaneSplitterStacked.setAttribute('state', collapsed ? 'collapsed' : 'open');
+						_contextPaneSplitterStacked.setAttribute('collapse', 'after');
+					}
+					_update();
+				}
+			}
+		});
 	};
 
 	this.destroy = function () {
