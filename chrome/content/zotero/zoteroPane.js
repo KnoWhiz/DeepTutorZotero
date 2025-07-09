@@ -6682,9 +6682,9 @@ var ZoteroPane = new function()
 
 			var elValues = serializedValues[id];
 			for (var attr in elValues) {
-				// Only ignore persisted state for collections splitter and deeptutor splitter
-				// Allow items splitter to stay collapsed
-				if ((el.id == 'zotero-collections-splitter' || el.id == 'zotero-deeptutor-splitter')
+				// Only ignore persisted state for deeptutor splitter
+				// Allow items splitter and context splitter to stay collapsed
+				if ((el.id == 'zotero-deeptutor-splitter')
 						&& attr == 'state'
 						&& Zotero.Prefs.get('reopenPanesOnRestart')) {
 					// For DeepTutor splitter, force it to be open
