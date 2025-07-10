@@ -185,7 +185,7 @@ const FolderImg = 'chrome://zotero/content/DeepTutorMaterials/Welcome/WELCOME_FO
 const PageImg = 'chrome://zotero/content/DeepTutorMaterials/Welcome/WELCOME_PAGE.svg';
 const GoogleImg = 'chrome://zotero/content/DeepTutorMaterials/SignIn/Google.png';
 
-export default function DeepTutorWelcomePane({ onWelcomeSignIn, onSignInSuccess, localhostServer }) {
+export default function DeepTutorWelcomePane({ onWelcomeSignIn, onSignInSuccess: _onSignInSuccess, localhostServer }) {
 	const [isSignInHovered, setIsSignInHovered] = useState(false);
 	const [isGoogleHovered, setIsGoogleHovered] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
@@ -256,10 +256,6 @@ export default function DeepTutorWelcomePane({ onWelcomeSignIn, onSignInSuccess,
 				const emptyMap = new Map();
 				Zotero.Prefs.set('deeptutor.recentSessions', JSON.stringify(Object.fromEntries(emptyMap)));
 
-				// Wait a moment for auth state to be properly saved
-				setTimeout(() => {
-					onSignInSuccess();
-				}, 500);
 				setMessage('Google sign-in URL opened! Please complete authentication in your browser. The sign-in will complete automatically once you finish the Google authentication.');
 			}
 			catch (signInError) {

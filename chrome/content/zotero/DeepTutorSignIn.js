@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { signIn, signInWithGoogle, forgotPassword } from './auth/cognitoAuth.js';
 
-const AQUA = '#0AE2FF';
+const _AQUA = '#0AE2FF';
 const SKY = '#0687E5';
 const PEARL = '#F2F2F2';
 const styles = {
@@ -221,7 +221,7 @@ export default function DeepTutorSignIn({ onSignInSignUp, onSignInSuccess, local
 
 		try {
 			Zotero.debug('DeepTutor SignIn: Attempting to sign in with Cognito');
-			const result = await signIn(email, password);
+			const _result = await signIn(email, password);
 
 			Zotero.debug('DeepTutor SignIn: Sign in successful');
 			setMessage('Login successful!');
@@ -297,7 +297,7 @@ export default function DeepTutorSignIn({ onSignInSignUp, onSignInSuccess, local
 
 			// Call the simplified signInWithGoogle function (now just returns immediately)
 			try {
-				const result = await signInWithGoogle();
+				const _result = await signInWithGoogle();
 				Zotero.debug('DeepTutor SignIn: signInWithGoogle called successfully');
 				
 				// The actual authentication will happen when the localhost server receives the OAuth code
@@ -307,10 +307,6 @@ export default function DeepTutorSignIn({ onSignInSignUp, onSignInSuccess, local
 				const emptyMap = new Map();
 				Zotero.Prefs.set('deeptutor.recentSessions', JSON.stringify(Object.fromEntries(emptyMap)));
 
-				// Wait a moment for auth state to be properly saved
-				setTimeout(() => {
-					onSignInSuccess();
-				}, 500);
 				setMessage('Google sign-in URL opened! Please complete authentication in your browser. The sign-in will complete automatically once you finish the Google authentication.');
 			}
 			catch (signInError) {
