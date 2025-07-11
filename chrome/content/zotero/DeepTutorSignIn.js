@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { signIn, signInWithGoogle, forgotPassword } from './auth/cognitoAuth.js';
+import { signIn, signInWithGoogle } from './auth/cognitoAuth.js';
+import { DT_FORGOT_PASSWORD_URL } from './api/libs/api.js';
 
 const _AQUA = '#0AE2FF';
 const SKY = '#0687E5';
@@ -325,26 +326,12 @@ export default function DeepTutorSignIn({ onSignInSignUp, onSignInSuccess, local
 	};
 
 	const handleForgotPassword = async () => {
-		if (!email) {
-			setError('Please enter email address first');
-			return;
-		}
-
 		try {
-			setIsLoading(true);
-			setError('');
-			setMessage('');
-
-			Zotero.debug('DeepTutor SignIn: Sending forgot password email');
-			await forgotPassword(email);
-			setMessage('Password reset email sent, please check your email');
+			Zotero.debug('DeepTutor SignIn: Opening forgot password URL');
+			await Zotero.launchURL(DT_FORGOT_PASSWORD_URL);
 		}
 		catch (error) {
-			Zotero.debug(`DeepTutor SignIn: Forgot password failed: ${error.message}`);
-			setError('Failed to send reset email, please try again');
-		}
-		finally {
-			setIsLoading(false);
+			Zotero.debug(`DeepTutor SignIn: Failed to open forgot password URL: ${error.message}`);
 		}
 	};
 
