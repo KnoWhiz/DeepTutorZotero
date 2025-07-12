@@ -470,6 +470,94 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	const [contextDocuments, setContextDocuments] = useState([]);
 	const [currentSourceIndices, setCurrentSourceIndices] = useState([]);
 	const sessionIdRef = useRef(null);
+	const [time, setTime] = useState(new Date());
+
+	// Helper function to check if enough time has passed since last message
+	const checkTime = React.useCallback((lastMessage) => {
+		if (!lastMessage || !lastMessage.creationTime) return false;
+		
+		const messageTime = new Date(lastMessage.creationTime);
+		const currentTime = new Date();
+		const timeDiff = currentTime - messageTime;
+		
+		// Check if at least 30 seconds have passed since the last message
+		return timeDiff >= 30000; // 30 seconds in milliseconds
+	}, []);
+
+	// Periodic message fetching useEffect
+	useEffect(() => {
+		let isActive = true;
+		let timeoutId = null;
+		
+		const periodicCheck = () => {
+			if (!isActive) return;
+			
+			setTime(new Date()); // Update time every 30 seconds
+			
+			Zotero.debug(`DeepTutorChatBox: Periodic check - sessionId: ${sessionId}, messages length: ${messages.length}`);
+			
+			if (
+				sessionId &&
+				messages.length > 0 &&
+				messages[messages.length - 1].role === MessageRole.USER &&
+				checkTime(messages[messages.length - 1])
+			) {
+				Zotero.debug(`DeepTutorChatBox: Fetching messages for session ${sessionId} due to periodic check`);
+				
+				getMessagesBySessionId(sessionId).then((response) => {
+					if (response && response.length > messages.length) {
+						Zotero.debug(`DeepTutorChatBox: Found ${response.length - messages.length} new messages, updating state`);
+						setMessages(response);
+						setLatestMessageId(response[response.length - 1].id);
+						
+						// Update conversation with the latest history
+						setConversation(prev => ({
+							...prev,
+							history: response,
+						}));
+						
+						// Stop streaming if it was active (AI response received)
+						if (isStreaming) {
+							setIsStreaming(false);
+							Zotero.debug(`DeepTutorChatBox: Streaming stopped - AI response received via periodic check`);
+						}
+					} else {
+						Zotero.debug(`EEEEEEEEEEEEEEEEE DeepTutorChatBox: No new messages found in periodic check ${time.toLocaleTimeString()}`);
+						// Start streaming if not already active (waiting for AI response)
+						if (!isStreaming) {
+							setIsStreaming(true);
+							Zotero.debug(`EEEEEEEEEEEEEE  DeepTutorChatBox: Streaming started - waiting for AI response`);
+						}
+					}
+				}).catch((error) => {
+					Zotero.debug(`DeepTutorChatBox: Error in periodic message fetch: ${error.message}`);
+				});
+			}
+			
+			// Schedule next check
+			if (isActive) {
+				timeoutId = setTimeout(periodicCheck, 30000);
+			}
+		};
+		
+		// Start the periodic check if checkTime is available
+		if (checkTime) {
+			timeoutId = setTimeout(periodicCheck, 30000);
+		}
+		
+		// If checkTime is not available, don't start the periodic check
+		if (!checkTime) {
+			isActive = false;
+		}
+		
+		return () => {
+			isActive = false;
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+			}
+		};
+	}, [messages, checkTime]); // Dependencies: sessionId, messages, and checkTime function
+
 
 	// Set up global handler for source button clicks
 	useEffect(() => {
@@ -3007,7 +3095,7 @@ This demonstrates multiple table formats working correctly.
 						}
 						// Shift+Enter allows new line (default behavior)
 					}}
-					placeholder={`Ask DeepTutor ${curSessionType.toLowerCase()}`}
+					placeholder={isStreaming ? "Message is streaming, please wait" : `Ask DeepTutor ${curSessionType.toLowerCase()}`}
 					rows={1}
 					disabled={isStreaming || iniWait}
 				/>
