@@ -160,6 +160,21 @@ const DeepTutorStreamingComponent = ({ streamText, hideStreamResponse }) => {
 			}
 		}
 		
+		// Replacement for source span identifier - same logic as DeepTutorChatBox but simplified for streaming
+		Zotero.debug(`DeepTutorStreamingComponent: formatResponseForMarkdown - Replacing source span identifiers ${cleanText}`);
+		cleanText = cleanText.replace(/\[<(\d{1,2})>\]/g, (match, sourceId) => {
+			const sourceIndex = parseInt(sourceId) - 1; // Convert to 0-based index
+			
+			Zotero.debug(`DeepTutorStreamingComponent: Processing source reference: ${match}, sourceId: ${sourceId}, sourceIndex: ${sourceIndex}`);
+			
+			// For streaming, we don't have access to source data, so we create simple placeholders
+			// The actual source data will be available when the final message is processed in DeepTutorChatBox
+			const htmlSpan = `<span class="deeptutor-source-placeholder-streaming" data-source-id="${sourceId}" data-page="Unknown">${sourceId}</span>`;
+			Zotero.debug(`DeepTutorStreamingComponent: Generated streaming HTML span for source ${sourceId}: "${htmlSpan}"`);
+			return htmlSpan;
+		});
+		Zotero.debug(`DeepTutorStreamingComponent: formatResponseForMarkdown - Clean text after source span replacement: ${cleanText}`);
+
 		// Remove any remaining custom tags that might interfere with XML parsing
 		cleanText = removeSubstrings(cleanText, [
 			'<thinking>',
@@ -193,34 +208,15 @@ const DeepTutorStreamingComponent = ({ streamText, hideStreamResponse }) => {
 			/\\\[([\s\S]+?)\\\]/g,
 			'$$$$\n$1\n$$$$',
 		);
-
-		// Process source references
-		formattedText = formattedText.replace(/\[<(\d{1,2})>\]/g, (_, id) => {
-			return `<Source id="${id}" />`;
-		});
 		
 		Zotero.debug(`DeepTutorStreamingComponent: formatResponseForMarkdown - Original text length: ${text.length}, Clean text length: ${cleanText.length}`);
 		Zotero.debug(`DeepTutorStreamingComponent: formatResponseForMarkdown - Removed custom tags and processed for XML compatibility`);
 		
+		Zotero.debug(`DeepTutorStreamingComponent: formatResponseForMarkdown - Final formatted text length: ${formattedText.length}`);
 		return formattedText;
 	};
 
-	const Source = ({ id }) => React.createElement('div', {
-		style: {
-			marginLeft: '0.125rem',
-			marginRight: '0.125rem',
-			display: 'inline-block',
-			height: '1.5rem',
-			width: '1.5rem',
-			alignItems: 'center',
-			borderRadius: '0.75rem',
-			backgroundColor: '#9CA3AF',
-			textAlign: 'center',
-			fontSize: '0.875rem',
-			color: 'white'
-		},
-		'aria-label': 'source'
-	}, id);
+	// Source component removed - using HTML spans instead for consistency with DeepTutorChatBox
 
 	const containerStyle = {
 		padding: '0.125rem',
@@ -419,6 +415,40 @@ const DeepTutorStreamingComponent = ({ streamText, hideStreamResponse }) => {
 						font-family: 'Roboto', sans-serif !important;
 						position: relative !important;
 						overflow: hidden !important;
+					}
+					/* Streaming-specific source placeholders - gray and unclickable */
+					.deeptutor-source-placeholder-streaming {
+						background: #9E9E9E !important;
+						color: white !important;
+						border: none !important;
+						border-radius: 50% !important;
+						width: 2rem !important;
+						height: 2rem !important;
+						display: inline-flex !important;
+						align-items: center !important;
+						justify-content: center !important;
+						font-weight: 600 !important;
+						font-size: 0.875rem !important;
+						cursor: default !important;
+						box-shadow: 0 0.0625rem 0.125rem rgba(0,0,0,0.08) !important;
+						padding: 0 !important;
+						margin: 0 0.25rem !important;
+						vertical-align: middle !important;
+						line-height: 1 !important;
+						text-decoration: none !important;
+						user-select: none !important;
+						font-family: 'Roboto', sans-serif !important;
+						position: relative !important;
+						overflow: hidden !important;
+						opacity: 0.7 !important;
+					}
+					/* Special styling for streaming source placeholders within tables */
+					.markdown table .deeptutor-source-placeholder-streaming {
+						width: 1.5em !important;
+						height: 1.5em !important;
+						font-size: 0.75em !important;
+						margin: 0 0.15em !important;
+						vertical-align: middle !important;
 					}
 					@keyframes pulse {
 						0% { opacity: 0.3; }
