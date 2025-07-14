@@ -3000,10 +3000,6 @@ This demonstrates multiple table formats working correctly.
 					.katex .mop {
 						vertical-align: baseline !important;
 					}
-					/* Add space after inline LaTeX expressions */
-					.katex:not(.katex-display) {
-						margin-right: 0.2em !important;
-					}
 					/* Ensure proper spacing around inline math */
 					.katex:not(.katex-display)::after {
 						content: " " !important;
