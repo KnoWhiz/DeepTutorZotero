@@ -25,7 +25,7 @@ const md = markdownit({
 	typographer: true,
 	tables: true, // Enable built-in table support
 	breaks: false, // GFM line breaks (optional)
-	strikethrough: true // Enable strikethrough support
+	strikethrough: true, // Enable strikethrough support
 });
 
 // Re-enable markdown-it-katex plugin now that XML parsing is fixed
@@ -2952,22 +2952,36 @@ This demonstrates multiple table formats working correctly.
 					.katex .vlist .fontsize-ensurer.reset-size6.size3 {
 						font-size: 0.7em !important;
 					}
-					/* Radicals - improve positioning and sizing with better coverage */
+					/* Radicals - fix square root positioning issues */
 					.katex .sqrt {
 						vertical-align: baseline !important;
-						position: relative !important;
 						display: inline-block !important;
+						position: relative !important;
+					}
+					.katex .sqrt > .vlist-t {
+						display: inline-block !important;
+						vertical-align: baseline !important;
 					}
 					.katex .sqrt-sign {
 						position: relative !important;
+						display: inline-block !important;
 					}
 					.katex .sqrt-line {
-						border-top: 0.04em solid currentColor !important;
-						position: absolute !important;
-						top: 0 !important;
-						left: 0 !important;
-						right: 0 !important;
+						border-top: 0.08em solid !important;
+						position: relative !important;
+						display: block !important;
 						width: 100% !important;
+						margin-top: -0.3em !important;
+					}
+					/* Fix radical symbol positioning */
+					.katex .sqrt > .vlist-t > .vlist-r > .vlist {
+						display: inline-block !important;
+						vertical-align: baseline !important;
+					}
+					/* Prevent radical content from floating */
+					.katex .sqrt .vlist {
+						position: relative !important;
+						display: inline-block !important;
 					}
 					/* Fractions - improve spacing and positioning */
 					.katex .frac-line {
