@@ -2826,6 +2826,17 @@ This demonstrates multiple table formats working correctly.
 						height: 0.12em !important;
 						width: 100% !important;
 					}
+					/* Add explicit CSS to ensure square root vinculum (horizontal line) is visible */
+					.katex .sqrt-line {
+						border-top: 0.04em solid currentColor !important;
+						position: absolute !important;
+						left: 0 !important;
+						right: 0 !important;
+						top: 0 !important;
+						display: block !important;
+						height: 0.04em !important;
+						width: 100% !important;
+					}
 					.katex .sqrt > .sqrt-sign > .sqrt-line:first-child {
 						top: 0.02em !important;
 					}
