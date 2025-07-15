@@ -1,5 +1,6 @@
  
 import React, { useEffect, useState } from 'react';
+import PropTypes from 'prop-types';
 import DeepTutorStreamingTag, { StreamingStates } from './DeepTutorStreamingTag';
 
 const markdownit = require('markdown-it');
@@ -502,12 +503,15 @@ const DeepTutorStreamingComponent = ({ streamText, hideStreamResponse }) => {
 					}
 					/* Fractions - improve spacing and positioning */
 					.katex .frac-line {
-						border-bottom-width: 0.04em !important;
+						border-bottom-width: 0.06em !important;
 					}
-					.katex .frac {
-						text-align: center !important;
+					/* Fix outer containers that contain fractions */
+					.katex-display:has(.frac),
+					.katex-display:has(.mfrac) {
+						margin-top: -1.3em !important;
+						margin-bottom: 1em !important;
 						vertical-align: middle !important;
-						margin: 0.2em 0 !important;
+
 					}
 					/* Nested fractions - improve spacing */
 					.katex .frac .frac {
@@ -708,6 +712,11 @@ const DeepTutorStreamingComponent = ({ streamText, hideStreamResponse }) => {
 			isCurrentTag: pastStatuses[pastStatuses.length - 1] === status
 		}))
 	);
+};
+
+DeepTutorStreamingComponent.propTypes = {
+	streamText: PropTypes.string.isRequired,
+	hideStreamResponse: PropTypes.bool
 };
 
 export default DeepTutorStreamingComponent;

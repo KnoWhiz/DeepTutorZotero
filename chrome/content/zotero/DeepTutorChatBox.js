@@ -2904,12 +2904,13 @@ This demonstrates multiple table formats working correctly.
 					.katex {
 						font-size: 1.1em !important;
 						line-height: 1.2 !important;
-						vertical-align: baseline !important;
+						vertical-align: middle !important;
 					}
 					/* Inline math adjustments */
 					.katex:not(.katex-display) {
 						font-size: 1em !important;
 						line-height: 1.1 !important;
+						vertical-align: middle !important;
 					}
 					/* Display math adjustments */
 					.katex-display {
@@ -2917,7 +2918,7 @@ This demonstrates multiple table formats working correctly.
 						line-height: 1.4 !important;
 						margin-bottom: 1em !important;
 						margin-top: 0.5em !important;
-						text-align: center !important;
+						
 					}
 					/* General subscript/superscript positioning */
 					.katex .msupsub {
@@ -2986,12 +2987,15 @@ This demonstrates multiple table formats working correctly.
 					}
 					/* Fractions - improve spacing and positioning */
 					.katex .frac-line {
-						border-bottom-width: 0.04em !important;
+						border-bottom-width: 0.06em !important;
 					}
-					.katex .frac {
-						text-align: center !important;
+					/* Fix outer containers that contain fractions */
+					.katex-display:has(.frac),
+					.katex-display:has(.mfrac) {
+						margin-top: -1.3em !important;
+						margin-bottom: 1em !important;
 						vertical-align: middle !important;
-						margin: 0.2em 0 !important;
+
 					}
 					/* General vertical alignment for all math elements */
 					.katex * {
