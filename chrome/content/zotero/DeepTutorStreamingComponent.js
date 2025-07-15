@@ -470,8 +470,8 @@ const DeepTutorStreamingComponent = ({ streamText, hideStreamResponse }) => {
 						font-size: 1.2em !important;
 						line-height: 1.4 !important;
 						margin-bottom: 1em !important;
-						margin-top: -1.2em !important;
-						text-align: bottom !important;
+						margin-top: 0.5em !important;
+						text-align: center !important;
 					}
 					/* General subscript/superscript positioning */
 					.katex .msupsub {

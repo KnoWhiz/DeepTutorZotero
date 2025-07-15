@@ -497,10 +497,10 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			Zotero.debug(`DeepTutorChatBox: Periodic check - sessionId: ${sessionId}, messages length: ${messages.length}`);
 			
 			if (
-				sessionId &&
-				messages.length > 0 &&
-				messages[messages.length - 1].role === MessageRole.USER &&
-				checkTime(messages[messages.length - 1])
+				sessionId
+				&& messages.length > 0
+				&& messages[messages.length - 1].role === MessageRole.USER
+				&& checkTime(messages[messages.length - 1])
 			) {
 				Zotero.debug(`DeepTutorChatBox: Fetching messages for session ${sessionId} due to periodic check`);
 				
@@ -2916,8 +2916,8 @@ This demonstrates multiple table formats working correctly.
 						font-size: 1.2em !important;
 						line-height: 1.4 !important;
 						margin-bottom: 1em !important;
-						margin-top: -1.2em !important;
-						text-align: bottom !important;
+						margin-top: 0.5em !important;
+						text-align: center !important;
 					}
 					/* General subscript/superscript positioning */
 					.katex .msupsub {
