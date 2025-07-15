@@ -9,7 +9,7 @@ import { getCurrentUser } from './auth/cognitoAuth';
 const DeleteImg = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_DELETE.svg';
 const LitePath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_LITE.svg';
 const BasicPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_STANDARD.svg';
-const AdvancedPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_ADVANCED.svg';
+
 const RegisDragPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_DRAG.svg';
 const RegisSearchPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_SEARCH.svg';
 
@@ -25,9 +25,8 @@ const SessionStatus = {
 
 // Session Type Enum
 const SessionType = {
-    LITE: 'LITE',
-    BASIC: 'BASIC',
-    ADVANCED: 'ADVANCED'
+	LITE: 'LITE',
+	BASIC: 'BASIC'
 };
 
 const PEARL = '#F8F6F7';
@@ -916,9 +915,7 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false },
       const sessionData = {
         userId: user.id,
         sessionName: finalSessionName,
-        type: selectedType === 'lite' ? SessionType.LITE : 
-              selectedType === 'advanced' ? SessionType.ADVANCED : 
-              SessionType.BASIC,
+        		type: selectedType === 'lite' ? SessionType.LITE : SessionType.BASIC,
         status: SessionStatus.CREATED,
         documentIds: uploadedDocumentIds,
         creationTime: new Date().toISOString(),
@@ -1273,8 +1270,8 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false },
               onClick={() => !isEffectivelyFrozen && handleTypeSelection('lite')}
               disabled={isEffectivelyFrozen}
             >
-              <img src={LitePath} alt="Lite" style={{ width: '1.5rem', height: '1.5rem' }} />
-              LITE
+              <img src={BasicPath} alt="Standard" style={{ width: '1.5rem', height: '1.5rem' }} />
+              STANDARD
             </button>
             <button
               ref={buttonRef}
@@ -1285,20 +1282,6 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false },
                 cursor: (isEffectivelyFrozen || fileList.length > 1) ? 'not-allowed' : 'pointer'
               }}
               onClick={() => !(isEffectivelyFrozen || fileList.length > 1) && handleTypeSelection('normal')}
-              disabled={isEffectivelyFrozen || fileList.length > 1}
-            >
-              <img src={BasicPath} alt="Basic" style={{ width: '1.5rem', height: '1.5rem' }} />
-              STANDARD
-            </button>
-            <button
-              ref={buttonRef}
-              style={{
-                all: 'revert',
-                ...getModelTypeButtonStyle(selectedType === 'advanced'),
-                opacity: (isEffectivelyFrozen || fileList.length > 1) ? 0.5 : 1,
-                cursor: (isEffectivelyFrozen || fileList.length > 1) ? 'not-allowed' : 'pointer'
-              }}
-              onClick={() => !(isEffectivelyFrozen || fileList.length > 1) && handleTypeSelection('advanced')}
               disabled={isEffectivelyFrozen || fileList.length > 1}
             >
               <img src={AdvancedPath} alt="Advanced" style={{ width: '1.5rem', height: '1.5rem' }} />
@@ -1334,21 +1317,7 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false },
               </div>
             </div>
           )}
-          {selectedType === 'advanced' && (
-            <div style={styles.modelDescription}>
-              <div style={styles.modelFeature}>
-                <span style={styles.modelIcon}>🙌</span>
-                <span>Deep but Slow - Our most powerful model. It will take 5 - 10 min to prepare the content</span>
-              </div>
-              <div style={styles.modelLimitations}>
-                <span>✅ Everything in standard mode</span>
-                <span>✅ Deeper understanding on figures, equations, tables and graphs</span>
-                <span>✅ Further enhanced context relavency</span>
-                <span>✅ More advanced model using GraphRAG</span>
-                <span>✅ Available with Premium Subscription</span>
-              </div>
-            </div>
-          )}
+
         </div>
       </div>
 
