@@ -2992,8 +2992,8 @@ This demonstrates multiple table formats working correctly.
 					/* Fix outer containers that contain fractions */
 					.katex-display:has(.frac),
 					.katex-display:has(.mfrac) {
-						margin-top: -1.3em !important;
-						margin-bottom: 1em !important;
+						margin-top: -1em !important;
+						margin-bottom: 1.5em !important;
 						vertical-align: middle !important;
 
 					}
