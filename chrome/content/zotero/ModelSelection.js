@@ -522,18 +522,24 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false },
     }
   }, [fileList, errorMessage]); 
 
-  // Update model name based on first file in fileList
+  // Update model name based on first file in fileList and handle model type switching
   useEffect(() => {
     if (fileList.length > 0) {
       const firstName = fileList[0].name;
       const truncatedName = firstName.length > 45 ? `${firstName.substring(0, 42)}...` : firstName;
       setBackupModelName(truncatedName);
       Zotero.debug(`ModelSelection: Updated model name to: ${truncatedName}`);
+      
+      // Auto-switch to standard mode when 2 or more files are selected
+      if (fileList.length >= 2 && selectedType === 'normal') {
+        setSelectedType('lite');
+        Zotero.debug('ModelSelection: Auto-switched to standard mode due to multiple files');
+      }
     } else {
       setBackupModelName('Default Session');
       Zotero.debug('ModelSelection: Reset model name to Default Session');
     }
-  }, [fileList]);
+  }, [fileList, selectedType]);
 
   // Load attachment names when component mounts
   useEffect(() => {
@@ -1284,6 +1290,7 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false },
               }}
               onClick={() => !(isEffectivelyFrozen || fileList.length > 1) && handleTypeSelection('normal')}
               disabled={isEffectivelyFrozen || fileList.length > 1}
+              title={fileList.length > 1 ? "Advanced mode is not available with multiple files" : ""}
             >
               <img src={AdvancedPath} alt="Advanced" style={{ width: '1.5rem', height: '1.5rem' }} />
               ADVANCED
@@ -1293,7 +1300,7 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false },
             <div style={styles.modelDescription}>
               <div style={styles.modelFeature}>
                 <span style={styles.modelIcon}>🙌</span>
-                <span>Our quickest model - for a quick grasp of the content.</span>
+                <span>Our quickest model - for general paper reading.</span>
               </div>
               <div style={styles.modelLimitations}>
                 <span>✅ Free for all users</span>
@@ -1307,7 +1314,7 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false },
             <div style={styles.modelDescription}>
               <div style={styles.modelFeature}>
                 <span style={styles.modelIcon}>🙌</span>
-                <span>Popular model - Great for most papers</span>
+                <span>Our more powerful model - for deeper understanding.</span>
               </div>
               <div style={styles.modelLimitations}>
                 <span>✅ Image understanding</span>
