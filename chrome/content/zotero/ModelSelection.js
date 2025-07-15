@@ -9,7 +9,7 @@ import { getCurrentUser } from './auth/cognitoAuth';
 const DeleteImg = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_DELETE.svg';
 const LitePath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_LITE.svg';
 const BasicPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_STANDARD.svg';
-
+const AdvancedPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_ADVANCED.svg';
 const RegisDragPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_DRAG.svg';
 const RegisSearchPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_SEARCH.svg';
 
@@ -197,14 +197,15 @@ const styles = {
     background: '#F8F6F7',
     marginBottom: '1.25rem',
     justifyContent: 'space-between',
-    gap: '0.25rem',
+    gap: '0.5rem',
     borderRadius: '0.625rem',
     boxSizing: 'border-box',
+    padding: '0.25rem',
   },
   modelTypeButton: {
     flex: '1 1 0',
     minHeight: '3rem',
-    borderRadius: '0.625rem',
+    borderRadius: '0.5rem',
     padding: '0.75rem 0.9375rem',
     border: 'none',
     fontWeight: 400,
@@ -221,8 +222,8 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 0,
-    width: '8.125rem',
-    maxWidth: '10rem',
+    width: 'auto',
+    maxWidth: 'none',
     minPadding: '0.75rem 0.9375rem',
     gap: '0.5rem',
   },
