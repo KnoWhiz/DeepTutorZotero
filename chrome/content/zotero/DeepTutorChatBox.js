@@ -2841,6 +2841,17 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 						margin: 0.25em 0 !important;
 						padding-left: 1em !important;
 					}
+					/* Hide horizontal rules completely */
+					.markdown hr,
+					hr {
+						display: none !important;
+						border: none !important;
+						margin: 0 !important;
+						padding: 0 !important;
+						height: 0 !important;
+						width: 0 !important;
+						visibility: hidden !important;
+					}
 				`
 			}} />
             
