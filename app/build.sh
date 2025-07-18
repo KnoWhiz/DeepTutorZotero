@@ -579,7 +579,7 @@ if [ $BUILD_MAC == 1 ]; then
 	perl -pi -e "s/\{\{VERSION\}\}/$VERSION/" "$CONTENTSDIR/Info.plist"
 	perl -pi -e "s/\{\{VERSION_NUMERIC\}\}/$VERSION_NUMERIC/" "$CONTENTSDIR/Info.plist"
 	if [ $UPDATE_CHANNEL == "beta" ] || [ $UPDATE_CHANNEL == "dev" ] || [ $UPDATE_CHANNEL == "source" ]; then
-		perl -pi -e "s/org\.zotero\.zotero/org.zotero.zotero-$UPDATE_CHANNEL/" "$CONTENTSDIR/Info.plist"
+		perl -pi -e "s/org\.deeptutor\.deeptutor/org.deeptutor.deeptutor-$UPDATE_CHANNEL/" "$CONTENTSDIR/Info.plist"
 	fi
 	perl -pi -e "s/\{\{VERSION\}\}/$VERSION/" "$CONTENTSDIR/Info.plist"
 	# Needed for "monkeypatch" Windows builds: 
@@ -587,7 +587,7 @@ if [ $BUILD_MAC == 1 ]; then
 	rm -f "$CONTENTSDIR/Info.plist.bak"
 	
 	echo
-	grep -B 1 org.zotero.zotero "$CONTENTSDIR/Info.plist"
+	grep -B 1 org.deeptutor.deeptutor "$CONTENTSDIR/Info.plist"
 	echo
 	grep -A 1 CFBundleShortVersionString "$CONTENTSDIR/Info.plist"
 	echo
