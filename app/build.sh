@@ -538,10 +538,10 @@ find "$BUILD_DIR" -name .DS_Store -exec rm -f {} \;
 
 # Mac
 if [ $BUILD_MAC == 1 ]; then
-	echo 'Building Zotero.app'
-		
+	echo 'Building DeepTutor.app'
+
 	# Set up directory structure
-	APPDIR="$STAGE_DIR/Zotero.app"
+	APPDIR="$STAGE_DIR/DeepTutor.app"
 	rm -rf "$APPDIR"
 	mkdir "$APPDIR"
 	chmod 755 "$APPDIR"
@@ -687,25 +687,25 @@ if [ $BUILD_MAC == 1 ]; then
 			/usr/bin/codesign --verify -vvvv "$APPDIR/Contents/PlugIns/ZoteroSafariExtension.appex"
 		fi
 	fi
-	
+
 	# Build and notarize disk image
 	if [ $PACKAGE == 1 ]; then
 		if [ $MAC_NATIVE == 1 ]; then
 			echo "Creating Mac installer"
 			dmg="$DIST_DIR/Zotero-$VERSION.dmg"
-			"$CALLDIR/mac/pkg-dmg" --source "$STAGE_DIR/Zotero.app" \
+			"$CALLDIR/mac/pkg-dmg" --source "$STAGE_DIR/DeepTutor.app" \
 				--target "$dmg" \
 				--sourcefile --volname Zotero --copy "$CALLDIR/mac/DSStore:/.DS_Store" \
 				--symlink /Applications:"/Drag Here to Install" > /dev/null
-			
+
 			if [ "$UPDATE_CHANNEL" != "test" ]; then
 				# Upload disk image to Apple
 				"$CALLDIR/scripts/notarize_mac_app" "$dmg"
 				echo
-				
+
 				# Staple notarization info to disk image
 				"$CALLDIR/scripts/notarization_stapler" "$dmg"
-				
+
 				echo "Notarization complete"
 			else
 				echo "Test build -- skipping notarization"
@@ -714,7 +714,7 @@ if [ $BUILD_MAC == 1 ]; then
 		else
 			echo 'Not building on Mac; creating Mac distribution as a zip file'
 			rm -f "$DIST_DIR/Zotero_mac.zip"
-			cd "$STAGE_DIR" && zip -rqX "$DIST_DIR/Zotero-${VERSION}_mac.zip" Zotero.app
+			cd "$STAGE_DIR" && zip -rqX "$DIST_DIR/Zotero-${VERSION}_mac.zip" DeepTutor.app
 		fi
 	fi
 fi
