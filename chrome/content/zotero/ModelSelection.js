@@ -628,6 +628,70 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false },
 		loadAttachmentNames();
 	}, []);
 
+	// Add currently opened PDF to fileList when component mounts
+	useEffect(() => {
+		const addCurrentOpenPDF = async () => {
+			try {
+				Zotero.debug("ModelSelection: Checking for currently opened PDF");
+				
+				// Get the current reader instance
+				const reader = Zotero.Reader.getByTabID(Zotero.getMainWindow().Zotero_Tabs.selectedID);
+				if (!reader) {
+					Zotero.debug("ModelSelection: No reader instance found");
+					return;
+				}
+
+				// Get the item from the reader
+				const item = Zotero.Items.get(reader.itemID);
+				if (!item) {
+					Zotero.debug("ModelSelection: No item found for reader");
+					return;
+				}
+
+				// Check if it's a PDF attachment
+				if (!item.isPDFAttachment()) {
+					Zotero.debug("ModelSelection: Current item is not a PDF attachment");
+					return;
+				}
+
+				// Safe filename resolution with error handling
+				let fileName = '';
+				try {
+					fileName = item.attachmentFilename || item.getField('title') || '';
+				}
+				catch (error) {
+					Zotero.debug(`ModelSelection: Error getting filename for current PDF: ${error.message}`);
+					fileName = '';
+				}
+
+				// Ensure we have a valid string and fallback to "Untitled"
+				if (!fileName || typeof fileName !== 'string' || fileName.trim() === '') {
+					fileName = 'Untitled';
+				}
+
+				Zotero.debug(`ModelSelection: Found currently opened PDF: ${fileName} (ID: ${item.id})`);
+
+				// Check if this file is already in the fileList
+				if (fileList.some(existingFile => existingFile.id === item.id)) {
+					Zotero.debug("ModelSelection: Current PDF is already in fileList, skipping");
+					return;
+				}
+
+				// Add to fileList
+				setFileList(prev => [...prev, { id: item.id, name: fileName }]);
+				setOriginalFileList(prev => [...prev, item]);
+
+				Zotero.debug(`ModelSelection: Successfully added current PDF to fileList: ${fileName}`);
+			}
+			catch (error) {
+				Zotero.debug(`ModelSelection: Error adding current PDF to fileList: ${error.message}`);
+				Zotero.debug(`ModelSelection: Error stack: ${error.stack}`);
+			}
+		};
+
+		addCurrentOpenPDF();
+	}, []); // Empty dependency array means this runs only once when component mounts
+
 	// Filter attachments when search value changes with debouncing
 	useEffect(() => {
 		Zotero.debug(`BBBBB: Search filter triggered - searchValue: "${searchValue}", type: ${typeof searchValue}`);
