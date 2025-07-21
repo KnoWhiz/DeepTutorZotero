@@ -308,6 +308,7 @@ const styles = {
 		left: 0,
 		right: 0,
 		maxHeight: '12.5rem', // Exactly 5 items (5 * 2.5rem = 12.5rem)
+		maxWidth: '100%',
 		overflowY: 'auto',
 		overflowX: 'auto',
 		padding: '0 0.75rem 0.75rem 0',
@@ -319,16 +320,20 @@ const styles = {
 		marginTop: '0.25rem',
 
 	},
+	searchPopupInner: {
+		width: 'max-content',
+		minWidth: '100%',
+	},
 	searchItem: {
+		display: 'flex',
 		padding: '0.5rem 0.75rem',
 		cursor: 'pointer',
 		fontSize: '0.9em',
 		color: '#292929',
+		width: '100%',
 		transition: 'background 0.2s',
 		height: '2.5rem', // Fixed height for each item
 		lineHeight: '1.5rem',
-		width: '100%',
-		display: 'flex',
 		alignItems: 'center',
 		boxSizing: 'border-box',
 		whiteSpace: 'nowrap',
@@ -1412,26 +1417,28 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 						</div>
 						{showSearchPopup && !isEffectivelyFrozen && (
 							<div style={styles.searchPopup}>
-								{isSearchLoading
-									? (<div style={styles.noResults}>&nbsp;</div>)
-									: filteredContainers.length > 0
-										? (filteredContainers.map(container => (
-											<div
-												key={container.id}
-												style={{
-													...styles.searchItem,
-													background: hoveredSearchItem === container.id ? PEARL : 'transparent',
-												}}
-												onClick={() => handleSearchItemClick(container)}
-												onMouseEnter={() => handleSearchItemMouseEnter(container.id)}
-												onMouseLeave={handleSearchItemMouseLeave}
-												title={container.name} // Show full name on hover
-											>
-												{container.name}
-											</div>
-										)))
-										: (<div style={styles.noResults}>No matching containers found</div>)
-								}
+								<div style={styles.searchPopupInner}>
+									{isSearchLoading
+										? (<div style={styles.noResults}>&nbsp;</div>)
+										: filteredContainers.length > 0
+											? (filteredContainers.map(container => (
+												<div
+													key={container.id}
+													style={{
+														...styles.searchItem,
+														background: hoveredSearchItem === container.id ? PEARL : 'transparent',
+													}}
+													onClick={() => handleSearchItemClick(container)}
+													onMouseEnter={() => handleSearchItemMouseEnter(container.id)}
+													onMouseLeave={handleSearchItemMouseLeave}
+													title={container.name} // Show full name on hover
+												>
+													{container.name}
+												</div>
+											)))
+											: (<div style={styles.noResults}>No matching containers found</div>)
+									}
+								</div>
 							</div>
 						)}
 					</div>
