@@ -87,7 +87,7 @@ const styles = {
 		letterSpacing: '0%',
 		verticalAlign: 'middle',
 		color: '#000000',
-		marginBottom: '0.625rem',
+		marginBottom: '0.5rem',
 	},
 	inputContainer: {
 		width: '100%',
@@ -163,7 +163,6 @@ const styles = {
 		textAlign: 'center',
 		verticalAlign: 'middle',
 		color: '#888',
-		marginBottom: '0.625rem',
 		boxSizing: 'border-box',
 	},
 	dragArea: {
@@ -255,7 +254,6 @@ const styles = {
 		display: 'block',
 	},
 	modelDescription: {
-		marginBottom: '1.25rem',
 		display: 'flex',
 		flexDirection: 'column',
 		gap: '0.625rem',
@@ -457,7 +455,7 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 	const [originalFileList, setOriginalFileList] = useState([]);
 	const [modelName, setModelName] = useState('');
 	const [backupModelName, setBackupModelName] = useState('Default Session');
-	const [selectedType, setSelectedType] = useState('normal');
+	const [selectedType, setSelectedType] = useState('lite');
 	const [searchValue, setSearchValue] = useState('');
 	const [isDragging, setIsDragging] = useState(false);
 	const [containerNames, setContainerNames] = useState([]);
