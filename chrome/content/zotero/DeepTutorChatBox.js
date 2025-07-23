@@ -476,6 +476,9 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	// Add state for note container (parent item ID for creating notes)
 	const [noteContainer, setNoteContainer] = useState(null);
 
+	// Add state to track if a note is currently being saved
+	const [isSavingNote, setIsSavingNote] = useState(false);
+
 	// Helper function to check if we should continue checking for responses (within 10 minutes)
 	const checkTime = React.useCallback((lastMessage) => {
 		if (!lastMessage || !lastMessage.creationTime) return true;
@@ -1908,9 +1911,12 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 		if (!noteContainer) {
 			Zotero.debug("DeepTutorChatBox: No noteContainer available for creating note");
 			// Show user-friendly message
-			Zotero.alert(null, "Cannot Create Note", "Cannot create note: No parent item available. Please ensure documents are loaded.");
+			// Zotero.alert(null, "Cannot Create Note", "Cannot create note: No parent item available. Please ensure documents are loaded.");
 			return;
 		}
+
+		// Set saving state to true
+		setIsSavingNote(true);
 
 		try {
 			Zotero.debug(`DeepTutorChatBox: Creating note for message ${messageIndex} in parent item ${noteContainer}`);
@@ -1948,7 +1954,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 
 			if (!noteText) {
 				Zotero.debug("DeepTutorChatBox: No text content found in message");
-				Zotero.alert(null, "Cannot Create Note", "Cannot create note: Message appears to be empty.");
+				// Zotero.alert(null, "Cannot Create Note", "Cannot create note: Message appears to be empty.");
+				setIsSavingNote(false);
 				return;
 			}
 
@@ -1987,12 +1994,15 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			});
 			
 			// Show success message
-			Zotero.alert(null, "Note Created Successfully", "The message has been saved as a note under the document.");
+			// Zotero.alert(null, "Note Created Successfully", "The message has been saved as a note under the document.");
 
 		} catch (error) {
 			Zotero.debug(`DeepTutorChatBox: Error creating note for message ${messageIndex}: ${error.message}`);
 			Zotero.debug(`DeepTutorChatBox: Error stack: ${error.stack}`);
-			Zotero.alert(null, "Error Creating Note", `Error creating note: ${error.message}`);
+			// Zotero.alert(null, "Error Creating Note", `Error creating note: ${error.message}`);
+		} finally {
+			// Always reset the saving state, regardless of success or failure
+			setIsSavingNote(false);
 		}
 	};
 
@@ -2129,7 +2139,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				</div>
 				
 				{/* Add download button for tutor messages only */}
-				{!isUser && noteContainer && !isStreaming && !iniWait && (
+				{!isUser && noteContainer && !isStreaming && !iniWait && !isSavingNote && (
 					<div style={{
 						display: 'flex',
 						justifyContent: 'flex-start',
