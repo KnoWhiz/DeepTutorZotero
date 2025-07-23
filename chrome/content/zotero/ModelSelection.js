@@ -108,18 +108,6 @@ const styles = {
 		outline: 'none',
 		boxSizing: 'border-box',
 		margin: 0,
-		"&::placeholder": {
-			color: "#777777",
-		},
-		"&::-webkit-input-placeholder": {
-			color: "#777777",
-		},
-		"&::-moz-placeholder": {
-			color: "#777777",
-		},
-		"&:-ms-input-placeholder": {
-			color: "#777777",
-		},
 	},
 	searchArea: {
 		width: '100%',
@@ -147,18 +135,6 @@ const styles = {
 		fontSize: '1rem',
 		fontFamily: 'Roboto, sans-serif',
 		color: '#292929',
-		"&::placeholder": {
-			color: "#777777",
-		},
-		"&::-webkit-input-placeholder": {
-			color: "#777777",
-		},
-		"&::-moz-placeholder": {
-			color: "#777777",
-		},
-		"&:-ms-input-placeholder": {
-			color: "#777777",
-		},
 	},
 	searchLoadingIndicator: {
 		marginLeft: '0.5rem',
