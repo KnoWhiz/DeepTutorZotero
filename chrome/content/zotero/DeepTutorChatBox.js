@@ -33,29 +33,27 @@ md.use(mk, {
 });
 
 // Try to add enhanced table support with plugins
+try {
+	// Try to load markdown-it-table plugin for enhanced table features
+	const markdownItTable = require('markdown-it-table');
+	md.use(markdownItTable);
+}
+catch {
+	// Try alternative GFM plugin that includes tables
 	try {
-		// Try to load markdown-it-table plugin for enhanced table features
-		const markdownItTable = require('markdown-it-table');
-		md.use(markdownItTable);
+		const markdownItGfm = require('markdown-it-gfm');
+		md.use(markdownItGfm);
 	}
 	catch {
-		// Try alternative GFM plugin that includes tables
-		try {
-			const markdownItGfm = require('markdown-it-gfm');
-			md.use(markdownItGfm);
-		}
-		catch {
-			// Using basic table support only
-		}
+		// Using basic table support only
 	}
+}
 
 // Configure markdown-it-container for source buttons
 // DISABLED - Using direct HTML replacement approach instead to avoid table conflicts
 // The container plugin interferes with table parsing, so we'll use post-processing instead
 
 // Test removed - no longer using container plugin
-
-
 
 
 class Conversation {
@@ -553,25 +551,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 		
 		// Add event listener to document
 		document.addEventListener('click', handleDocumentClick);
-
-		// Debug function for testing source data retrieval
-		window.debugDeepTutorSourceData = (sourceIndex) => {
-			const storageKey = `deeptutor_source_${sessionId}_${sourceIndex}`;
-			const sourceDataStr = Zotero.Prefs.get(storageKey);
-			
-			if (sourceDataStr) {
-				try {
-					const sourceData = JSON.parse(sourceDataStr);
-					// Parsed source data available
-				}
-				catch (error) {
-					// Error parsing source data
-				}
-			}
-			else {
-				// No source data found
-			}
-		};
 		
 		// Cleanup function
 		return () => {
@@ -1174,7 +1153,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	const _appendMessage = async (sender, message) => {
 		// Process subMessages
 		if (message.subMessages && message.subMessages.length > 0) {
-            
 			// Create a new message object with processed subMessages
 			const processedMessage = {
 				...message,
@@ -1374,38 +1352,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			/\\\[([\s\S]+?)\\\]/g,
 			'$$$$\n$1\n$$$$',
 		);
-
-		// Apply additional mathematical symbol processing for non-KaTeX expressions
-		/*
-		formattedText = formattedText
-			// Convert Ca$^{2+}$ to Ca<sup>2+</sup>
-			.replace(/Ca\$\^\{?2\+\}\$?/g, 'Ca<sup>2+</sup>')
-			// Convert other LaTeX superscripts: $^{text}$ to <sup>text</sup>
-			.replace(/\$\^\{([^}]+)\}\$/g, '<sup>$1</sup>')
-			// Convert standalone superscripts: $^text$ to <sup>text</sup>
-			.replace(/\$\^([a-zA-Z0-9\+\-]+)\$/g, '<sup>$1</sup>')
-			// Convert Greek letters to HTML entities
-			.replace(/β/g, '&beta;')
-			.replace(/α/g, '&alpha;')
-			.replace(/γ/g, '&gamma;')
-			.replace(/δ/g, '&delta;')
-			.replace(/ε/g, '&epsilon;')
-			.replace(/θ/g, '&theta;')
-			.replace(/λ/g, '&lambda;')
-			.replace(/μ/g, '&mu;')
-			.replace(/π/g, '&pi;')
-			.replace(/ρ/g, '&rho;')
-			.replace(/σ/g, '&sigma;')
-			.replace(/τ/g, '&tau;')
-			.replace(/φ/g, '&phi;')
-			.replace(/χ/g, '&chi;')
-			.replace(/ψ/g, '&psi;')
-			.replace(/ω/g, '&omega;')
-			// Convert any remaining standalone $ to HTML entity (only for non-math expressions)
-			.replace(/\$(?!\$)/g, '&#36;')
-			// Convert standalone ^ to HTML entity (for any remaining cases)
-			.replace(/\^/g, '&#94;');
-		*/
 		return formattedText;
 	};
 
@@ -1469,84 +1415,82 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 					.replace(/&nbsp;/g, '&#160;');
 				
 				const wrappedHtml = `<root>${preprocessedHtml}</root>`;
-				
-				try {
-					// Try parsing as HTML first, then convert to XML
-					let doc = null;
+				// Try parsing as HTML first, then convert to XML
+				let doc = null;
 					
-					// First attempt: Parse as HTML (if the parser supports it)
-					if (parser.parseFromString) {
-						try {
-							doc = parser.parseFromString(wrappedHtml, 'text/html');
-						}
-						catch (htmlError) {
-							// HTML parsing failed
+				// First attempt: Parse as HTML (if the parser supports it)
+				if (parser.parseFromString) {
+					try {
+						doc = parser.parseFromString(wrappedHtml, 'text/html');
+					}
+					catch (htmlError) {
+						// HTML parsing failed
+					}
+				}
+					
+				// Second attempt: Parse as XML if HTML parsing failed or not supported
+				if (!doc || !doc.documentElement || doc.documentElement.tagName === 'parsererror') {
+					try {
+						doc = parser.parseFromString(wrappedHtml, 'application/xml');
+							
+						// Check if parsing was successful (no parsererror elements)
+						const parseError = doc.querySelector ? doc.querySelector('parsererror') : null;
+						if (parseError) {
+							throw new Error('XML parsing failed');
 						}
 					}
+					catch (xmlError) {
+						throw new Error('Both HTML and XML parsing failed');
+					}
+				}
 					
-					// Second attempt: Parse as XML if HTML parsing failed or not supported
-					if (!doc || !doc.documentElement || doc.documentElement.tagName === 'parsererror') {
-						try {
-							doc = parser.parseFromString(wrappedHtml, 'application/xml');
+				// Function to recursively fix self-closing tags
+				const fixXmlCompatibility = (node) => {
+					if (node.nodeType === 1) { // ELEMENT_NODE
+						const tagName = node.tagName.toLowerCase();
 							
-							// Check if parsing was successful (no parsererror elements)
-							const parseError = doc.querySelector ? doc.querySelector('parsererror') : null;
-							if (parseError) {
-								throw new Error('XML parsing failed');
+						// List of self-closing HTML tags
+						const selfClosingTags = [
+							'area',
+							'base',
+							'br',
+							'col',
+							'embed',
+							'hr',
+							'img',
+							'input',
+							'link',
+							'meta',
+							'param',
+							'source',
+							'track',
+							'wbr'
+						];
+							
+						// For self-closing tags, ensure they have no children
+						if (selfClosingTags.includes(tagName)) {
+							while (node.firstChild) {
+								node.removeChild(node.firstChild);
 							}
 						}
-						catch (xmlError) {
-							throw new Error('Both HTML and XML parsing failed');
+							
+						// Process child elements
+						const children = Array.from(node.children || []);
+						for (const child of children) {
+							fixXmlCompatibility(child);
 						}
 					}
+				};
 					
-					// Function to recursively fix self-closing tags
-					const fixXmlCompatibility = (node) => {
-						if (node.nodeType === 1) { // ELEMENT_NODE
-							const tagName = node.tagName.toLowerCase();
-							
-							// List of self-closing HTML tags
-							const selfClosingTags = [
-								'area',
-								'base',
-								'br',
-								'col',
-								'embed',
-								'hr',
-								'img',
-								'input',
-								'link',
-								'meta',
-								'param',
-								'source',
-								'track',
-								'wbr'
-							];
-							
-							// For self-closing tags, ensure they have no children
-							if (selfClosingTags.includes(tagName)) {
-								while (node.firstChild) {
-									node.removeChild(node.firstChild);
-								}
-							}
-							
-							// Process child elements
-							const children = Array.from(node.children || []);
-							for (const child of children) {
-								fixXmlCompatibility(child);
-							}
-						}
-					};
+				// Fix XML compatibility
+				fixXmlCompatibility(doc.documentElement);
 					
-					// Fix XML compatibility
-					fixXmlCompatibility(doc.documentElement);
+				// Serialize back to string
+				const serializedXml = serializer.serializeToString(doc.documentElement);
+				let result = serializedXml.replace(/^<root[^>]*>/, '').replace(/<\/root>$/, '');
 					
-					// Serialize back to string
-					const serializedXml = serializer.serializeToString(doc.documentElement);
-					let result = serializedXml.replace(/^<root[^>]*>/, '').replace(/<\/root>$/, '');
-					
-					// Clean up whitespace: remove spaces around specific HTML tags
-					result = result
+				// Clean up whitespace: remove spaces around specific HTML tags
+				result = result
 						// Remove spaces before opening tags
 						.replace(/\s+<(ol|ul|li|p|div|span|h[1-6])>/g, '<$1>')
 						// Remove spaces after opening tags
@@ -1558,12 +1502,9 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 						// Remove spaces at the beginning and end of the entire string
 						.trim();
 					
-					return result;
-				}
-				catch (domError) {
-					throw domError;
-				}
+				return result;
 			}
+			
 			else {
 				// No DOM parsing available, skip to regex
 				throw new Error('No DOM parsing APIs available');
@@ -1631,8 +1572,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 					index: match.index
 				});
 			}
-			
-
 			
 			// Clean up whitespace: remove spaces around specific HTML tags
 			processedHtml = processedHtml
@@ -1809,10 +1748,11 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			
 			// Show success message with actual names
 			Zotero.alert(null, "Note Created Successfully", `Note "${noteName}" created successfully in "${containerName}".`);
-
-		} catch (error) {
+		}
+		catch (error) {
 			// Zotero.alert(null, "Error Creating Note", `Error creating note: ${error.message}`);
-		} finally {
+		}
+		finally {
 			// Always reset the saving state, regardless of success or failure
 			setIsSavingNote(false);
 		}
@@ -1942,8 +1882,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 								gap: '0.25rem'
 							}}
 							onClick={() => downloadMessage(message, index)}
-							onMouseEnter={(e) => e.target.style.background = '#0570c0'}
-							onMouseLeave={(e) => e.target.style.background = '#0687E5'}
+							onMouseEnter={e => e.target.style.background = '#0570c0'}
+							onMouseLeave={e => e.target.style.background = '#0687E5'}
 							title={`Save message ${index + 1} as Zotero note`}
 						>
 							📝 Save as Note
@@ -2146,13 +2086,16 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 							else {
 								setNoteContainer(null);
 							}
-						} else {
+						}
+						else {
 							setNoteContainer(null);
 						}
-					} catch (error) {
+					}
+					catch (error) {
 						setNoteContainer(null);
 					}
-				} else {
+				}
+				else {
 					setNoteContainer(null);
 				}
 			}
@@ -2377,16 +2320,20 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 							else {
 								setNoteContainer(null);
 							}
-						} else {
+						}
+						else {
 							setNoteContainer(null);
 						}
-					} catch (error) {
+					}
+					catch (error) {
 						setNoteContainer(null);
 					}
-				} else {
+				}
+				else {
 					setNoteContainer(null);
 				}
-			} catch {
+			}
+			catch {
 				// Zotero.debug(`DeepTutorChatBox: Error loading context documents: ${error.message}`);
 				setContextDocuments([]);
 				setNoteContainer(null);
@@ -2820,6 +2767,33 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 						height: 0 !important;
 						width: 0 !important;
 						visibility: hidden !important;
+					}
+					
+					/* Image styling - make images fit their parent container */
+					.markdown img {
+						max-width: 100% !important;
+						height: auto !important;
+						display: block !important;
+						margin: 0.5rem auto !important;
+						border-radius: 0.375rem !important;
+						box-shadow: 0 0.0625rem 0.125rem rgba(0,0,0,0.1) !important;
+						object-fit: contain !important;
+					}
+					
+					/* Ensure images don't overflow their containers */
+					.markdown p img,
+					.markdown div img {
+						max-width: 100% !important;
+						width: auto !important;
+						height: auto !important;
+					}
+					
+					/* Responsive image handling for different screen sizes */
+					@media (max-width: 768px) {
+						.markdown img {
+							max-width: 95% !important;
+							margin: 0.375rem auto !important;
+						}
 					}
 				`
 			}} />
