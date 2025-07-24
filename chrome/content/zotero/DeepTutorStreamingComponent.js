@@ -478,7 +478,7 @@ const DeepTutorStreamingComponent = ({ streamText, hideStreamResponse }) => {
 	const containerStyle = {
 		padding: '0.125rem',
 		fontFamily: 'Roboto, sans-serif',
-		fontSize: '0.875rem', // Match DeepTutorChatBox font size
+		fontSize: '0.876rem', // Match DeepTutorChatBox font size
 		lineHeight: '1.35', // Match DeepTutorChatBox line height
 		textAlign: 'left',
 		wordWrap: 'break-word',
