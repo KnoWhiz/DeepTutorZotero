@@ -990,8 +990,8 @@ Zotero.DBConnection.prototype.backupDatabase = async function (_suffix, _force) 
 /**
  * @param {Object} [options]
  * @param {Boolean} [options.force] - Perform backup even if not enough time has passed since last one
- * @param {String} [options.suffix] - Suffix to add to 'zotero.sqlite.' before 'bak' (e.g., '123'
- *     for zotero.sqlite.123.bak)
+ * @param {String} [options.suffix] - Suffix to add to 'deeptutor.sqlite.' before 'bak' (e.g., '123'
+ *     for deeptutor.sqlite.123.bak)
  * @param {Boolean} [options.online] - Perform an online incremental backup without closing connection
  */
 Zotero.DBConnection.prototype.backUpDatabase = async function ({ force, suffix, online }) {
