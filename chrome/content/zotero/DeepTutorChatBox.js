@@ -1028,7 +1028,35 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			await new Promise(resolve => setTimeout(resolve, 3000));
             
 			const historyData = await getMessagesBySessionId(sessionId);
-			setMessages(historyData);
+			
+			// Preserve streaming message data when updating from server
+			setMessages(prevMessages => {
+				// Find the streaming message (last message with isStreaming: true)
+				const streamingMessageIndex = prevMessages.findIndex(msg => msg.isStreaming);
+				
+				if (streamingMessageIndex !== -1) {
+					// Replace the streaming message with the final server message, but preserve streamText
+					const streamingMessage = prevMessages[streamingMessageIndex];
+					const finalMessage = historyData[historyData.length - 1];
+					
+					// Create updated message that preserves streamText but uses server data
+					const updatedMessage = {
+						...finalMessage,
+						streamText: streamingMessage.streamText || finalMessage.subMessages?.[0]?.text || '',
+						isStreaming: false
+					};
+					
+					// Replace the streaming message with the updated one
+					const updatedMessages = [...prevMessages];
+					updatedMessages[streamingMessageIndex] = updatedMessage;
+					
+					return updatedMessages;
+				}
+				
+				// If no streaming message found, use server data as is
+				return historyData;
+			});
+			
 			setLatestMessageId(historyData[historyData.length - 1].id);
 
             
@@ -1242,11 +1270,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			'<appendix>',
 			'</appendix>'
 		]);
-		
-		// Remove any other custom tags that might cause XML issues
-		// This regex removes any remaining custom tags that aren't standard HTML
-		//cleanText = cleanText.replace(/<(?!\/?(p|div|span|strong|em|ul|ol|li|h[1-6]|blockquote|code|pre|table|thead|tbody|tr|th|td|br|hr|img|a)\b)[^>]*>/gi, '');
-		
+			
 		// Now apply mathematical symbol processing and source processing to the clean text
 		let formattedText = cleanText;
 
@@ -1674,167 +1698,159 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
         
 		const isUser = message.role === MessageRole.USER;
         
-		// Handle streaming messages for TUTOR role
-		if (!isUser && message.isStreaming && message.streamText) {
-			return (
-				<div key={message.id || index} style={styles.messageContainer}>
-					<DeepTutorStreamingComponent
-						streamText={message.streamText || ''}
-						hideStreamResponse={false}
-					/>
-				</div>
-			);
-		}
-        
 		return (
 			<div>
-				<div key={message.id || index} style={styles.messageContainer}>
+				{/* Always show streaming component for all messages */}
+				<div key={`streaming-${message.id || index}`} style={styles.messageContainer}>
 					<DeepTutorStreamingComponent
 						streamText={message.streamText || ''}
-						hideStreamResponse={false}
+						hideStreamResponse={!message.isStreaming}
 					/>
 				</div>
-				<div key={message.id || index} style={styles.messageStyle}>
-					<div style={{
-						...styles.messageBubble,
-						...(isUser ? styles.userMessage : styles.botMessage),
-						animation: "slideIn 0.3s ease-out",
-						...(isUser && { display: 'flex', alignItems: 'flex-start', gap: '0.5rem' })
-					}}>
-						{/* Add user message icon inside the bubble for user messages */}
-						{message.subMessages.map((subMessage, subIndex) => {
-							const text = formatResponseForMarkdown(subMessage.text || "", subMessage);
-							try {
-								var result = md.render(text);
-							
-								// Process through DOM-based XML conversion
-								const processedResult = processMarkdownResult(result);
-							
-								return (
-									<div key={subIndex} style={styles.messageText}>
-										{/* Render text content through markdown-it with DOM-processed XML */}
-										{processedResult
-											? (
-												<div
-													className="markdown mb-0 flex flex-col"
-													dangerouslySetInnerHTML={{
-														__html: (() => {
-															try {
-															// Final validation before rendering
-																if (typeof processedResult !== 'string' || processedResult.trim() === '') {
+				
+				{/* Show regular message content for non-streaming messages */}
+				{!message.isStreaming && (
+					<div key={`content-${message.id || index}`} style={styles.messageStyle}>
+						<div style={{
+							...styles.messageBubble,
+							...(isUser ? styles.userMessage : styles.botMessage),
+							animation: "slideIn 0.3s ease-out",
+							...(isUser && { display: 'flex', alignItems: 'flex-start', gap: '0.5rem' })
+						}}>
+							{/* Add user message icon inside the bubble for user messages */}
+							{message.subMessages.map((subMessage, subIndex) => {
+								const text = formatResponseForMarkdown(subMessage.text || "", subMessage);
+								try {
+									var result = md.render(text);
+								
+									// Process through DOM-based XML conversion
+									const processedResult = processMarkdownResult(result);
+								
+									return (
+										<div key={subIndex} style={styles.messageText}>
+											{/* Render text content through markdown-it with DOM-processed XML */}
+											{processedResult
+												? (
+													<div
+														className="markdown mb-0 flex flex-col"
+														dangerouslySetInnerHTML={{
+															__html: (() => {
+																try {
+																// Final validation before rendering
+																	if (typeof processedResult !== 'string' || processedResult.trim() === '') {
+																		return null;
+																	}
+																	return processedResult;
+																}
+																catch (error) {
+																	Zotero.debug(error);
 																	return null;
 																}
-																return processedResult;
-															}
-															catch (error) {
-																Zotero.debug(error);
-																return null;
-															}
-														})()
-													}}
-													style={{
+															})()
+														}}
+														style={{
+															fontSize: "14px",
+															lineHeight: "1.5",
+															wordBreak: "break-word",
+															overflowWrap: "break-word"
+														}}
+													/>
+												)
+												: (
+													<div style={{
 														fontSize: "14px",
 														lineHeight: "1.5",
 														wordBreak: "break-word",
 														overflowWrap: "break-word"
-													}}
-												/>
-											)
-											: (
-												<div style={{
-													fontSize: "14px",
-													lineHeight: "1.5",
-													wordBreak: "break-word",
-													overflowWrap: "break-word"
-												}}>
-													{subMessage.text || ""}
-												</div>
-											)}
-									</div>
-								);
-							}
-							catch {
-							// Fallback to plain text if markdown processing fails
-								return (
-									<div key={subIndex} style={styles.messageText}>
-										<div style={{
-											fontSize: "16px",
-											lineHeight: "1.5",
-											wordBreak: "break-word",
-											overflowWrap: "break-word"
-										}}>
-											{subMessage.text || ""}
+													}}>
+														{subMessage.text || ""}
+													</div>
+												)}
 										</div>
-									</div>
-								);
-							}
-						})}
+									);
+								}
+								catch {
+								// Fallback to plain text if markdown processing fails
+									return (
+										<div key={subIndex} style={styles.messageText}>
+											<div style={{
+												fontSize: "16px",
+												lineHeight: "1.5",
+												wordBreak: "break-word",
+												overflowWrap: "break-word"
+											}}>
+												{subMessage.text || ""}
+											</div>
+										</div>
+									);
+								}
+							})}
+						</div>
+						
+						{/* Add download button for tutor messages only */}
+						{!isUser && noteContainer && !isStreaming && !iniWait && !isSavingNote && (
+							<div style={{
+								display: 'flex',
+								justifyContent: 'flex-start',
+								marginTop: '0.5rem',
+								marginLeft: '0'
+							}}>
+								<button
+									style={{
+										all: 'revert',
+										background: '#0687E5',
+										color: 'white',
+										border: 'none',
+										borderRadius: '0.375rem',
+										padding: '0.25rem 0.5rem',
+										fontSize: '0.75rem',
+										fontWeight: 500,
+										cursor: 'pointer',
+										boxShadow: '0 0.0625rem 0.125rem rgba(0,0,0,0.1)',
+										transition: 'background-color 0.2s',
+										fontFamily: 'Roboto, sans-serif',
+										display: 'flex',
+										alignItems: 'center',
+										gap: '0.25rem'
+									}}
+									onClick={() => downloadMessage(message, index)}
+									onMouseEnter={e => e.target.style.background = '#0570c0'}
+									onMouseLeave={e => e.target.style.background = '#0687E5'}
+									title={`Save message ${index + 1} as Zotero note`}
+								>
+									📝 Save as Note
+								</button>
+							</div>
+						)}
+						
+						{index === messages.length - 1 && message.followUpQuestions && message.followUpQuestions.length > 0 && (
+							<div>
+								<div style={styles.followUpQuestionText}>
+								Follow-up Questions
+								</div>
+								<div style={styles.questionContainer}>
+									{message.followUpQuestions.map((question, qIndex) => (
+										<button
+											key={qIndex}
+											style={{
+												...styles.questionButton,
+												background: hoveredQuestion === qIndex ? "#D9D9D9" : "#FFFFFF"
+											}}
+											onClick={() => handleQuestionClick(question)}
+											onMouseEnter={() => setHoveredQuestion(qIndex)}
+											onMouseLeave={() => setHoveredQuestion(null)}
+										>
+											{question}
+										</button>
+									))}
+								</div>
+							</div>
+						)}
 					</div>
-				
-					{/* Add download button for tutor messages only */}
-					{!isUser && noteContainer && !isStreaming && !iniWait && !isSavingNote && (
-						<div style={{
-							display: 'flex',
-							justifyContent: 'flex-start',
-							marginTop: '0.5rem',
-							marginLeft: '0'
-						}}>
-							<button
-								style={{
-									all: 'revert',
-									background: '#0687E5',
-									color: 'white',
-									border: 'none',
-									borderRadius: '0.375rem',
-									padding: '0.25rem 0.5rem',
-									fontSize: '0.75rem',
-									fontWeight: 500,
-									cursor: 'pointer',
-									boxShadow: '0 0.0625rem 0.125rem rgba(0,0,0,0.1)',
-									transition: 'background-color 0.2s',
-									fontFamily: 'Roboto, sans-serif',
-									display: 'flex',
-									alignItems: 'center',
-									gap: '0.25rem'
-								}}
-								onClick={() => downloadMessage(message, index)}
-								onMouseEnter={e => e.target.style.background = '#0570c0'}
-								onMouseLeave={e => e.target.style.background = '#0687E5'}
-								title={`Save message ${index + 1} as Zotero note`}
-							>
-							📝 Save as Note
-							</button>
-						</div>
-					)}
-				
-					{index === messages.length - 1 && message.followUpQuestions && message.followUpQuestions.length > 0 && (
-						<div>
-							<div style={styles.followUpQuestionText}>
-							Follow-up Questions
-							</div>
-							<div style={styles.questionContainer}>
-								{message.followUpQuestions.map((question, qIndex) => (
-									<button
-										key={qIndex}
-										style={{
-											...styles.questionButton,
-											background: hoveredQuestion === qIndex ? "#D9D9D9" : "#FFFFFF"
-										}}
-										onClick={() => handleQuestionClick(question)}
-										onMouseEnter={() => setHoveredQuestion(qIndex)}
-										onMouseLeave={() => setHoveredQuestion(null)}
-									>
-										{question}
-									</button>
-								))}
-							</div>
-						</div>
-					)}
-				</div>
+				)}
 			</div>
 		);
 	};
-
 
 	// Add new useEffect after the existing one
 	useEffect(() => {
