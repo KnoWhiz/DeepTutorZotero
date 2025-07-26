@@ -421,16 +421,12 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	const [userId, setUserId] = useState(null);
 	const [documentIds, setDocumentIds] = useState([]);
 	const [latestMessageId, setLatestMessageId] = useState(null);
-	const [isLoading, setIsLoading] = useState(false);
-	const [storagePathsState, setStoragePathsState] = useState([]);
 	const [curSessionType, setcurSessionType] = useState(SessionType.BASIC);
 	const chatLogRef = useRef(null);
 	const contextPopupRef = useRef(null);
 	const textareaRef = useRef(null);
 	const [hoveredContextDoc, setHoveredContextDoc] = useState(null);
-	// Removed hoveredQuestion and hoveredPopupSession states - these were causing unnecessary re-renders
 	const [hoveredQuestion, setHoveredQuestion] = useState(null);
-	// const [hoveredPopupSession, setHoveredPopupSession] = useState(null);
 	const [iniWait, setInitWait] = useState(false);
 	const [isStreaming, setIsStreaming] = useState(false);
 	const isAutoScrollingRef = useRef(true);
@@ -478,15 +474,9 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 					if (response && response.length > messages.length) {
 						setMessages(response);
 						setLatestMessageId(response[response.length - 1].id);
-						
-
-						
 						// Stop streaming if it was active (AI response received)
 						
 						setIsStreaming(false);
-					}
-					else {
-						// Start streaming if not already active (waiting for AI response)
 					}
 				}).catch((error) => {
 					Zotero.debug(error);
@@ -679,134 +669,96 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	// Handle session changes
 	useEffect(() => {
 		const loadSessionData = async () => {
-			if (!currentSession?.id) {
-				return;
-			}
+			if (!currentSession?.id) return;
 
-			try {
-				// Update session and user IDs
-				setSessionId(currentSession.id);
-				setUserId(currentSession.userId);
-				setDocumentIds(currentSession.documentIds || []);
-				setcurSessionType(currentSession.type || SessionType.BASIC);
+			// Update session and user IDs
+			setSessionId(currentSession.id);
+			setUserId(currentSession.userId);
+			setDocumentIds(currentSession.documentIds || []);
+			setcurSessionType(currentSession.type || SessionType.BASIC);
 
-				// Update recent sessions immediately
-				// await updateRecentSessions(currentSession.id);
-
-				// Fetch document information
-				const newDocumentFiles = [];
-				for (const documentId of currentSession.documentIds || []) {
-					try {
-						const docData = await getDocumentById(documentId);
-						newDocumentFiles.push(docData);
-					}
-					catch (error) {
-						Zotero.debug(error);
-					}
-				}
-				setStoragePathsState(newDocumentFiles.map(doc => doc.storagePath));
-			}
-			catch (error) {
-				Zotero.debug(error);
-			}
+			// Fetch document information (errors are handled gracefully)
+			const documentIds = currentSession.documentIds || [];
+			const newDocumentFiles = await Promise.allSettled(
+				documentIds.map(id => getDocumentById(id))
+			);
+			
+			// Log any failures
+			newDocumentFiles
+				.filter(result => result.status === "rejected")
+				.forEach(result => Zotero.debug(result.reason));
 		};
 
 		loadSessionData();
 	}, [currentSession]);
 
 
-
 	// Handle message updates
 	useEffect(() => {
 		const loadMessages = async () => {
-			if (!sessionId) {
-				return;
-			}
+			if (!sessionId) return;
 
 			try {
 				const sessionMessages = await getMessagesBySessionId(sessionId);
 				setMessages([]);
                 
-				if (sessionMessages.length > 0) {
-					setLatestMessageId(sessionMessages[sessionMessages.length - 1].id);
-
-                    
-					// Process and append each message
-					for (const [, message] of sessionMessages.entries()) {
-						const sender = message.role === MessageRole.USER ? "You" : "DeepTutor";
-						await _appendMessage(sender, message);
-					}
-
-
-					
-					// Check if we should be streaming (if last message is from user and within 10 minutes)
-					const lastMessage = sessionMessages[sessionMessages.length - 1];
-					if (lastMessage && lastMessage.role === MessageRole.USER && checkTime(lastMessage)) {
-						setIsStreaming(true);
-					}
-					else {
-						setIsStreaming(false);
-					}
-				}
-				else {
-					// Show loading popup
-					setIsLoading(false);
-					let shouldSendInitialMessage = true;
-					setInitWait(true);
-                    
-					// Show loading message
-					const loadingMessage = {
-						id: null,
-						parentMessageId: latestMessageId,
-						userId: userId,
-						sessionId: sessionId,
-						subMessages: [{
-							text: "Loading...Please wait for a few seconds",
-							image: null,
-							audio: null,
-							contentType: ContentType.TEXT,
-							creationTime: new Date().toISOString(),
-							sources: []
-						}],
-						followUpQuestions: [],
-						creationTime: new Date().toISOString(),
-						lastUpdatedTime: new Date().toISOString(),
-						status: MessageStatus.UNVIEW,
-						role: MessageRole.TUTOR
-					};
-					await _appendMessage("DeepTutor", loadingMessage);
-
-					// Wait for 10 seconds
-					await new Promise(resolve => setTimeout(resolve, 8000));
-                    
-					// Clear messages
-					setMessages([]);
-                    
-					// Check if we should proceed with initial message
-					if (shouldSendInitialMessage) {
-						setIsLoading(false);
-						// Send initial message
-						// "Can you give me a summary of this document?"
-						await userSendMessage('Based on the context provided, make a summary for the document. Begin with "Summary"');
-					}
-					else {
-						// Skipping automatic summary
-					}
-					setInitWait(false);
+				if (sessionMessages.length === 0) {
+					await handleEmptySession();
+					return;
 				}
 
-				// Auto-scrolling is now handled by useEffect hooks
+				// Process existing messages
+				setLatestMessageId(sessionMessages[sessionMessages.length - 1].id);
+				
+				for (const [, message] of sessionMessages.entries()) {
+					const sender = message.role === MessageRole.USER ? "You" : "DeepTutor";
+					await _appendMessage(sender, message);
+				}
+
+				// Update streaming state based on last message
+				const lastMessage = sessionMessages[sessionMessages.length - 1];
+				const shouldStream = lastMessage?.role === MessageRole.USER && checkTime(lastMessage);
+				setIsStreaming(shouldStream);
 			}
 			catch (error) {
 				Zotero.debug(error);
-				setIsLoading(false);
 			}
+		};
+
+		const handleEmptySession = async () => {
+			setInitWait(true);
+			
+			const loadingMessage = {
+				id: null,
+				parentMessageId: latestMessageId,
+				userId: userId,
+				sessionId: sessionId,
+				subMessages: [{
+					text: "Loading...Please wait for a few seconds",
+					image: null,
+					audio: null,
+					contentType: ContentType.TEXT,
+					creationTime: new Date().toISOString(),
+					sources: []
+				}],
+				followUpQuestions: [],
+				creationTime: new Date().toISOString(),
+				lastUpdatedTime: new Date().toISOString(),
+				status: MessageStatus.UNVIEW,
+				role: MessageRole.TUTOR
+			};
+			
+			await _appendMessage("DeepTutor", loadingMessage);
+			await new Promise(resolve => setTimeout(resolve, 8000));
+			setMessages([]);
+			
+			// Send initial message
+			await userSendMessage('Based on the context provided, make a summary for the document. Begin with "Summary"');
+			setInitWait(false);
 		};
 
 		loadMessages();
 	}, [sessionId]);
-
-
 
 
 	// Auto-scroll when messages change
@@ -965,8 +917,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				type: curSessionType || SessionType.BASIC
 			});
             
-
-
 			// Subscribe to chat stream with timeout
 			const streamResponse = await subscribeToChat(newState);
 
@@ -1081,7 +1031,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			setMessages(historyData);
 			setLatestMessageId(historyData[historyData.length - 1].id);
 
-
             
 			// Get only the last message from the response
 			const lastMessage = historyData.length > 0 ? historyData[historyData.length - 2] : null;
@@ -1100,8 +1049,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				if (historyData && historyData.length > 0) {
 					setMessages(historyData);
 					setLatestMessageId(historyData[historyData.length - 1].id);
-					
-
 				}
 			}
 			catch (historyError) {
@@ -1932,7 +1879,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 						}
 					}
 					catch (error) {
-						// Continue with the next document even if this one fails
+						Zotero.debug(error);
 					}
 				}
 			}
@@ -1943,135 +1890,127 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	// Load context documents when documentIds change
 	useEffect(() => {
 		const loadContextDocuments = async () => {
-			if (!documentIds || documentIds.length === 0 || !sessionId) {
+			if (!documentIds?.length || !sessionId) {
 				setContextDocuments([]);
 				return;
 			}
             
 			try {
-				// Try to get the mapping from local storage
-				const storageKey = `deeptutor_mapping_${sessionId}`;
-				const mappingStr = Zotero.Prefs.get(storageKey);
-				let mapping = {};
-                
-				if (mappingStr) {
-					mapping = JSON.parse(mappingStr);
-				}
-
-				const contextDocs = [];
-				for (const documentId of documentIds) {
-					try {
-						// Get the actual Zotero attachment ID
-						let zoteroAttachmentId = documentId;
-						if (mapping[documentId]) {
-							zoteroAttachmentId = mapping[documentId];
-						}
-
-						// Try to get the Zotero item to get the document name and path
-						const item = Zotero.Items.get(zoteroAttachmentId);
-						let documentName = "Document Not Found"; // fallback to documentId
-						let filePath = null;
-
-						if (item) {
-							// Prioritize attachment filename first
-							if (item.attachmentFilename) {
-								documentName = item.attachmentFilename;
-							}
-							// Fall back to display title if no filename
-							else if (item.getDisplayTitle) {
-								documentName = item.getDisplayTitle();
-							}
-							// Finally try parent item title
-							else if (item.parentItem) {
-								const parentItem = Zotero.Items.get(item.parentItem);
-								if (parentItem && parentItem.getDisplayTitle) {
-									documentName = parentItem.getDisplayTitle();
-								}
-							}
-
-							// Get the file path if it's an attachment
-							if (item.isAttachment && item.isAttachment()) {
-								try {
-									filePath = await item.getFilePathAsync();
-									if (filePath) {
-										// Optionally truncate long paths for display
-										const maxPathLength = 60;
-										if (filePath.length > maxPathLength) {
-											const pathParts = filePath.split(/[/\\]/);
-											const filename = pathParts[pathParts.length - 1];
-											const pathPrefix = filePath.substring(0, maxPathLength - filename.length - 3);
-											filePath = pathPrefix + '...' + filename;
-										}
-									}
-								}
-								catch (error) {
-									// Error getting file path
-								}
-							}
-						}
-
-						contextDocs.push({
-							documentId: documentId,
-							zoteroAttachmentId: zoteroAttachmentId,
-							name: documentName,
-							filePath: filePath // Add file path to the context document object
-						});
-					}
-					catch (error) {
-						// Add with fallback name
-						contextDocs.push({
-							documentId: documentId,
-							zoteroAttachmentId: documentId,
-							name: "Document Not Found",
-							filePath: null
-						});
-					}
-				}
-
-				setContextDocuments(contextDocs);
+				const mapping = getDocumentMapping();
+				const contextDocs = await Promise.allSettled(
+					documentIds.map(id => processDocument(id, mapping))
+				);
 				
-				// Set noteContainer to the parent of the first document (or the first document itself if it's a regular item)
-				if (contextDocs.length > 0) {
-					try {
-						const firstDoc = contextDocs[0];
-						const firstItem = Zotero.Items.get(firstDoc.zoteroAttachmentId);
-						
-						if (firstItem) {
-							let parentItemId = null;
-							
-							// If the item is an attachment, get its parent
-							if (firstItem.isAttachment() && firstItem.parentID) {
-								parentItemId = firstItem.parentID;
-								const parentItem = Zotero.Items.get(parentItemId);
-								if (parentItem && parentItem.isRegularItem()) {
-									setNoteContainer(parentItemId);
-								}
-							}
-							// If the item is a regular item itself, use it as the container
-							else if (firstItem.isRegularItem()) {
-								parentItemId = firstItem.id;
-								setNoteContainer(parentItemId);
-							}
-							// If no suitable parent found, log this
-							else {
-								setNoteContainer(null);
-							}
-						}
-						else {
-							setNoteContainer(null);
-						}
-					}
-					catch (error) {
-						setNoteContainer(null);
-					}
-				}
-				else {
-					setNoteContainer(null);
-				}
+				const successfulDocs = contextDocs
+					.filter(result => result.status === "fulfilled")
+					.map(result => result.value);
+				
+				// Log any failures
+				contextDocs
+					.filter(result => result.status === "rejected")
+					.forEach(result => Zotero.debug(result.reason));
+
+				setContextDocuments(successfulDocs);
+				setNoteContainerFromDocuments(successfulDocs);
 			}
 			catch (error) {
-				// Zotero.debug(`DeepTutorChatBox: Error loading context documents: ${error.message}`);
+				Zotero.debug(`DeepTutorChatBox: Error loading context documents: ${error.message}`);
 				setContextDocuments([]);
+				setNoteContainer(null);
+			}
+		};
+
+		const getDocumentMapping = () => {
+			const storageKey = `deeptutor_mapping_${sessionId}`;
+			const mappingStr = Zotero.Prefs.get(storageKey);
+			return mappingStr ? JSON.parse(mappingStr) : {};
+		};
+
+		const processDocument = async (documentId, mapping) => {
+			const zoteroAttachmentId = mapping[documentId] || documentId;
+			const item = Zotero.Items.get(zoteroAttachmentId);
+			
+			if (!item) {
+				return createFallbackDocument(documentId);
+			}
+
+			const documentName = getDocumentName(item);
+			const filePath = await getDocumentFilePath(item);
+
+			return {
+				documentId,
+				zoteroAttachmentId,
+				name: documentName,
+				filePath
+			};
+		};
+
+		const getDocumentName = (item) => {
+			return item.attachmentFilename
+				|| (item.getDisplayTitle && item.getDisplayTitle())
+				|| (item.parentItem && Zotero.Items.get(item.parentItem)?.getDisplayTitle?.())
+				|| "Document Not Found";
+		};
+
+		const getDocumentFilePath = async (item) => {
+			if (!item.isAttachment?.()) return null;
+			
+			try {
+				const filePath = await item.getFilePathAsync();
+				if (!filePath) return null;
+				
+				const maxPathLength = 60;
+				if (filePath.length <= maxPathLength) return filePath;
+				
+				const pathParts = filePath.split(/[/\\]/);
+				const filename = pathParts[pathParts.length - 1];
+				const pathPrefix = filePath.substring(0, maxPathLength - filename.length - 3);
+				return `${pathPrefix}...${filename}`;
+			}
+			catch (error) {
+				Zotero.debug(error);
+				return null;
+			}
+		};
+
+		const createFallbackDocument = (documentId) => ({
+			documentId,
+			zoteroAttachmentId: documentId,
+			name: "Document Not Found",
+			filePath: null
+		});
+
+		const setNoteContainerFromDocuments = (docs) => {
+			if (!docs.length) {
+				setNoteContainer(null);
+				return;
+			}
+
+			try {
+				const firstDoc = docs[0];
+				const firstItem = Zotero.Items.get(firstDoc.zoteroAttachmentId);
+				
+				if (!firstItem) {
+					setNoteContainer(null);
+					return;
+				}
+
+				let parentItemId = null;
+				
+				if (firstItem.isAttachment() && firstItem.parentID) {
+					const parentItem = Zotero.Items.get(firstItem.parentID);
+					if (parentItem?.isRegularItem()) {
+						parentItemId = firstItem.parentID;
+					}
+				}
+				else if (firstItem.isRegularItem()) {
+					parentItemId = firstItem.id;
+				}
+
+				setNoteContainer(parentItemId);
+			}
+			catch (error) {
+				Zotero.debug(error);
 				setNoteContainer(null);
 			}
 		};
@@ -2182,7 +2121,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
                 
 				if (mappingStr) {
 					mapping = JSON.parse(mappingStr);
-					// Zotero.debug(`DeepTutorChatBox: Found mapping in storage: ${JSON.stringify(mapping)}`);
 				}
 
 				const contextDocs = [];
@@ -2296,6 +2234,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 						}
 					}
 					catch (error) {
+						Zotero.debug(error);
 						setNoteContainer(null);
 					}
 				}
@@ -2335,7 +2274,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	useEffect(() => {
 		if (onInitWaitChange) {
 			onInitWaitChange(iniWait);
-			// Zotero.debug(`DeepTutorChatBox: Communicated iniWait state change to parent: ${iniWait}`);
 		}
 	}, [iniWait, onInitWaitChange]);
 
