@@ -1,3 +1,4 @@
+/* eslint-disable no-loop-func */
 import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import {
@@ -478,11 +479,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 						setMessages(response);
 						setLatestMessageId(response[response.length - 1].id);
 						
-						// Update conversation with the latest history
-						setConversation(prev => ({
-							...prev,
-							history: response,
-						}));
+
 						
 						// Stop streaming if it was active (AI response received)
 						
@@ -492,7 +489,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 						// Start streaming if not already active (waiting for AI response)
 					}
 				}).catch((error) => {
-					// Error in periodic message fetch
+					Zotero.debug(error);
 				});
 			}
 			
@@ -529,7 +526,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				handleSourceClick(sourceData);
 			}
 			catch (error) {
-				// Error parsing source data
+				Zotero.debug(error);
 			}
 		};
 		
@@ -543,7 +540,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 						handleSourceClick(decodedData);
 					}
 					catch (error) {
-						// Error parsing source data from button
+						Zotero.debug(error);
 					}
 				}
 			}
@@ -584,7 +581,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 					}
 				}
 				catch (error) {
-					// Error retrieving source data from prefs
+					Zotero.debug(error);
 				}
 				
 				// Fallback: Try to get source data from current messages if not in prefs
@@ -704,35 +701,20 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 						newDocumentFiles.push(docData);
 					}
 					catch (error) {
-						// Error fetching document
+						Zotero.debug(error);
 					}
 				}
 				setStoragePathsState(newDocumentFiles.map(doc => doc.storagePath));
 			}
 			catch (error) {
-				// Error loading session data
+				Zotero.debug(error);
 			}
 		};
 
 		loadSessionData();
 	}, [currentSession]);
 
-	// Handle conversation updates when sessionId changes
-	useEffect(() => {
-		if (!sessionId) return;
 
-		setConversation(prev => ({
-			...prev,
-			userId: userId,
-			sessionId: sessionId,
-			documentIds: documentIds,
-			history: [],
-			message: null,
-			streaming: true,
-			type: curSessionType || SessionType.BASIC,
-			storagePaths: storagePathsState
-		}));
-	}, [sessionId, userId, documentIds, curSessionType, storagePathsState]);
 
 	// Handle message updates
 	useEffect(() => {
@@ -755,11 +737,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 						await _appendMessage(sender, message);
 					}
 
-					// Update conversation history with loaded messages
-					setConversation(prev => ({
-						...prev,
-						history: sessionMessages
-					}));
+
 					
 					// Check if we should be streaming (if last message is from user and within 10 minutes)
 					const lastMessage = sessionMessages[sessionMessages.length - 1];
@@ -820,6 +798,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				// Auto-scrolling is now handled by useEffect hooks
 			}
 			catch (error) {
+				Zotero.debug(error);
 				setIsLoading(false);
 			}
 		};
@@ -828,17 +807,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	}, [sessionId]);
 
 
-	// Conversation state
-	const [_conversation, setConversation] = useState({
-		userId: null,
-		sessionId: null,
-		ragSessionId: null,
-		storagePaths: [],
-		history: [],
-		message: null,
-		streaming: true,
-		type: curSessionType || SessionType.BASIC
-	});
+
 
 	// Auto-scroll when messages change
 	useEffect(() => {
@@ -926,6 +895,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			// Auto-scrolling is handled by useEffect hooks
 		}
 		catch (error) {
+			Zotero.debug(error);
 			// Create error message
 			const errorMessage = {
 				subMessages: [{
@@ -979,7 +949,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 					newDocumentFiles2.push(docData);
 				}
 				catch (error) {
-					// Error fetching document
+					Zotero.debug(error);
 				}
 			}
             
@@ -995,7 +965,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				type: curSessionType || SessionType.BASIC
 			});
             
-			setConversation(newState);
+
 
 			// Subscribe to chat stream with timeout
 			const streamResponse = await subscribeToChat(newState);
@@ -1099,7 +1069,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 						}
 					}
 					catch (error) {
-						// Error parsing SSE data
+						Zotero.debug(error);
 					}
 				});
 			}
@@ -1111,11 +1081,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			setMessages(historyData);
 			setLatestMessageId(historyData[historyData.length - 1].id);
 
-			// Update conversation with the latest history
-			setConversation(prev => ({
-				...prev,
-				history: historyData,
-			}));
+
             
 			// Get only the last message from the response
 			const lastMessage = historyData.length > 0 ? historyData[historyData.length - 2] : null;
@@ -1123,6 +1089,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			return lastMessage;
 		}
 		catch (error) {
+			Zotero.debug(error);
 			setIsStreaming(false); // Set streaming to false on any error
 			
 			// Even on error, try to fetch message history to ensure UI consistency
@@ -1134,15 +1101,11 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 					setMessages(historyData);
 					setLatestMessageId(historyData[historyData.length - 1].id);
 					
-					// Update conversation with the latest history
-					setConversation(prev => ({
-						...prev,
-						history: historyData,
-					}));
+
 				}
 			}
 			catch (historyError) {
-				// Error fetching message history after timeout
+				Zotero.debug(historyError);
 			}
 			
 			throw error;
@@ -1189,11 +1152,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 
 			// Update messages state with only the new message
 			setMessages(prev => [...prev, processedMessage]);
-			// Update conversation with only the new message
-			setConversation(prev => ({
-				...prev,
-				message: processedMessage
-			}));
+
 
 			// Auto-scrolling is handled by useEffect hooks
 		}
@@ -1228,7 +1187,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			setShowContextPopup(false);
 		}
 		catch (error) {
-			// Error opening context document
+			Zotero.debug(error);
 		}
 	};
 
@@ -1375,7 +1334,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				}
 			}
 			catch (e) {
-				// xmldom package not available or failed to load
+				Zotero.debug(e);
 			}
 			
 			// Fallback to native DOM APIs if xmldom not available
@@ -1398,7 +1357,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 							.createInstance(Components.interfaces.nsIDOMSerializer);
 					}
 					catch (e) {
-						// Components.classes DOMParser not available
+						Zotero.debug(e);
 					}
 				}
 			}
@@ -1424,7 +1383,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 						doc = parser.parseFromString(wrappedHtml, 'text/html');
 					}
 					catch (htmlError) {
-						// HTML parsing failed
+						Zotero.debug(htmlError);
 					}
 				}
 					
@@ -1440,6 +1399,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 						}
 					}
 					catch (xmlError) {
+						Zotero.debug(xmlError);
 						throw new Error('Both HTML and XML parsing failed');
 					}
 				}
@@ -1511,6 +1471,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			}
 		}
 		catch (error) {
+			Zotero.debug(error);
 			// Enhanced regex-based approach with better XML compatibility
 			let processedHtml = html;
 			
@@ -1647,7 +1608,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			});
 		}
 		catch (error) {
-			// Error handling source click
+			Zotero.debug(error);
 		}
 	};
 
@@ -1750,7 +1711,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			Zotero.alert(null, "Note Created Successfully", `Note "${noteName}" created successfully in "${containerName}".`);
 		}
 		catch (error) {
-			// Zotero.alert(null, "Error Creating Note", `Error creating note: ${error.message}`);
+			 Zotero.alert(null, "Error Creating Note", `Error creating note: ${error.message}`);
 		}
 		finally {
 			// Always reset the saving state, regardless of success or failure
@@ -1779,141 +1740,150 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 		}
         
 		return (
-			<div key={message.id || index} style={styles.messageStyle}>
-				<div style={{
-					...styles.messageBubble,
-					...(isUser ? styles.userMessage : styles.botMessage),
-					animation: "slideIn 0.3s ease-out",
-					...(isUser && { display: 'flex', alignItems: 'flex-start', gap: '0.5rem' })
-				}}>
-					{/* Add user message icon inside the bubble for user messages */}
-					{message.subMessages.map((subMessage, subIndex) => {
-						const text = formatResponseForMarkdown(subMessage.text || "", subMessage);
-						try {
-							var result = md.render(text);
+			<div>
+				<div key={message.id || index} style={styles.messageContainer}>
+					<DeepTutorStreamingComponent
+						streamText={message.streamText || ''}
+						hideStreamResponse={false}
+					/>
+				</div>
+				<div key={message.id || index} style={styles.messageStyle}>
+					<div style={{
+						...styles.messageBubble,
+						...(isUser ? styles.userMessage : styles.botMessage),
+						animation: "slideIn 0.3s ease-out",
+						...(isUser && { display: 'flex', alignItems: 'flex-start', gap: '0.5rem' })
+					}}>
+						{/* Add user message icon inside the bubble for user messages */}
+						{message.subMessages.map((subMessage, subIndex) => {
+							const text = formatResponseForMarkdown(subMessage.text || "", subMessage);
+							try {
+								var result = md.render(text);
 							
-							// Process through DOM-based XML conversion
-							const processedResult = processMarkdownResult(result);
+								// Process through DOM-based XML conversion
+								const processedResult = processMarkdownResult(result);
 							
-							return (
-								<div key={subIndex} style={styles.messageText}>
-									{/* Render text content through markdown-it with DOM-processed XML */}
-									{processedResult
-										? (
-											<div
-												className="markdown mb-0 flex flex-col"
-												dangerouslySetInnerHTML={{
-													__html: (() => {
-														try {
+								return (
+									<div key={subIndex} style={styles.messageText}>
+										{/* Render text content through markdown-it with DOM-processed XML */}
+										{processedResult
+											? (
+												<div
+													className="markdown mb-0 flex flex-col"
+													dangerouslySetInnerHTML={{
+														__html: (() => {
+															try {
 															// Final validation before rendering
-															if (typeof processedResult !== 'string' || processedResult.trim() === '') {
+																if (typeof processedResult !== 'string' || processedResult.trim() === '') {
+																	return null;
+																}
+																return processedResult;
+															}
+															catch (error) {
+																Zotero.debug(error);
 																return null;
 															}
-															return processedResult;
-														}
-														catch (error) {
-															return null;
-														}
-													})()
-												}}
-												style={{
+														})()
+													}}
+													style={{
+														fontSize: "14px",
+														lineHeight: "1.5",
+														wordBreak: "break-word",
+														overflowWrap: "break-word"
+													}}
+												/>
+											)
+											: (
+												<div style={{
 													fontSize: "14px",
 													lineHeight: "1.5",
 													wordBreak: "break-word",
 													overflowWrap: "break-word"
-												}}
-											/>
-										)
-										: (
-											<div style={{
-												fontSize: "14px",
-												lineHeight: "1.5",
-												wordBreak: "break-word",
-												overflowWrap: "break-word"
-											}}>
-												{subMessage.text || ""}
-											</div>
-										)}
-								</div>
-							);
-						}
-						catch {
-							// Fallback to plain text if markdown processing fails
-							return (
-								<div key={subIndex} style={styles.messageText}>
-									<div style={{
-										fontSize: "16px",
-										lineHeight: "1.5",
-										wordBreak: "break-word",
-										overflowWrap: "break-word"
-									}}>
-										{subMessage.text || ""}
+												}}>
+													{subMessage.text || ""}
+												</div>
+											)}
 									</div>
-								</div>
-							);
-						}
-					})}
-				</div>
+								);
+							}
+							catch {
+							// Fallback to plain text if markdown processing fails
+								return (
+									<div key={subIndex} style={styles.messageText}>
+										<div style={{
+											fontSize: "16px",
+											lineHeight: "1.5",
+											wordBreak: "break-word",
+											overflowWrap: "break-word"
+										}}>
+											{subMessage.text || ""}
+										</div>
+									</div>
+								);
+							}
+						})}
+					</div>
 				
-				{/* Add download button for tutor messages only */}
-				{!isUser && noteContainer && !isStreaming && !iniWait && !isSavingNote && (
-					<div style={{
-						display: 'flex',
-						justifyContent: 'flex-start',
-						marginTop: '0.5rem',
-						marginLeft: '0'
-					}}>
-						<button
-							style={{
-								all: 'revert',
-								background: '#0687E5',
-								color: 'white',
-								border: 'none',
-								borderRadius: '0.375rem',
-								padding: '0.25rem 0.5rem',
-								fontSize: '0.75rem',
-								fontWeight: 500,
-								cursor: 'pointer',
-								boxShadow: '0 0.0625rem 0.125rem rgba(0,0,0,0.1)',
-								transition: 'background-color 0.2s',
-								fontFamily: 'Roboto, sans-serif',
-								display: 'flex',
-								alignItems: 'center',
-								gap: '0.25rem'
-							}}
-							onClick={() => downloadMessage(message, index)}
-							onMouseEnter={e => e.target.style.background = '#0570c0'}
-							onMouseLeave={e => e.target.style.background = '#0687E5'}
-							title={`Save message ${index + 1} as Zotero note`}
-						>
+					{/* Add download button for tutor messages only */}
+					{!isUser && noteContainer && !isStreaming && !iniWait && !isSavingNote && (
+						<div style={{
+							display: 'flex',
+							justifyContent: 'flex-start',
+							marginTop: '0.5rem',
+							marginLeft: '0'
+						}}>
+							<button
+								style={{
+									all: 'revert',
+									background: '#0687E5',
+									color: 'white',
+									border: 'none',
+									borderRadius: '0.375rem',
+									padding: '0.25rem 0.5rem',
+									fontSize: '0.75rem',
+									fontWeight: 500,
+									cursor: 'pointer',
+									boxShadow: '0 0.0625rem 0.125rem rgba(0,0,0,0.1)',
+									transition: 'background-color 0.2s',
+									fontFamily: 'Roboto, sans-serif',
+									display: 'flex',
+									alignItems: 'center',
+									gap: '0.25rem'
+								}}
+								onClick={() => downloadMessage(message, index)}
+								onMouseEnter={e => e.target.style.background = '#0570c0'}
+								onMouseLeave={e => e.target.style.background = '#0687E5'}
+								title={`Save message ${index + 1} as Zotero note`}
+							>
 							📝 Save as Note
-						</button>
-					</div>
-				)}
+							</button>
+						</div>
+					)}
 				
-				{index === messages.length - 1 && message.followUpQuestions && message.followUpQuestions.length > 0 && (
-					<div>
-						<div style={styles.followUpQuestionText}>
+					{index === messages.length - 1 && message.followUpQuestions && message.followUpQuestions.length > 0 && (
+						<div>
+							<div style={styles.followUpQuestionText}>
 							Follow-up Questions
+							</div>
+							<div style={styles.questionContainer}>
+								{message.followUpQuestions.map((question, qIndex) => (
+									<button
+										key={qIndex}
+										style={{
+											...styles.questionButton,
+											background: hoveredQuestion === qIndex ? "#D9D9D9" : "#FFFFFF"
+										}}
+										onClick={() => handleQuestionClick(question)}
+										onMouseEnter={() => setHoveredQuestion(qIndex)}
+										onMouseLeave={() => setHoveredQuestion(null)}
+									>
+										{question}
+									</button>
+								))}
+							</div>
 						</div>
-						<div style={styles.questionContainer}>
-							{message.followUpQuestions.map((question, qIndex) => (
-								<button
-									key={qIndex}
-									style={{
-										...styles.questionButton,
-										background: hoveredQuestion === qIndex ? "#D9D9D9" : "#FFFFFF"
-									}}
-									onClick={() => handleQuestionClick(question)}
-									onMouseEnter={() => setHoveredQuestion(qIndex)}
-									onMouseLeave={() => setHoveredQuestion(null)}
-								>
-									{question}
-								</button>
-							))}
-						</div>
-					</div>
-				)}
+					)}
+				</div>
 			</div>
 		);
 	};
@@ -2382,7 +2352,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				}
 			}
 			catch (error) {
-				// Error cleaning up source data
+				Zotero.debug(error);
 			}
 		});
 		
@@ -2440,7 +2410,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				navigator.clipboard.writeText(selectedText).then(() => {
 					// Text copied successfully
 				}).catch((err) => {
-					// Copy failed
+					Zotero.debug(err);
 				});
 			}
 		};
