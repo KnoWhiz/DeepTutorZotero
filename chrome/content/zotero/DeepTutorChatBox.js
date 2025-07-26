@@ -434,13 +434,24 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	const [contextDocuments, setContextDocuments] = useState([]);
 	const [currentSourceIndices, setCurrentSourceIndices] = useState([]);
 	const sessionIdRef = useRef(null);
-	const [time, setTime] = useState(new Date());
+	const [_time, setTime] = useState(new Date());
 
 	// Add state for note container (parent item ID for creating notes)
 	const [noteContainer, setNoteContainer] = useState(null);
 
 	// Add state to track if a note is currently being saved
 	const [isSavingNote, setIsSavingNote] = useState(false);
+
+	// Add state to track streaming component visibility for each message
+	const [streamingComponentVisibility, setStreamingComponentVisibility] = useState({});
+
+	// Toggle streaming component visibility for a specific message
+	const toggleStreamingComponent = (messageId) => {
+		setStreamingComponentVisibility(prev => ({
+			...prev,
+			[messageId]: !prev[messageId]
+		}));
+	};
 
 	// Helper function to check if we should continue checking for responses (within 10 minutes)
 	const checkTime = React.useCallback((lastMessage) => {
@@ -1030,7 +1041,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			const historyData = await getMessagesBySessionId(sessionId);
 			
 			// Preserve streaming message data when updating from server
-			setMessages(prevMessages => {
+			setMessages((prevMessages) => {
 				// Find the streaming message (last message with isStreaming: true)
 				const streamingMessageIndex = prevMessages.findIndex(msg => msg.isStreaming);
 				
@@ -1649,7 +1660,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				
 				// Create note title from the first line or a default
 				const titleText = noteText.replace(/<[^>]*>/g, '').substring(0, 100);
-				const noteTitle = titleText.length > 100 ? titleText.substring(0, 97) + '...' : titleText;
+				const _noteTitle = titleText.length > 100 ? titleText.substring(0, 97) + '...' : titleText;
 				
 				// Prepare the final note content with proper HTML structure
 				const fullNoteContent = `<div class="zotero-note znv1">
@@ -1697,25 +1708,69 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 		}
         
 		const isUser = message.role === MessageRole.USER;
-        
+		const messageId = message.id || index;
+		const isStreamingComponentVisible = streamingComponentVisibility[messageId] !== false; // Default to true
+		
 		return (
 			<div>
-				{/* Always show streaming component for all messages */}
-				<div key={`streaming-${message.id || index}`} style={styles.messageContainer}>
-					<DeepTutorStreamingComponent
-						streamText={message.streamText || ''}
-						hideStreamResponse={!message.isStreaming}
-					/>
-				</div>
+				{/* Show streaming component toggle button for non-streaming messages with streamText */}
+				{!message.isStreaming && message.streamText && (
+					<div style={{
+						display: 'flex',
+						justifyContent: 'flex-start',
+						marginTop: '0.5rem',
+						marginLeft: '0.5rem'
+					}}>
+						<button
+							style={{
+								all: 'revert',
+								display: 'flex',
+								width: 'fit-content',
+								borderRadius: '0.375rem',
+								border: '0.25rem solid #E0E0E0',
+								paddingLeft: '1rem',
+								paddingRight: '1rem',
+								paddingTop: '0.5rem',
+								paddingBottom: '0.5rem',
+								marginTop: '0.5rem',
+								marginBottom: '0.5rem',
+								fontFamily: 'Roboto, sans-serif',
+								fontSize: '0.875rem',
+								alignItems: 'center',
+								color: '#000000',
+								background: '#FFFFFF',
+								cursor: 'pointer',
+								transition: 'background-color 0.2s',
+								fontWeight: 500
+							}}
+							onClick={() => toggleStreamingComponent(messageId)}
+							onMouseEnter={e => e.target.style.background = '#F5F5F5'}
+							onMouseLeave={e => e.target.style.background = '#FFFFFF'}
+							title={isStreamingComponentVisible ? "Hide streaming view" : "Show streaming view"}
+						>
+							{isStreamingComponentVisible ? "Hide Thinking Process" : "Show Thinking Process"}
+						</button>
+					</div>
+				)}
+				
+				{/* Show streaming component based on visibility state */}
+				{isStreamingComponentVisible && (
+					<div key={`streaming-${messageId}`} style={styles.messageContainer}>
+						<DeepTutorStreamingComponent
+							streamText={message.streamText || ''}
+							hideStreamResponse={!message.isStreaming}
+						/>
+					</div>
+				)}
 				
 				{/* Show regular message content for non-streaming messages */}
 				{!message.isStreaming && (
-					<div key={`content-${message.id || index}`} style={styles.messageStyle}>
+					<div key={`content-${messageId}`} style={styles.messageStyle}>
 						<div style={{
 							...styles.messageBubble,
 							...(isUser ? styles.userMessage : styles.botMessage),
 							animation: "slideIn 0.3s ease-out",
-							...(isUser && { display: 'flex', alignItems: 'flex-start', gap: '0.5rem' })
+							...(isUser && { display: 'flex', alignItems: 'flex-start' })
 						}}>
 							{/* Add user message icon inside the bubble for user messages */}
 							{message.subMessages.map((subMessage, subIndex) => {
@@ -1735,17 +1790,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 														className="markdown mb-0 flex flex-col"
 														dangerouslySetInnerHTML={{
 															__html: (() => {
-																try {
-																// Final validation before rendering
-																	if (typeof processedResult !== 'string' || processedResult.trim() === '') {
-																		return null;
-																	}
-																	return processedResult;
-																}
-																catch (error) {
-																	Zotero.debug(error);
-																	return null;
-																}
+																return processedResult;
 															})()
 														}}
 														style={{
@@ -1786,7 +1831,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 								}
 							})}
 						</div>
-						
+					
 						{/* Add download button for tutor messages only */}
 						{!isUser && noteContainer && !isStreaming && !iniWait && !isSavingNote && (
 							<div style={{
@@ -1822,7 +1867,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 								</button>
 							</div>
 						)}
-						
+					
 						{index === messages.length - 1 && message.followUpQuestions && message.followUpQuestions.length > 0 && (
 							<div>
 								<div style={styles.followUpQuestionText}>
@@ -1989,7 +2034,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			}
 		};
 
-		const createFallbackDocument = (documentId) => ({
+		const createFallbackDocument = documentId => ({
 			documentId,
 			zoteroAttachmentId: documentId,
 			name: "Document Not Found",
