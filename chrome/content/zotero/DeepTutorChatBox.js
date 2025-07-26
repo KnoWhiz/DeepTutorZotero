@@ -449,7 +449,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	const toggleStreamingComponent = (messageId) => {
 		setStreamingComponentVisibility(prev => ({
 			...prev,
-			[messageId]: !prev[messageId]
+			[messageId]: prev[messageId] === undefined ? false : !prev[messageId]
 		}));
 	};
 
@@ -1718,7 +1718,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 					<div style={{
 						display: 'flex',
 						justifyContent: 'flex-start',
-						marginTop: '0.5rem',
+						marginTop: '1.5rem',
 						marginLeft: '0.5rem'
 					}}>
 						<button
