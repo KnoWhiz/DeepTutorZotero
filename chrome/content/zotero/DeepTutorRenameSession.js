@@ -25,8 +25,8 @@ const styles = {
 	},
 	textArea: {
 		width: '100%',
-        minHeight: '3rem',
-        height: '3rem',
+		minHeight: '3rem',
+		height: '3rem',
 		borderRadius: '0.625rem',
 		border: '0.0625rem solid #BDBDBD',
 		background: PEARL,
@@ -126,10 +126,12 @@ export default function DeepTutorRenameSession({
 			if (onClose) {
 				onClose();
 			}
-		} catch (error) {
+		}
+		catch (error) {
 			Zotero.debug(`DeepTutorRenameSession: Error renaming session: ${error.message}`);
 			// You might want to show an error message to the user here
-		} finally {
+		}
+		finally {
 			setIsRenaming(false);
 		}
 	};
@@ -154,7 +156,7 @@ export default function DeepTutorRenameSession({
 				<textarea
 					style={styles.textArea}
 					value={newSessionName}
-					onChange={(e) => setNewSessionName(e.target.value)}
+					onChange={e => setNewSessionName(e.target.value)}
 					disabled={isRenaming}
 				/>
 				<div style={styles.buttonContainer}>
