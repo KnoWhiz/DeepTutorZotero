@@ -27,7 +27,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
 import ModelSelection from './ModelSelection.js';
-import SessionHistory from './SessionHistory.js';
+import SessionHistory from './DeepTutorSessionHistory.js';
 import DeepTutorChatBox from './DeepTutorChatBox.js';
 import DeepTutorWelcomePane from './DeepTutorWelcomePane.js';
 import DeepTutorSignIn from './DeepTutorSignIn.js';

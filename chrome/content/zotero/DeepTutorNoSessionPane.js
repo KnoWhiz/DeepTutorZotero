@@ -1,139 +1,140 @@
 import React, { useState } from 'react';
+import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 
-const PEARL = '#F2F2F2';
-const SKY = '#0687E5';
-const styles = {
-	container: {
-		position: 'relative',
-		width: '100%',
-		height: '100%',
-		background: PEARL,
-		fontFamily: 'Roboto, sans-serif',
-		display: 'flex',
-		flexDirection: 'column',
-		alignItems: 'center',
-		justifyContent: 'center',
-	},
-	folderBg: {
-		position: 'absolute',
-		width: '18%',
-		height: 'auto',
-		bottom: '33%',
-		left: '31%',
-		opacity: 0.8,
-		zIndex: 0,
-	},
-	pageBg: {
-		position: 'absolute',
-		width: '15%',
-		height: 'auto',
-		top: '27%',
-		right: '25%',
-		opacity: 0.8,
-		zIndex: 0,
-	},
-	contentWrapper: {
-		position: 'relative',
-		width: '100%',
-		display: 'flex',
-		flexDirection: 'column',
-		alignItems: 'center',
-		justifyContent: 'center',
-		gap: '0.625rem',
-		zIndex: 1,
-	},
-	mainTextWrapper: {
-		width: '100%',
-		marginBottom: '0.625rem',
-		display: 'flex',
-		justifyContent: 'center',
-	},
-	subTextWrapper: {
-		width: '100%',
-		marginBottom: '0.625rem',
-		display: 'flex',
-		justifyContent: 'center',
-	},
-	descTextWrapper: {
-		width: '100%',
-		marginBottom: '1.875rem',
-		display: 'flex',
-		justifyContent: 'center',
-	},
-	buttonWrapper: {
-		width: '100%',
-		display: 'flex',
-		justifyContent: 'center',
-	},
-	mainText: {
-		width: '100%',
-		fontWeight: 700,
-		fontSize: '1.375rem',
-		lineHeight: '100%',
-		letterSpacing: '0%',
-		textAlign: 'center',
-		color: '#292929',
-	},
-	subText: {
-		width: '100%',
-		fontWeight: 600,
-		fontSize: '1rem',
-		lineHeight: '100%',
-		letterSpacing: '0%',
-		textAlign: 'center',
-		color: '#292929',
-	},
-	descText: {
-		width: '100%',
-		fontWeight: 400,
-		fontSize: '0.875rem',
-		lineHeight: '135%',
-		letterSpacing: '0%',
-		textAlign: 'center',
-		color: '#292929',
-	},
-	createSessionButton: {
-		all: 'revert',
-		background: SKY,
-		color: '#fff',
-		fontWeight: 700,
-		fontSize: '1em',
-		border: 'none',
-		borderRadius: '0.625rem',
-		width: '100%',
-		maxWidth: '21.625rem',
-		minHeight: '3rem',
-		padding: '0.625rem 1.25rem',
-		cursor: 'pointer',
-		boxShadow: '0 0.0625rem 0.125rem rgba(0,0,0,0.08)',
-		fontFamily: 'Roboto, sans-serif',
-		letterSpacing: 0.2,
-		zIndex: 1,
-		display: 'flex',
-		alignItems: 'center',
-		justifyContent: 'center',
-		gap: '0.5rem',
-	},
-	plusIcon: {
-		width: '1rem',
-		height: '1rem',
-	},
-};
-
-const FolderImg = 'chrome://zotero/content/DeepTutorMaterials/Welcome/WELCOME_FOLDER.svg';
-const PageImg = 'chrome://zotero/content/DeepTutorMaterials/Welcome/WELCOME_PAGE.svg';
-const PlusIconPath = 'chrome://zotero/content/DeepTutorMaterials/NoSession/NOS_WHITE_PLUS.svg';
-
-export default function DeepTutorNoSessionPane({ onCreateNewSession }) {
+const DeepTutorNoSessionPane = ({ onCreateNewSession }) => {
+	const { colors } = useDeepTutorTheme();
 	const [isHovered, setIsHovered] = useState(false);
+
+	// Theme-aware styles
+	const styles = {
+		container: {
+			position: 'relative',
+			width: '100%',
+			height: '100%',
+			background: colors.background.tertiary,
+			fontFamily: 'Roboto, sans-serif',
+			display: 'flex',
+			flexDirection: 'column',
+			alignItems: 'center',
+			justifyContent: 'center',
+		},
+		folderBg: {
+			position: 'absolute',
+			width: '18%',
+			height: 'auto',
+			bottom: '33%',
+			left: '31%',
+			opacity: 0.8,
+			zIndex: 0,
+		},
+		pageBg: {
+			position: 'absolute',
+			width: '15%',
+			height: 'auto',
+			top: '27%',
+			right: '25%',
+			opacity: 0.8,
+			zIndex: 0,
+		},
+		contentWrapper: {
+			position: 'relative',
+			width: '100%',
+			display: 'flex',
+			flexDirection: 'column',
+			alignItems: 'center',
+			justifyContent: 'center',
+			gap: '0.625rem',
+			zIndex: 1,
+		},
+		mainTextWrapper: {
+			width: '100%',
+			marginBottom: '0.625rem',
+			display: 'flex',
+			justifyContent: 'center',
+		},
+		subTextWrapper: {
+			width: '100%',
+			marginBottom: '0.625rem',
+			display: 'flex',
+			justifyContent: 'center',
+		},
+		descTextWrapper: {
+			width: '100%',
+			marginBottom: '1.875rem',
+			display: 'flex',
+			justifyContent: 'center',
+		},
+		buttonWrapper: {
+			width: '100%',
+			display: 'flex',
+			justifyContent: 'center',
+		},
+		mainText: {
+			width: '100%',
+			fontWeight: 700,
+			fontSize: '1.375rem',
+			lineHeight: '100%',
+			letterSpacing: '0%',
+			textAlign: 'center',
+			color: colors.text.allText,
+		},
+		subText: {
+			width: '100%',
+			fontWeight: 600,
+			fontSize: '1rem',
+			lineHeight: '100%',
+			letterSpacing: '0%',
+			textAlign: 'center',
+			color: colors.text.allText,
+		},
+		descText: {
+			width: '100%',
+			fontWeight: 400,
+			fontSize: '0.875rem',
+			lineHeight: '135%',
+			letterSpacing: '0%',
+			textAlign: 'center',
+			color: colors.text.allText,
+		},
+		createSessionButton: {
+			all: 'revert',
+			background: colors.button.primary,
+			color: colors.button.primaryText,
+			fontWeight: 700,
+			fontSize: '1em',
+			border: 'none',
+			borderRadius: '0.625rem',
+			width: '100%',
+			maxWidth: '21.625rem',
+			minHeight: '3rem',
+			padding: '0.625rem 1.25rem',
+			cursor: 'pointer',
+			boxShadow: '0 0.0625rem 0.125rem rgba(0,0,0,0.08)',
+			fontFamily: 'Roboto, sans-serif',
+			letterSpacing: 0.2,
+			zIndex: 1,
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'center',
+			gap: '0.5rem',
+		},
+		plusIcon: {
+			width: '1rem',
+			height: '1rem',
+		},
+	};
 
 	const handleMouseEnter = () => setIsHovered(true);
 	const handleMouseLeave = () => setIsHovered(false);
 
 	const buttonStyle = {
 		...styles.createSessionButton,
-		background: isHovered ? '#007BD5' : SKY,
+		background: isHovered ? colors.button.hover : colors.button.primary,
 	};
+
+	const FolderImg = 'chrome://zotero/content/DeepTutorMaterials/Welcome/WELCOME_FOLDER.svg';
+	const PageImg = 'chrome://zotero/content/DeepTutorMaterials/Welcome/WELCOME_PAGE.svg';
+	const PlusIconPath = 'chrome://zotero/content/DeepTutorMaterials/NoSession/NOS_WHITE_PLUS.svg';
 
 	return (
 		<div style={styles.container}>
@@ -168,4 +169,6 @@ export default function DeepTutorNoSessionPane({ onCreateNewSession }) {
 			</div>
 		</div>
 	);
-}
+};
+
+export default DeepTutorNoSessionPane;
