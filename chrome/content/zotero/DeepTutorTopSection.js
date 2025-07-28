@@ -1,5 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 
 const styles = {
 	top: {
@@ -67,35 +68,57 @@ const styles = {
 	},
 };
 
-class DeepTutorTopSection extends React.Component {
-	getIconButtonStyle(isActive) {
-		return {
+const DeepTutorTopSection = (props) => {
+	const { colors } = useDeepTutorTheme();
+	
+	// Theme-aware styles
+	const themeStyles = {
+		top: {
+			...styles.top,
+			background: colors.background.tertiary,
+		},
+		welcomeTop: {
+			...styles.welcomeTop,
+			background: colors.background.tertiary,
+		},
+		iconButton: {
 			...styles.iconButton,
-			...(isActive ? styles.iconButtonActive : {})
+			background: colors.background.tertiary,
+		},
+		iconButtonActive: {
+			...styles.iconButtonActive,
+			background: colors.background.tertiary,
+		},
+	};
+	
+	const getIconButtonStyle = (isActive) => {
+		return {
+			...themeStyles.iconButton,
+			...(isActive ? themeStyles.iconButtonActive : {})
 		};
-	}
+	};
 
-	renderMain() {
+	const renderMain = () => {
 		return (
 			<div style={styles.contentWrapper}>
-				<img src={this.props.logoPath} alt="DeepTutor Logo" style={styles.logo} />
+				<img src={props.logoPath} alt="DeepTutor Logo" style={styles.logo} />
 				<div style={styles.topRight}>
 					<button
-						style={this.getIconButtonStyle(this.props.currentPane === 'sessionHistory')}
-						onClick={() => this.props.onSwitchPane('sessionHistory')}
+						style={getIconButtonStyle(props.currentPane === 'sessionHistory')}
+						onClick={() => props.onSwitchPane('sessionHistory')}
 					>
 						<img
-							src={this.props.HistoryIconPath}
+							src={props.HistoryIconPath}
 							alt="History"
 							style={styles.iconImage}
 						/>
 					</button>
 					<button
-						style={this.getIconButtonStyle(this.props.currentPane === 'modelSelection')}
-						onClick={this.props.onToggleModelSelectionPopup}
+						style={getIconButtonStyle(props.currentPane === 'modelSelection')}
+						onClick={props.onToggleModelSelectionPopup}
 					>
 						<img
-							src={this.props.PlusIconPath}
+							src={props.PlusIconPath}
 							alt="New Session"
 							style={styles.iconImage}
 						/>
@@ -103,46 +126,45 @@ class DeepTutorTopSection extends React.Component {
 				</div>
 			</div>
 		);
-	}
+	};
 
-	renderWelcome() {
+	const renderWelcome = () => {
 		return (
 			<div style={styles.contentWrapper}>
-				<img src={this.props.logoPath} alt="DeepTutor Logo" style={styles.logo} />
+				<img src={props.logoPath} alt="DeepTutor Logo" style={styles.logo} />
 			</div>
 		);
-	}
+	};
 
-	renderSessionHistory() {
+	const renderSessionHistory = () => {
 		return (
 			<div style={styles.contentWrapper}>
-				<img src={this.props.logoPath} alt="DeepTutor Logo" style={styles.logo} />
+				<img src={props.logoPath} alt="DeepTutor Logo" style={styles.logo} />
 			</div>
 		);
-	}
+	};
 
-	render() {
-		let content;
-		if (this.props.currentPane === 'main') {
-			content = this.renderMain();
-		}
-		else if (this.props.currentPane === 'welcome') {
-			content = this.renderWelcome();
-		}
-		else if (this.props.currentPane === 'sessionHistory') {
-			content = this.renderSessionHistory();
-		}
-		else {
-			// fallback to main design for other panes
-			content = this.renderMain();
-		}
-		return (
-			<div style={this.props.currentPane === 'welcome' ? styles.welcomeTop : styles.top}>
-				{content}
-			</div>
-		);
+	let content;
+	if (props.currentPane === 'main') {
+		content = renderMain();
 	}
-}
+	else if (props.currentPane === 'welcome') {
+		content = renderWelcome();
+	}
+	else if (props.currentPane === 'sessionHistory') {
+		content = renderSessionHistory();
+	}
+	else {
+		// fallback to main design for other panes
+		content = renderMain();
+	}
+	
+	return (
+		<div style={props.currentPane === 'welcome' ? themeStyles.welcomeTop : themeStyles.top}>
+			{content}
+		</div>
+	);
+};
 
 DeepTutorTopSection.propTypes = {
 	currentPane: PropTypes.string.isRequired,

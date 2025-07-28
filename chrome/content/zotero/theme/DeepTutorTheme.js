@@ -26,11 +26,12 @@ const DeepTutorColors = {
 		
 		// Text colors
 		text: {
-			primary: "#000000",
+			primary: "#1C1B1F",
 			secondary: "#222222",
 			tertiary: "#495057",
 			quaternary: "#292929",
-			inverse: "#FFFFFF"
+			inverse: "#FFFFFF",
+			allText: "#1C1B1F"
 		},
 		
 		// Border colors
@@ -46,7 +47,10 @@ const DeepTutorColors = {
 			primary: "#0687E5",
 			secondary: "#FFFFFF",
 			disabled: "#CCCCCC",
-			hover: "#0570c0"
+			hover: "#0570c0",
+			primaryText: "#FFFFFF",
+			secondaryText: "#1C1B1F",
+			secondaryBorder: "#0687E5"
 		},
 		
 		// Message colors
@@ -70,7 +74,11 @@ const DeepTutorColors = {
 			background: "#0687E5",
 			placeholder: "#9E9E9E",
 			text: "#FFFFFF"
-		}
+		},
+		
+		// Error and success colors
+		error: "#D72424",
+		success: "#28A745"
 	},
 	
 	// Dark theme colors
@@ -89,7 +97,8 @@ const DeepTutorColors = {
 			secondary: "#E1E1E1",
 			tertiary: "#B0B0B0",
 			quaternary: "#CCCCCC",
-			inverse: "#000000"
+			inverse: "#000000",
+			allText: "#FFFFFF"
 		},
 		
 		// Border colors
@@ -102,15 +111,18 @@ const DeepTutorColors = {
 		
 		// Button colors
 		button: {
-			primary: "#0687E5",
-			secondary: "#2A2A2E",
+			primary: "#33A9FF",
+			secondary: "#1C1B1F",
 			disabled: "#666666",
-			hover: "#0570c0"
+			hover: "#0570c0",
+			primaryText: "#1C1B1F",
+			secondaryText: "#BDBDBD",
+			secondaryBorder: "#BDBDBD"
 		},
 		
 		// Message colors
 		message: {
-			user: "#0687E5",
+			user: "#33A9FF",
 			bot: "#2A2A2E",
 			userText: "#FFFFFF",
 			botText: "#E1E1E1"
@@ -126,10 +138,14 @@ const DeepTutorColors = {
 		
 		// Source button colors
 		sourceButton: {
-			background: "#0687E5",
+			background: "#33A9FF",
 			placeholder: "#666666",
-			text: "#FFFFFF"
-		}
+			text: "#1C1B1F"
+		},
+		
+		// Error and success colors
+		error: "#D72424",
+		success: "#28A745"
 	}
 };
 
