@@ -1,4 +1,4 @@
-import React from 'react';
+import React from 'react'; // eslint-disable-line no-unused-vars
 import PropTypes from 'prop-types';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 import ModelSelection from './DeepTutorModelSelection.js';
@@ -343,6 +343,25 @@ const DeepTutorMain = (props) => {
 						width: '100%',
 						position: 'relative',
 					}}>
+						{/* Header */}
+						<div style={{
+							width: '100%',
+							textAlign: 'center',
+							background: 'linear-gradient(90deg, #0AE2FF 0%, #0687E5 100%)',
+							WebkitBackgroundClip: 'text',
+							WebkitTextFillColor: 'transparent',
+							backgroundClip: 'text',
+							color: '#0687E5',
+							fontWeight: 700,
+							fontSize: '1.5rem',
+							lineHeight: '1.2',
+							letterSpacing: '0%',
+							marginBottom: '1.5rem'
+						}}>
+							Sign in
+						</div>
+
+						{/* Close button positioned at top right */}
 						<button
 							onClick={props.toggleSignInPopup}
 							style={{
@@ -351,9 +370,8 @@ const DeepTutorMain = (props) => {
 								border: 'none',
 								cursor: 'pointer',
 								position: 'absolute',
-								right: 0,
-								top: '50%',
-								transform: 'translateY(-50%)',
+								right: '1rem',
+								top: '1rem',
 								width: '1rem',
 								height: '1rem',
 								display: 'flex',
@@ -363,6 +381,7 @@ const DeepTutorMain = (props) => {
 						>
 							<img src={PopupClosePath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
 						</button>
+
 						<DeepTutorSignIn
 							onSignInSuccess={props.handleSignInSuccess}
 							onSignInSignUp={props.handleOpenSignUpPage}
@@ -644,6 +663,25 @@ const DeepTutorMain = (props) => {
 						width: '100%',
 						position: 'relative',
 					}}>
+						{/* Header */}
+						<div style={{
+							width: '100%',
+							textAlign: 'center',
+							background: 'linear-gradient(90deg, #0AE2FF 0%, #0687E5 100%)',
+							WebkitBackgroundClip: 'text',
+							WebkitTextFillColor: 'transparent',
+							backgroundClip: 'text',
+							color: '#0687E5',
+							fontWeight: 700,
+							fontSize: '1.5rem',
+							lineHeight: '1.2',
+							letterSpacing: '0%',
+							marginBottom: '1.5rem'
+						}}>
+							Create a new session
+						</div>
+						
+						{/* Close button positioned at top right */}
 						<button
 							onClick={props.toggleModelSelectionPopup}
 							style={{
@@ -652,9 +690,8 @@ const DeepTutorMain = (props) => {
 								border: 'none',
 								cursor: 'pointer',
 								position: 'absolute',
-								right: 0,
-								top: '50%',
-								transform: 'translateY(-50%)',
+								right: '1rem',
+								top: '1rem',
 								width: '1rem',
 								height: '1rem',
 								display: 'flex',
@@ -664,6 +701,7 @@ const DeepTutorMain = (props) => {
 						>
 							<img src={PopupClosePath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
 						</button>
+						
 						<ModelSelection
 							onSubmit={props.handleModelSelectionSubmit}
 							user={props.currentUser}

@@ -783,6 +783,15 @@ var DeepTutor = class DeepTutor extends React.Component {
 		}
 	};
 
+	handleSignInSuccess = () => {
+		Zotero.debug("DeepTutor: Sign in success handler called");
+		
+		// Close the sign-in popup
+		this.setState({ showSignInPopup: false });
+		
+		Zotero.debug("DeepTutor: Sign-in popup closed after successful authentication");
+	};
+
 	handleOpenSignUpPage = () => {
 		// Open sign up page in default browser
 		Zotero.debug("DeepTutor: Sign up button clicked");
@@ -1451,57 +1460,6 @@ var DeepTutor = class DeepTutor extends React.Component {
 		}
 	};
 
-	/**
-	 * Test method for localhost server - can be called from browser console
-	 * Usage: window.deepTutorInstance.testLocalhostServer()
-	 */
-	testLocalhostServer = async () => {
-		try {
-			console.log("🧪 DeepTutor: Testing localhost server...");
-
-			if (!this.localhostServer) {
-				console.error("❌ DeepTutor: Localhost server not initialized");
-				return;
-			}
-
-			console.log("📊 DeepTutor: Server status:", {
-				isRunning: this.localhostServer.isServerRunning(),
-				serverUrl: this.localhostServer.getServerUrl(),
-				port: this.localhostServer.port
-			});
-
-			// Check available endpoints
-			const allEndpoints = this.localhostServer.getAvailableEndpoints();
-			const deeptutorEndpoints = this.localhostServer.getDeepTutorEndpoints();
-
-			console.log("🔗 DeepTutor: All available endpoints:", allEndpoints);
-			console.log("🎯 DeepTutor: DeepTutor endpoints:", deeptutorEndpoints);
-
-			// Test sending a message
-			const testMessage = "Test message from DeepTutor console!";
-			console.log("📤 DeepTutor: Sending test message:", testMessage);
-
-			const result = await this.localhostServer.sendText(testMessage);
-			console.log("📥 DeepTutor: Send result:", result);
-
-			// Test health endpoint if server is running
-			if (this.localhostServer.isServerRunning()) {
-				try {
-					const healthResponse = await fetch(`${this.localhostServer.getServerUrl()}/deeptutor/health`);
-					const healthData = await healthResponse.json();
-					console.log("🏥 DeepTutor: Health check result:", healthData);
-				}
-				catch (healthError) {
-					console.error("❌ DeepTutor: Health check failed:", healthError.message);
-				}
-			}
-
-			console.log("✅ DeepTutor: Localhost server test completed");
-		}
-		catch (error) {
-			console.error("❌ DeepTutor: Localhost server test failed:", error.message);
-		}
-	};
 
 	render() {
 		Zotero.debug("DeepTutor: Render called");
