@@ -324,7 +324,7 @@ const DeepTutorMain = (props) => {
 			{/* Popups */}
 			{props.showSignInPopup && (
 				<div style={{
-					position: 'fixed',
+					position: 'absolute',
 					top: 0,
 					left: 0,
 					right: 0,
@@ -374,7 +374,7 @@ const DeepTutorMain = (props) => {
 
 			{props.showSignUpPopup && (
 				<div style={{
-					position: 'fixed',
+					position: 'absolute',
 					top: 0,
 					left: 0,
 					right: 0,
@@ -424,7 +424,7 @@ const DeepTutorMain = (props) => {
 
 			{props.showDeletePopup && (
 				<div style={{
-					position: 'fixed',
+					position: 'absolute',
 					top: 0,
 					left: 0,
 					right: 0,
@@ -474,7 +474,7 @@ const DeepTutorMain = (props) => {
 
 			{props.showRenamePopup && (
 				<div style={{
-					position: 'fixed',
+					position: 'absolute',
 					top: 0,
 					left: 0,
 					right: 0,
@@ -525,7 +525,7 @@ const DeepTutorMain = (props) => {
 
 			{props.showNoPDFWarningPopup && (
 				<div style={{
-					position: 'fixed',
+					position: 'absolute',
 					top: 0,
 					left: 0,
 					right: 0,
@@ -573,7 +573,7 @@ const DeepTutorMain = (props) => {
 
 			{props.showSubscriptionConfirmPopup && (
 				<div style={{
-					position: 'fixed',
+					position: 'absolute',
 					top: 0,
 					left: 0,
 					right: 0,
@@ -622,7 +622,7 @@ const DeepTutorMain = (props) => {
 
 			{props.showManageSubscriptionPopup && (
 				<div style={{
-					position: 'fixed',
+					position: 'absolute',
 					top: 0,
 					left: 0,
 					right: 0,
@@ -665,6 +665,58 @@ const DeepTutorMain = (props) => {
 							onClose={props.toggleManageSubscriptionPopup}
 							onSubscriptionStatusChange={props.handleSubscriptionStatusChange}
 							isManageMode={true}
+						/>
+					</div>
+				</div>
+			)}
+
+			{/* Model Selection Popup */}
+			{props.showModelSelectionPopup && (
+				<div style={{
+					position: 'absolute',
+					top: 0,
+					left: 0,
+					right: 0,
+					bottom: 0,
+					background: 'rgba(0, 0, 0, 0.5)',
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+					zIndex: 1000,
+				}}>
+					<div style={{
+						background: colors.background.primary,
+						borderRadius: '0.5rem',
+						padding: '2rem',
+						maxWidth: '24rem',
+						width: '100%',
+						position: 'relative',
+					}}>
+						<button
+							onClick={props.toggleModelSelectionPopup}
+							style={{
+								all: 'revert',
+								background: 'none',
+								border: 'none',
+								cursor: 'pointer',
+								position: 'absolute',
+								right: 0,
+								top: '50%',
+								transform: 'translateY(-50%)',
+								width: '1rem',
+								height: '1rem',
+								display: 'flex',
+								alignItems: 'center',
+								justifyContent: 'center',
+							}}
+						>
+							<img src={PopupClosePath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
+						</button>
+						<ModelSelection
+							onSubmit={props.handleModelSelectionSubmit}
+							user={props.currentUser}
+							externallyFrozen={props.modelSelectionFrozen}
+							onShowNoPDFWarning={props.toggleNoPDFWarningPopup}
 						/>
 					</div>
 				</div>
