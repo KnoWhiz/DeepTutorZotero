@@ -170,7 +170,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 			error: null,
 			showProfilePopup: false,
 			showSignInPopup: false,
-			showSignUpPopup: false,
+
 			showModelSelectionPopup: false,
 			showDeletePopup: false,
 			showRenamePopup: false,
@@ -578,11 +578,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 		}));
 	};
 
-	toggleSignUpPopup = () => {
-		this.setState(prevState => ({
-			showSignUpPopup: !prevState.showSignUpPopup
-		}));
-	};
+
 
 	toggleModelSelectionPopup = () => {
 		this.setState(prevState => ({
@@ -871,6 +867,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 			}
 		}
 	};
+
+
 
 	async loadSession() {
 		// Only load sessions if user is authenticated
@@ -1529,7 +1527,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 				// Popup state props
 				showProfilePopup={this.state.showProfilePopup}
 				showSignInPopup={this.state.showSignInPopup}
-				showSignUpPopup={this.state.showSignUpPopup}
+
 				showModelSelectionPopup={this.state.showModelSelectionPopup}
 				showDeletePopup={this.state.showDeletePopup}
 				showRenamePopup={this.state.showRenamePopup}
@@ -1579,9 +1577,10 @@ var DeepTutor = class DeepTutor extends React.Component {
 					}
 				}}
 				handleSignInSuccess={this.handleSignInSuccess}
-				handleSignUpSuccess={this.handleSignUpSuccess}
+
 				handleSignOut={this.handleSignOut}
 				handleOpenSignUpPage={this.handleOpenSignUpPage}
+
 				handleShowDeletePopup={this.handleShowDeletePopup}
 				handleConfirmDelete={this.handleConfirmDelete}
 				handleCancelDelete={this.handleCancelDelete}
@@ -1594,7 +1593,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 				switchPane={this.switchPane}
 				toggleModelSelectionPopup={this.toggleModelSelectionPopup}
 				toggleSignInPopup={this.toggleSignInPopup}
-				toggleSignUpPopup={this.toggleSignUpPopup}
+
 				toggleProfilePopup={this.toggleProfilePopup}
 				toggleNoPDFWarningPopup={this.toggleNoPDFWarningPopup}
 				toggleSubscriptionPopup={this.toggleSubscriptionPopup}

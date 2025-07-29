@@ -6,7 +6,6 @@ import SessionHistory from './DeepTutorSessionHistory.js';
 import DeepTutorChatBox from './DeepTutorChatBox.js';
 import DeepTutorWelcomePane from './DeepTutorWelcomePane.js';
 import DeepTutorSignIn from './DeepTutorSignIn.js';
-import DeepTutorSignUp from './DeepTutorSignUp.js';
 import DeepTutorSubscription from './DeepTutorSubscription.js';
 import DeepTutorTopSection from './DeepTutorTopSection.js';
 import DeepTutorBottomSection from './DeepTutorBottomSection.js';
@@ -308,6 +307,7 @@ const DeepTutorMain = (props) => {
 				onToggleProfilePopup={props.toggleProfilePopup}
 				onToggleSignInPopup={props.toggleSignInPopup}
 				onToggleSignUpPopup={props.handleOpenSignUpPage}
+
 				onToggleSubscriptionPopup={props.toggleSubscriptionPopup}
 				showProfilePopup={props.showProfilePopup}
 				feedIconPath={FeedIconPath}
@@ -365,62 +365,14 @@ const DeepTutorMain = (props) => {
 						</button>
 						<DeepTutorSignIn
 							onSignInSuccess={props.handleSignInSuccess}
-							onSignUpClick={props.toggleSignUpPopup}
+							onSignInSignUp={props.handleOpenSignUpPage}
 							onClose={props.toggleSignInPopup}
 						/>
 					</div>
 				</div>
 			)}
 
-			{props.showSignUpPopup && (
-				<div style={{
-					position: 'absolute',
-					top: 0,
-					left: 0,
-					right: 0,
-					bottom: 0,
-					background: 'rgba(0, 0, 0, 0.5)',
-					display: 'flex',
-					alignItems: 'center',
-					justifyContent: 'center',
-					zIndex: 1000,
-				}}>
-					<div style={{
-						background: colors.background.primary,
-						borderRadius: '0.5rem',
-						padding: '2rem',
-						maxWidth: '24rem',
-						width: '100%',
-						position: 'relative',
-					}}>
-						<button
-							onClick={props.toggleSignUpPopup}
-							style={{
-								all: 'revert',
-								background: 'none',
-								border: 'none',
-								cursor: 'pointer',
-								position: 'absolute',
-								right: 0,
-								top: '50%',
-								transform: 'translateY(-50%)',
-								width: '1rem',
-								height: '1rem',
-								display: 'flex',
-								alignItems: 'center',
-								justifyContent: 'center',
-							}}
-						>
-							<img src={PopupClosePath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
-						</button>
-						<DeepTutorSignUp
-							onSignUpSuccess={props.handleSignUpSuccess}
-							onSignInClick={props.toggleSignInPopup}
-							onClose={props.toggleSignUpPopup}
-						/>
-					</div>
-				</div>
-			)}
+
 
 			{props.showDeletePopup && (
 				<div style={{
@@ -745,7 +697,7 @@ DeepTutorMain.propTypes = {
 	// Popup state props
 	showProfilePopup: PropTypes.bool.isRequired,
 	showSignInPopup: PropTypes.bool.isRequired,
-	showSignUpPopup: PropTypes.bool.isRequired,
+
 	showModelSelectionPopup: PropTypes.bool.isRequired,
 	showDeletePopup: PropTypes.bool.isRequired,
 	showRenamePopup: PropTypes.bool.isRequired,
@@ -773,9 +725,10 @@ DeepTutorMain.propTypes = {
 	handleInitWaitChange: PropTypes.func.isRequired,
 	handleModelSelectionSubmit: PropTypes.func.isRequired,
 	handleSignInSuccess: PropTypes.func.isRequired,
-	handleSignUpSuccess: PropTypes.func.isRequired,
+
 	handleSignOut: PropTypes.func.isRequired,
 	handleOpenSignUpPage: PropTypes.func.isRequired,
+
 	handleShowDeletePopup: PropTypes.func.isRequired,
 	handleConfirmDelete: PropTypes.func.isRequired,
 	handleCancelDelete: PropTypes.func.isRequired,
@@ -788,7 +741,7 @@ DeepTutorMain.propTypes = {
 	switchPane: PropTypes.func.isRequired,
 	toggleModelSelectionPopup: PropTypes.func.isRequired,
 	toggleSignInPopup: PropTypes.func.isRequired,
-	toggleSignUpPopup: PropTypes.func.isRequired,
+
 	toggleProfilePopup: PropTypes.func.isRequired,
 	toggleNoPDFWarningPopup: PropTypes.func.isRequired,
 	toggleSubscriptionPopup: PropTypes.func.isRequired,
