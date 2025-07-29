@@ -1543,7 +1543,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 				
 				// Feature flags
 				modelSelectionFrozen={this.state.modelSelectionFrozen}
-				localhostServer={this.state.localhostServer}
+				localhostServer={this.localhostServer}
 				
 				// Refs
 				containerRef={this.containerRef}

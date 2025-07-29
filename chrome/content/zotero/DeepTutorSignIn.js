@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { signIn, signInWithGoogle } from './auth/cognitoAuth.js';
 import { DT_FORGOT_PASSWORD_URL } from './api/libs/api.js';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
@@ -459,7 +460,7 @@ export default function DeepTutorSignIn({ onSignInSignUp, onSignInSuccess, local
 				</div>
 
 				<div style={styles.bottomContainer}>
-					<span style={styles.bottomText}>Don't have an account?</span>
+					<span style={styles.bottomText}>Don&apos;t have an account?</span>
 					<button
 						style={styles.signUpLink}
 						type="button"
@@ -473,3 +474,10 @@ export default function DeepTutorSignIn({ onSignInSignUp, onSignInSuccess, local
 		</div>
 	);
 }
+
+// Add PropTypes for type checking
+DeepTutorSignIn.propTypes = {
+	onSignInSignUp: PropTypes.func.isRequired,
+	onSignInSuccess: PropTypes.func.isRequired,
+	localhostServer: PropTypes.object,
+};

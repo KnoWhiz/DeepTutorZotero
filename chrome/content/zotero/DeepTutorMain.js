@@ -713,7 +713,7 @@ DeepTutorMain.propTypes = {
 
 	// Feature flags
 	modelSelectionFrozen: PropTypes.bool.isRequired,
-	localhostServer: PropTypes.bool.isRequired,
+	localhostServer: PropTypes.object,
 
 	// Refs
 	containerRef: PropTypes.object.isRequired,
