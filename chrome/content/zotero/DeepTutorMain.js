@@ -387,7 +387,6 @@ const DeepTutorMain = (props) => {
 			)}
 
 
-
 			{props.showDeletePopup && (
 				<div style={{
 					position: 'absolute',
@@ -401,40 +400,12 @@ const DeepTutorMain = (props) => {
 					justifyContent: 'center',
 					zIndex: 1000,
 				}}>
-					<div style={{
-						background: colors.background.primary,
-						borderRadius: '0.5rem',
-						padding: '2rem',
-						maxWidth: '24rem',
-						width: '100%',
-						position: 'relative',
-					}}>
-						<button
-							onClick={props.handleCancelDelete}
-							style={{
-								all: 'revert',
-								background: 'none',
-								border: 'none',
-								cursor: 'pointer',
-								position: 'absolute',
-								right: 0,
-								top: '50%',
-								transform: 'translateY(-50%)',
-								width: '1rem',
-								height: '1rem',
-								display: 'flex',
-								alignItems: 'center',
-								justifyContent: 'center',
-							}}
-						>
-							<img src={closeButtonPath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
-						</button>
-						<DeepTutorSessionDelete
-							sessionName={props.sessionNameToDelete}
-							onConfirm={() => props.handleConfirmDelete(props.sessionToDelete)}
-							onCancel={props.handleCancelDelete}
-						/>
-					</div>
+					<DeepTutorSessionDelete
+						sessionToDelete={props.sessionToDelete}
+						sessionName={props.sessionNameToDelete}
+						onConfirmDelete={() => props.handleConfirmDelete(props.sessionToDelete)}
+						onCancelDelete={props.handleCancelDelete}
+					/>
 				</div>
 			)}
 
