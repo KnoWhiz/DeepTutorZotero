@@ -21,12 +21,13 @@ const PlusIconPath = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_REGIS_N
 const FeedIconPath = 'chrome://zotero/content/DeepTutorMaterials/Bot/BOT_FEEDBACK.svg';
 const PersonIconPath = 'chrome://zotero/content/DeepTutorMaterials/Bot/BOT_PROFILE.svg';
 const PopupClosePath = 'chrome://zotero/content/DeepTutorMaterials/Main/MAIN_CLOSE.svg';
+const PopupCloseDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Main/CLOSE_DARK.svg';
 
 /**
  * Main display component for DeepTutor with theme integration
  */
 const DeepTutorMain = (props) => {
-	const { colors } = useDeepTutorTheme();
+	const { colors, isDark } = useDeepTutorTheme();
 
 	// Theme-aware styles
 	const styles = {
@@ -201,6 +202,9 @@ const DeepTutorMain = (props) => {
 			color: colors.button.primaryText,
 		},
 	};
+
+	// Dynamic close button path based on theme
+	const closeButtonPath = isDark ? PopupCloseDarkPath : PopupClosePath;
 
 	// Calculate responsive widths for DeepTutor pane using windowWidth for reactivity
 	let minWidth, maxWidth, defaultWidth;
@@ -379,7 +383,7 @@ const DeepTutorMain = (props) => {
 								justifyContent: 'center',
 							}}
 						>
-							<img src={PopupClosePath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
+							<img src={closeButtonPath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
 						</button>
 
 						<DeepTutorSignIn
@@ -432,7 +436,7 @@ const DeepTutorMain = (props) => {
 								justifyContent: 'center',
 							}}
 						>
-							<img src={PopupClosePath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
+							<img src={closeButtonPath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
 						</button>
 						<DeepTutorSessionDelete
 							sessionName={props.sessionNameToDelete}
@@ -482,7 +486,7 @@ const DeepTutorMain = (props) => {
 								justifyContent: 'center',
 							}}
 						>
-							<img src={PopupClosePath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
+							<img src={closeButtonPath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
 						</button>
 						<DeepTutorRenameSession
 							sessionId={props.sessionToRename}
@@ -533,7 +537,7 @@ const DeepTutorMain = (props) => {
 								justifyContent: 'center',
 							}}
 						>
-							<img src={PopupClosePath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
+							<img src={closeButtonPath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
 						</button>
 						<DeepTutorNoPDFWarning
 							onClose={props.toggleNoPDFWarningPopup}
@@ -581,7 +585,7 @@ const DeepTutorMain = (props) => {
 								justifyContent: 'center',
 							}}
 						>
-							<img src={PopupClosePath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
+							<img src={closeButtonPath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
 						</button>
 						<DeepTutorSubscription
 							onClose={props.toggleSubscriptionConfirmPopup}
@@ -630,7 +634,7 @@ const DeepTutorMain = (props) => {
 								justifyContent: 'center',
 							}}
 						>
-							<img src={PopupClosePath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
+							<img src={closeButtonPath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
 						</button>
 						<DeepTutorSubscription
 							onClose={props.toggleManageSubscriptionPopup}
@@ -699,7 +703,7 @@ const DeepTutorMain = (props) => {
 								justifyContent: 'center',
 							}}
 						>
-							<img src={PopupClosePath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
+							<img src={closeButtonPath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
 						</button>
 						
 						<ModelSelection

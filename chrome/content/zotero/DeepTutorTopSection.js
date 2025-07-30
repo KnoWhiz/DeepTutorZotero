@@ -69,25 +69,34 @@ const styles = {
 };
 
 const DeepTutorTopSection = (props) => {
-	const { colors } = useDeepTutorTheme();
+	const { colors, isDark } = useDeepTutorTheme();
+	
+	// Choose logo based on theme
+	const logoPath = isDark
+		? 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_DPTLOGO_DARK.svg'
+		: props.logoPath;
 	
 	// Theme-aware styles
 	const themeStyles = {
 		top: {
 			...styles.top,
 			background: colors.background.tertiary,
+			color: colors.text.allText,
 		},
 		welcomeTop: {
 			...styles.welcomeTop,
 			background: colors.background.tertiary,
+			color: colors.text.allText,
 		},
 		iconButton: {
 			...styles.iconButton,
 			background: colors.background.tertiary,
+			color: colors.text.allText,
 		},
 		iconButtonActive: {
 			...styles.iconButtonActive,
 			background: colors.background.tertiary,
+			color: colors.text.allText,
 		},
 	};
 	
@@ -101,7 +110,7 @@ const DeepTutorTopSection = (props) => {
 	const renderMain = () => {
 		return (
 			<div style={styles.contentWrapper}>
-				<img src={props.logoPath} alt="DeepTutor Logo" style={styles.logo} />
+				<img src={logoPath} alt="DeepTutor Logo" style={styles.logo} />
 				<div style={styles.topRight}>
 					<button
 						style={getIconButtonStyle(props.currentPane === 'sessionHistory')}
@@ -131,7 +140,7 @@ const DeepTutorTopSection = (props) => {
 	const renderWelcome = () => {
 		return (
 			<div style={styles.contentWrapper}>
-				<img src={props.logoPath} alt="DeepTutor Logo" style={styles.logo} />
+				<img src={logoPath} alt="DeepTutor Logo" style={styles.logo} />
 			</div>
 		);
 	};
@@ -139,7 +148,7 @@ const DeepTutorTopSection = (props) => {
 	const renderSessionHistory = () => {
 		return (
 			<div style={styles.contentWrapper}>
-				<img src={props.logoPath} alt="DeepTutor Logo" style={styles.logo} />
+				<img src={logoPath} alt="DeepTutor Logo" style={styles.logo} />
 			</div>
 		);
 	};

@@ -33,28 +33,6 @@ export default function DeepTutorWelcomePane({ onWelcomeSignIn, onSignInSuccess:
 			alignItems: 'center',
 			justifyContent: 'center',
 		},
-		logoRow: {
-			position: 'absolute',
-			top: '1.5rem',
-			left: '2rem',
-			fontWeight: 700,
-			fontSize: '1.5em',
-			display: 'flex',
-			alignItems: 'center',
-			letterSpacing: 0.2,
-		},
-		logoText: {
-			fontWeight: 700,
-			fontSize: '1.5em',
-			color: colors.text.allText,
-			fontFamily: 'Roboto, sans-serif',
-		},
-		logoIcon: {
-			width: '1.375rem',
-			height: '1.375rem',
-			marginLeft: '0.25rem',
-			marginTop: '0.125rem',
-		},
 		folderBg: {
 			position: 'absolute',
 			width: '18%',

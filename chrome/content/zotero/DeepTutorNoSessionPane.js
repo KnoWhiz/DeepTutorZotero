@@ -100,7 +100,7 @@ const DeepTutorNoSessionPane = ({ onCreateNewSession }) => {
 			all: 'revert',
 			background: colors.button.primary,
 			color: colors.button.primaryText,
-			fontWeight: 700,
+			fontWeight: 500,
 			fontSize: '1em',
 			border: 'none',
 			borderRadius: '0.625rem',
@@ -119,8 +119,9 @@ const DeepTutorNoSessionPane = ({ onCreateNewSession }) => {
 			gap: '0.5rem',
 		},
 		plusIcon: {
-			width: '1rem',
-			height: '1rem',
+			width: '1.25rem',
+			height: '1.25rem',
+			color: colors.button.primaryText,
 		},
 	};
 

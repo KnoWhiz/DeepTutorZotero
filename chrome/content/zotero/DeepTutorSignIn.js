@@ -127,22 +127,25 @@ export default function DeepTutorSignIn({ onSignInSignUp, onSignInSuccess, local
 			width: '100%',
 			minHeight: '2.75rem',
 			borderRadius: '0.625rem',
-			border: `2px solid ${colors.button.secondaryBorder}`,
+			border: `1px solid ${colors.button.secondaryBorder}`,
 			padding: '0.625rem 1.25rem',
 			background: colors.button.secondary,
 			display: 'flex',
 			alignItems: 'center',
 			justifyContent: 'center',
-			fontWeight: 600,
-			fontSize: '1.05rem',
+			fontWeight: 500,
+			fontSize: '1rem',
 			color: colors.button.secondaryText,
 			cursor: 'pointer',
+			fontFamily: 'Roboto, sans-serif',
+			letterSpacing: 0.2,
+			zIndex: 1,
 		},
 		googleIcon: {
 			width: '1.375rem',
 			height: '1.375rem',
 			objectFit: 'contain',
-			marginRight: '0.125rem',
+			marginRight: '0.5rem',
 		},
 		bottomContainer: {
 			width: '100%',
@@ -259,7 +262,7 @@ export default function DeepTutorSignIn({ onSignInSignUp, onSignInSuccess, local
 
 	const googleButtonDynamicStyle = {
 		...styles.googleButton,
-		background: isGoogleHovered ? '#F8F6F7' : '#fff',
+		background: isGoogleHovered ? colors.background.quaternary : colors.button.secondary,
 	};
 
 	const handleSignIn = async (e) => {
