@@ -1,9 +1,17 @@
 import React, { useState } from 'react'; // eslint-disable-line no-unused-vars
+import PropTypes from 'prop-types';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 
+// Icon path definitions
+const PLUS_ICON_PATH = 'chrome://zotero/content/DeepTutorMaterials/NoSession/NOS_WHITE_PLUS.svg';
+const PLUS_ICON_DARK_PATH = 'chrome://zotero/content/DeepTutorMaterials/NoSession/NOS_DARK_PLUS.svg';
+
 const DeepTutorNoSessionPane = ({ onCreateNewSession }) => {
-	const { colors } = useDeepTutorTheme();
+	const { colors, isDark } = useDeepTutorTheme();
 	const [isHovered, setIsHovered] = useState(false);
+
+	// Choose plus icon based on theme
+	const plusIconPath = isDark ? PLUS_ICON_DARK_PATH : PLUS_ICON_PATH;
 
 	// Theme-aware styles
 	const styles = {
@@ -135,7 +143,6 @@ const DeepTutorNoSessionPane = ({ onCreateNewSession }) => {
 
 	const FolderImg = 'chrome://zotero/content/DeepTutorMaterials/Welcome/WELCOME_FOLDER.svg';
 	const PageImg = 'chrome://zotero/content/DeepTutorMaterials/Welcome/WELCOME_PAGE.svg';
-	const PlusIconPath = 'chrome://zotero/content/DeepTutorMaterials/NoSession/NOS_WHITE_PLUS.svg';
 
 	return (
 		<div style={styles.container}>
@@ -164,12 +171,16 @@ const DeepTutorNoSessionPane = ({ onCreateNewSession }) => {
 						onClick={onCreateNewSession}
 					>
             Create a New Session
-						<img src={PlusIconPath} alt="Plus" style={styles.plusIcon} />
+						<img src={plusIconPath} alt="Plus" style={styles.plusIcon} />
 					</button>
 				</div>
 			</div>
 		</div>
 	);
+};
+
+DeepTutorNoSessionPane.propTypes = {
+	onCreateNewSession: PropTypes.func.isRequired,
 };
 
 export default DeepTutorNoSessionPane;

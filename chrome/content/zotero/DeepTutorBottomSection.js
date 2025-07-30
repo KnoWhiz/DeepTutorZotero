@@ -4,11 +4,17 @@ import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 
 // Icon path definitions
 const FEED_ICON_PATH = 'chrome://zotero/content/DeepTutorMaterials/Bot/BOT_FEEDBACK.svg';
+const FEED_ICON_DARK_PATH = 'chrome://zotero/content/DeepTutorMaterials/Bot/BOT_FEEDBACK_DARK.svg';
 const PERSON_ICON_PATH = 'chrome://zotero/content/DeepTutorMaterials/Bot/BOT_PROFILE.svg';
+const PERSON_ICON_DARK_PATH = 'chrome://zotero/content/DeepTutorMaterials/Bot/BOT_PROFILE_DARK.svg';
 
 const DeepTutorBottomSection = (props) => {
-	const { colors } = useDeepTutorTheme();
+	const { colors, isDark } = useDeepTutorTheme();
 	const [isUpgradeHovered, setIsUpgradeHovered] = useState(false);
+
+	// Choose icons based on theme
+	const feedIconPath = isDark ? FEED_ICON_DARK_PATH : FEED_ICON_PATH;
+	const personIconPath = isDark ? PERSON_ICON_DARK_PATH : PERSON_ICON_PATH;
 
 	// Theme-aware styles
 	const styles = {
@@ -189,17 +195,10 @@ const DeepTutorBottomSection = (props) => {
 		setIsUpgradeHovered(false);
 	};
 
-	const getComponentButtonStyle = (isActive) => {
-		return {
-			...styles.componentButton,
-			...(isActive ? styles.componentButtonActive : {})
-		};
-	};
-
 	const renderProfilePopup = () => {
 		if (!props.showProfilePopup) return null;
 
-				// Determine display name/email - prioritizing email first
+		// Determine display name/email - prioritizing email first
 		let displayName = 'User';
 		if (props.userData) {
 			const { name, firstName, lastName, email } = props.userData;
@@ -268,7 +267,7 @@ const DeepTutorBottomSection = (props) => {
 			buttonText = "Start Trial";
 		}
 
-				return (
+		return (
 			<div style={styles.contentWrapper}>
 				<div style={styles.divider} />
 				<div style={styles.bottomLeft}>
@@ -359,7 +358,7 @@ const DeepTutorBottomSection = (props) => {
 								}
 							}}
 						>
-							<img src={FEED_ICON_PATH} alt="Give Us Feedback" style={styles.buttonIcon} />
+							<img src={feedIconPath} alt="Give Us Feedback" style={styles.buttonIcon} />
 							<span style={{ textDecoration: 'underline' }}>Give Us Feedback</span>
 						</button>
 					</div>
@@ -369,7 +368,7 @@ const DeepTutorBottomSection = (props) => {
 								e.stopPropagation();
 								props.onToggleProfilePopup();
 							}}>
-								<img src={PERSON_ICON_PATH} alt="Profile" style={styles.buttonIcon} />
+								<img src={personIconPath} alt="Profile" style={styles.buttonIcon} />
 								<span style={{ textDecoration: 'underline' }}>Profile</span>
 							</button>
 							{renderProfilePopup()}
