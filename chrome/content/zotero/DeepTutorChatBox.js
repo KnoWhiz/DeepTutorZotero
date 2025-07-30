@@ -1882,7 +1882,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 											key={qIndex}
 											style={{
 												...styles.questionButton,
-												background: hoveredQuestion === qIndex ? "#D9D9D9" : "#FFFFFF"
+												background: hoveredQuestion === qIndex ? colors.button.hover : colors.button.secondary
 											}}
 											onClick={() => handleQuestionClick(question)}
 											onMouseEnter={() => setHoveredQuestion(qIndex)}
@@ -2794,12 +2794,12 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 										...(hoveredContextDoc === index
 											? {
 												...styles.contextDocumentButtonHover,
-												background: contextDoc.filePath ? '#D9D9D9' : '#E8E8E8', // Lighter gray for null filePath
+												background: contextDoc.filePath ? colors.background.primary : colors.background.secondary, // Theme-aware hover colors
 											}
 											: {
-												background: contextDoc.filePath ? '#FFFFFF' : '#F5F5F5' // Light gray base for null filePath
+												background: contextDoc.filePath ? colors.background.quaternary : colors.background.secondary // Theme-aware normal colors
 											}),
-										borderBottom: index === contextDocuments.length - 1 ? "none" : "0.0625rem solid #E0E0E0",
+										borderBottom: index === contextDocuments.length - 1 ? "none" : `0.0625rem solid ${colors.border.primary}`,
 										flexDirection: "column",
 										alignItems: "flex-start",
 										padding: "0.75rem 0.9375rem",
@@ -2817,7 +2817,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 									<div style={{
 										fontSize: "1rem",
 										fontWeight: 400,
-										color: "#1C1B1F",
+										color: colors.text.primary,
 										lineHeight: "180%",
 										overflow: "hidden",
 										textOverflow: "ellipsis",
@@ -2830,7 +2830,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 										<div style={{
 											fontSize: "0.875rem",
 											fontWeight: 400,
-											color: "#757575",
+											color: colors.text.tertiary,
 											lineHeight: "135%",
 											overflow: "hidden",
 											textOverflow: "ellipsis",
@@ -2846,7 +2846,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 							: (
 								<div style={{
 									padding: "0.75rem",
-									color: "#757575",
+									color: colors.text.tertiary,
 									fontSize: "0.875rem",
 									textAlign: "center",
 									fontStyle: "italic"

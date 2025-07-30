@@ -1,4 +1,4 @@
-import React, { useState } from 'react'; // eslint-disable-line no-unused-vars
+import React, { useState, useEffect, useRef } from 'react'; // eslint-disable-line no-unused-vars
 import PropTypes from 'prop-types';
 import { updateSessionName } from './api/libs/api.js';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
@@ -13,10 +13,18 @@ export default function DeepTutorRenameSession({
 	onCancelRename
 }) {
 	const { colors, isDark } = useDeepTutorTheme();
-	const [newSessionName, setNewSessionName] = useState("");
+	const [newSessionName, setNewSessionName] = useState(_currentSessionName);
 	const [isRenaming, setIsRenaming] = useState(false);
 	const [isCancelHovered, setIsCancelHovered] = useState(false);
 	const [isConfirmHovered, setIsConfirmHovered] = useState(false);
+	const textareaRef = useRef(null);
+
+	// Select all text when component mounts
+	useEffect(() => {
+		if (textareaRef.current) {
+			textareaRef.current.select();
+		}
+	}, []);
 
 	const styles = {
 		container: {
@@ -107,7 +115,7 @@ export default function DeepTutorRenameSession({
 		},
 		confirmButton: {
 			all: 'revert',
-			background: '#dc3545',
+			background: SKY,
 			color: '#fff',
 			minHeight: '3rem',
 			fontWeight: 700,
@@ -122,7 +130,7 @@ export default function DeepTutorRenameSession({
 			letterSpacing: 0.2,
 		},
 		confirmButtonHover: {
-			background: '#dc3545',
+			background: SKY,
 		},
 		cancelButton: {
 			all: 'revert',
@@ -149,6 +157,11 @@ export default function DeepTutorRenameSession({
 		if (onCancelRename) {
 			onCancelRename();
 		}
+	};
+
+	const handleTextareaFocus = (e) => {
+		// Select all text when the textarea is focused
+		e.target.select();
 	};
 
 	const handleConfirm = async () => {
@@ -206,22 +219,15 @@ export default function DeepTutorRenameSession({
 			</div>
 			<div style={styles.content}>
 				<textarea
+					ref={textareaRef}
 					style={styles.textArea}
 					value={newSessionName}
 					onChange={e => setNewSessionName(e.target.value)}
+					onFocus={handleTextareaFocus}
 					disabled={isRenaming}
 					placeholder="Enter new session name..."
 				/>
 				<div style={styles.buttonContainer}>
-					<button
-						style={confirmButtonDynamicStyle}
-						onClick={handleConfirm}
-						onMouseEnter={() => setIsConfirmHovered(true)}
-						onMouseLeave={() => setIsConfirmHovered(false)}
-						disabled={isRenaming || !newSessionName.trim()}
-					>
-						{isRenaming ? 'Renaming...' : 'Rename Session'}
-					</button>
 					<button
 						style={cancelButtonDynamicStyle}
 						onClick={handleCancel}
@@ -230,6 +236,15 @@ export default function DeepTutorRenameSession({
 						disabled={isRenaming}
 					>
 						Cancel
+					</button>
+					<button
+						style={confirmButtonDynamicStyle}
+						onClick={handleConfirm}
+						onMouseEnter={() => setIsConfirmHovered(true)}
+						onMouseLeave={() => setIsConfirmHovered(false)}
+						disabled={isRenaming || !newSessionName.trim()}
+					>
+						{isRenaming ? 'Renaming...' : 'Confirm'}
 					</button>
 				</div>
 			</div>

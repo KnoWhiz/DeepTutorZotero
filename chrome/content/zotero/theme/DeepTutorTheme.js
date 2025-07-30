@@ -138,7 +138,7 @@ const DeepTutorColors = {
 		
 		// Source button colors
 		sourceButton: {
-			background: "#33A9FF",
+			background: "#0687E5",
 			placeholder: "#666666",
 			text: "#1C1B1F"
 		},
