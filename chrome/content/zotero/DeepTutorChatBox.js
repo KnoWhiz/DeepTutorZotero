@@ -110,7 +110,7 @@ const MessageRole = {
 const SendIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_SEND.svg';
 const ArrowDownPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/CHAT_ARROWDOWN.svg';
 const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
-	const { colors } = useDeepTutorTheme();
+	const { colors, theme } = useDeepTutorTheme();
 	
 	// Theme-aware styles
 	const styles = {
@@ -1730,7 +1730,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 								display: 'flex',
 								width: 'fit-content',
 								borderRadius: '0.375rem',
-								border: '0.25rem solid #E0E0E0',
+								border: `0.25rem solid ${theme === 'dark' ? colors.sky : '#E0E0E0'}`,
 								paddingLeft: '1rem',
 								paddingRight: '1rem',
 								paddingTop: '0.5rem',
@@ -1740,15 +1740,15 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 								fontFamily: 'Roboto, sans-serif',
 								fontSize: '0.875rem',
 								alignItems: 'center',
-								color: '#000000',
-								background: '#FFFFFF',
+								color: colors.text.allText,
+								background: colors.background.quaternary,
 								cursor: 'pointer',
 								transition: 'background-color 0.2s',
 								fontWeight: 500
 							}}
 							onClick={() => toggleStreamingComponent(messageId)}
-							onMouseEnter={e => e.target.style.background = '#F5F5F5'}
-							onMouseLeave={e => e.target.style.background = '#FFFFFF'}
+							onMouseEnter={e => e.target.style.background = colors.background.primary}
+							onMouseLeave={e => e.target.style.background = colors.background.quaternary}
 							title={isStreamingComponentVisible ? "Hide streaming view" : "Show streaming view"}
 						>
 							{isStreamingComponentVisible ? "Hide Thinking Process" : "Show Thinking Process"}
@@ -2532,7 +2532,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 					}
 					.deeptutor-source-button {
 						background: ${colors.sourceButton.background} !important;
-						opacity: 0.4 !important;
+						opacity: 1 !important;
 						color: ${colors.sourceButton.text} !important;
 						border: none !important;
 						border-radius: 50% !important;
