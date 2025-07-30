@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 
 function SessionHistory({ sessions = [], onSessionSelect, isLoading = false, error = null, onCreateNewSession, onShowDeletePopup, onRenameSession }) {
-	const { colors } = useDeepTutorTheme();
+	const { colors, isDark } = useDeepTutorTheme();
 	const [search, setSearch] = useState('');
 	const [hoveredButton, setHoveredButton] = useState(null);
 	const [isCreateSessionHovered, setIsCreateSessionHovered] = useState(false);
@@ -28,11 +28,11 @@ function SessionHistory({ sessions = [], onSessionSelect, isLoading = false, err
 
 	const createSessionButtonStyle = {
 		all: 'revert',
-		background: colors.button.secondary,
-		color: colors.button.secondaryText,
+		background: isDark ? 'transparent' : 'transparent',
+		color: isDark ? '#33A9FF' : '#0687E5',
 		fontWeight: 600,
 		fontSize: '1em',
-		border: `0.0625rem solid ${colors.button.secondaryBorder}`,
+		border: `0.0625rem solid ${isDark ? '#33A9FF' : '#0687E5'}`,
 		borderRadius: '0.625rem',
 		width: '100%',
 		minHeight: '3rem',
@@ -187,16 +187,19 @@ function SessionHistory({ sessions = [], onSessionSelect, isLoading = false, err
 
 	const plusIconPath = 'chrome://zotero/content/DeepTutorMaterials/History/SESHIS_BLUE_PLUS.svg';
 	const searchIconPath = 'chrome://zotero/content/DeepTutorMaterials/History/SESHIS_SEARCH.svg';
+	const searchIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/History/SESHIS_SEARCH_DARK.svg';
 	const DeleteImg = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_DELETE.svg';
+	const DeleteImgDark = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_DELETE_DARK.svg';
 	// Temporary: Using search icon as placeholder for edit - replace with proper edit icon
 	const EditImg = 'chrome://zotero/content/DeepTutorMaterials/History/RENAME_SESSION.svg';
+	const EditImgDark = 'chrome://zotero/content/DeepTutorMaterials/History/RENAME_SESSION_DARK.svg';
 
 
 	// CSS injection for placeholder styling
 	useEffect(() => {
 		// Inject placeholder CSS
 		const injectPlaceholderCSS = () => {
-			const placeholderColor = '#666';
+			const placeholderColor = colors.text.tertiary;
 			const cssText = `
 					input.session-history-input::placeholder {
 						color: ${placeholderColor} !important;
@@ -260,7 +263,9 @@ function SessionHistory({ sessions = [], onSessionSelect, isLoading = false, err
 
 	const createSessionButtonDynamicStyle = {
 		...createSessionButtonStyle,
-		background: isCreateSessionHovered ? '#F8F6F7' : '#fff',
+		background: isCreateSessionHovered
+			? (isDark ? '#1A8CD8' : '#E6F3FF')
+			: (isDark ? 'transparent' : 'transparent'),
 	};
 
 	// Filter and sort sessions
@@ -298,7 +303,7 @@ function SessionHistory({ sessions = [], onSessionSelect, isLoading = false, err
 			</button>
 			{/* Search Bar Section */}
 			<div style={searchSectionStyle}>
-				<img src={searchIconPath} alt="Search Icon" style={{ width: '1rem', height: '1rem', marginRight: '0.5rem' }} />
+				<img src={isDark ? searchIconDarkPath : searchIconPath} alt="Search Icon" style={{ width: '1rem', height: '1rem', marginRight: '0.5rem' }} />
 				<input
 					type="text"
 					placeholder="Search for a Session..."
@@ -312,14 +317,14 @@ function SessionHistory({ sessions = [], onSessionSelect, isLoading = false, err
 			{/* Session List Section */}
 			<div style={sessionListStyle}>
 				{filteredSessions.length === 0 && (
-					<div style={{ color: '#888', textAlign: 'center', marginTop: 16 }}>No sessions found.</div>
+					<div style={{ color: colors.text.tertiary, textAlign: 'center', marginTop: 16 }}>No sessions found.</div>
 				)}
 				{filteredSessions.map(session => (
 					<button
 						key={session.id || session.sessionName}
 						style={{
 							...sessionButtonStyle,
-							background: hoveredButton === session.id ? '#D9D9D9' : '#F2F2F2'
+							background: hoveredButton === session.id ? colors.background.quaternary : colors.background.tertiary
 						}}
 						onClick={() => onSessionSelect && onSessionSelect(session.id)}
 						onMouseEnter={() => setHoveredButton(session.id)}
@@ -337,7 +342,7 @@ function SessionHistory({ sessions = [], onSessionSelect, isLoading = false, err
 								}}
 								onClick={e => handleEditClick(e, session.id)}
 							>
-								<img src={EditImg} alt="Edit" style={deleteIconStyle} />
+								<img src={isDark ? EditImgDark : EditImg} alt="Edit" style={deleteIconStyle} />
 							</button>
 							<button
 								style={{
@@ -347,7 +352,7 @@ function SessionHistory({ sessions = [], onSessionSelect, isLoading = false, err
 								}}
 								onClick={e => handleDeleteClick(e, session.id)}
 							>
-								<img src={DeleteImg} alt="Delete" style={deleteIconStyle} />
+								<img src={isDark ? DeleteImgDark : DeleteImg} alt="Delete" style={deleteIconStyle} />
 							</button>
 						</div>
 					</button>
