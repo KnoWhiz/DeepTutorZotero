@@ -422,41 +422,15 @@ const DeepTutorMain = (props) => {
 					justifyContent: 'center',
 					zIndex: 1000,
 				}}>
-					<div style={{
-						background: colors.background.primary,
-						borderRadius: '0.5rem',
-						padding: '2rem',
-						maxWidth: '24rem',
-						width: '100%',
-						position: 'relative',
-					}}>
-						<button
-							onClick={props.handleCancelRename}
-							style={{
-								all: 'revert',
-								background: 'none',
-								border: 'none',
-								cursor: 'pointer',
-								position: 'absolute',
-								right: 0,
-								top: '50%',
-								transform: 'translateY(-50%)',
-								width: '1rem',
-								height: '1rem',
-								display: 'flex',
-								alignItems: 'center',
-								justifyContent: 'center',
-							}}
-						>
-							<img src={closeButtonPath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
-						</button>
-						<DeepTutorRenameSession
-							sessionId={props.sessionToRename}
-							currentName={props.sessionNameToRename}
-							onRenameSuccess={props.handleRenameSuccess}
-							onCancel={props.handleCancelRename}
-						/>
-					</div>
+					<DeepTutorRenameSession
+						sessionId={props.sessionToRename}
+						currentSessionName={props.sessionNameToRename}
+						onConfirmRename={(_sessionId) => {
+							props.handleRenameSuccess();
+							props.handleCancelRename();
+						}}
+						onCancelRename={props.handleCancelRename}
+					/>
 				</div>
 			)}
 
@@ -747,6 +721,7 @@ DeepTutorMain.propTypes = {
 	toggleSignInPopup: PropTypes.func.isRequired,
 
 	toggleProfilePopup: PropTypes.func.isRequired,
+	toggleRenamePopup: PropTypes.func.isRequired,
 	toggleNoPDFWarningPopup: PropTypes.func.isRequired,
 	toggleSubscriptionPopup: PropTypes.func.isRequired,
 	toggleManageSubscriptionPopup: PropTypes.func.isRequired,

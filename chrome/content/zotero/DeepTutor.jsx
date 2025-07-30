@@ -668,6 +668,14 @@ var DeepTutor = class DeepTutor extends React.Component {
 		}
 	};
 
+	handleCancelRename = () => {
+		this.setState({
+			showRenamePopup: false,
+			sessionToRename: null,
+			sessionNameToRename: ''
+		});
+	};
+
 	toggleCollapse = () => {
 		this.setState(prevState => ({
 			collapsed: !prevState.collapsed
