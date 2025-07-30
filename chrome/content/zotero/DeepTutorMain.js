@@ -281,7 +281,7 @@ const DeepTutorMain = (props) => {
 					{props.currentPane === 'modelSelection'
 						&& <ModelSelection
 							onSubmit={props.handleModelSelectionSubmit}
-							user={props.currentUser}
+							user={props.userData}
 							externallyFrozen={props.modelSelectionFrozen}
 							onShowNoPDFWarning={props.toggleNoPDFWarningPopup}
 						/>
@@ -699,7 +699,7 @@ const DeepTutorMain = (props) => {
 						
 						<ModelSelection
 							onSubmit={props.handleModelSelectionSubmit}
-							user={props.currentUser}
+							user={props.userData}
 							externallyFrozen={props.modelSelectionFrozen}
 							onShowNoPDFWarning={props.toggleNoPDFWarningPopup}
 						/>

@@ -9,9 +9,12 @@ import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 const DeleteImg = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_DELETE.svg';
 // const LitePath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_LITE.svg';
 const BasicPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_STANDARD.svg';
+const BasicDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_STANDARD_DARK.svg';
 const AdvancedPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_ADVANCED.svg';
+const AdvancedDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_ADVANCED_DARK.svg';
 const RegisDragPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_DRAG.svg';
 const RegisSearchPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_SEARCH.svg';
+const RegisSearchDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_SEARCH_DARK.svg';
 
 // Session Status Enum
 const SessionStatus = {
@@ -32,7 +35,7 @@ const SessionType = {
 
 
 const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, onShowNoPDFWarning }, ref) => {
-	const { colors } = useDeepTutorTheme();
+	const { colors, isDark } = useDeepTutorTheme();
 	
 	// Theme-aware styles
 	const styles = {
@@ -1442,7 +1445,7 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 							onDragOver={e => e.preventDefault()}
 							onDrop={e => e.preventDefault()}
 						>
-							<img src={RegisSearchPath} alt="Search" style={styles.searchIcon} />
+							<img src={isDark ? RegisSearchDarkPath : RegisSearchPath} alt="Search" style={styles.searchIcon} />
 							<input
 								style={{
 									...styles.searchInput,
@@ -1522,7 +1525,7 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 							onClick={() => !isEffectivelyFrozen && handleTypeSelection('lite')}
 							disabled={isEffectivelyFrozen}
 						>
-							<img src={BasicPath} alt="Standard" style={{ width: '1.5rem', height: '1.5rem' }} />
+							<img src={isDark ? BasicDarkPath : BasicPath} alt="Standard" style={{ width: '1.5rem', height: '1.5rem' }} />
               STANDARD
 						</button>
 						<button
@@ -1537,7 +1540,7 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 							disabled={isEffectivelyFrozen || fileList.length > 1}
 							title={fileList.length > 1 ? "Advanced mode is not available with multiple files" : ""}
 						>
-							<img src={AdvancedPath} alt="Advanced" style={{ width: '1.5rem', height: '1.5rem' }} />
+							<img src={isDark ? AdvancedDarkPath : AdvancedPath} alt="Advanced" style={{ width: '1.5rem', height: '1.5rem' }} />
               ADVANCED
 						</button>
 					</div>
