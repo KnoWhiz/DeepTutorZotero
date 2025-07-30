@@ -1,6 +1,14 @@
-import React from 'react';
+import React from 'react'; // eslint-disable-line no-unused-vars
 import PropTypes from 'prop-types';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
+
+// Icon path definitions
+const LOGO_PATH = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_DPTLOGO.svg';
+const LOGO_DARK_PATH = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_DPTLOGO_DARK.svg';
+const HISTORY_ICON_PATH = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_HISTORY_NEW.svg';
+const HISTORY_ICON_DARK_PATH = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_HISTORY_DARK.svg';
+const PLUS_ICON_PATH = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_NEW.svg';
+const PLUS_ICON_DARK_PATH = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_NEW_DARK.svg';
 
 const styles = {
 	top: {
@@ -72,9 +80,11 @@ const DeepTutorTopSection = (props) => {
 	const { colors, isDark } = useDeepTutorTheme();
 	
 	// Choose logo based on theme
-	const logoPath = isDark
-		? 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_DPTLOGO_DARK.svg'
-		: props.logoPath;
+	const logoPath = isDark ? LOGO_DARK_PATH : LOGO_PATH;
+	
+	// Choose icons based on theme
+	const historyIconPath = isDark ? HISTORY_ICON_DARK_PATH : HISTORY_ICON_PATH;
+	const plusIconPath = isDark ? PLUS_ICON_DARK_PATH : PLUS_ICON_PATH;
 	
 	// Theme-aware styles
 	const themeStyles = {
@@ -117,7 +127,7 @@ const DeepTutorTopSection = (props) => {
 						onClick={() => props.onSwitchPane('sessionHistory')}
 					>
 						<img
-							src={props.HistoryIconPath}
+							src={historyIconPath}
 							alt="History"
 							style={styles.iconImage}
 						/>
@@ -127,7 +137,7 @@ const DeepTutorTopSection = (props) => {
 						onClick={props.onToggleModelSelectionPopup}
 					>
 						<img
-							src={props.PlusIconPath}
+							src={plusIconPath}
 							alt="New Session"
 							style={styles.iconImage}
 						/>
@@ -178,9 +188,6 @@ const DeepTutorTopSection = (props) => {
 DeepTutorTopSection.propTypes = {
 	currentPane: PropTypes.string.isRequired,
 	onSwitchPane: PropTypes.func.isRequired,
-	logoPath: PropTypes.string.isRequired,
-	HistoryIconPath: PropTypes.string.isRequired,
-	PlusIconPath: PropTypes.string.isRequired,
 	onToggleModelSelectionPopup: PropTypes.func.isRequired,
 };
 

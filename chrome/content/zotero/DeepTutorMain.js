@@ -14,12 +14,7 @@ import DeepTutorSessionDelete from './DeepTutorSessionDelete.js';
 import DeepTutorRenameSession from './DeepTutorRenameSession.js';
 import DeepTutorNoPDFWarning from './DeepTutorNoPDFWarning.js';
 
-// Icon paths
-const logoPath = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_DPTLOGO.svg';
-const HistoryIconPath = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_HISTORY_NEW.svg';
-const PlusIconPath = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_REGIS_NEW.svg';
-const FeedIconPath = 'chrome://zotero/content/DeepTutorMaterials/Bot/BOT_FEEDBACK.svg';
-const PersonIconPath = 'chrome://zotero/content/DeepTutorMaterials/Bot/BOT_PROFILE.svg';
+// Icon paths for popup close buttons
 const PopupClosePath = 'chrome://zotero/content/DeepTutorMaterials/Main/MAIN_CLOSE.svg';
 const PopupCloseDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Main/CLOSE_DARK.svg';
 
@@ -255,9 +250,6 @@ const DeepTutorMain = (props) => {
 				currentPane={props.currentPane}
 				onSwitchPane={props.switchPane}
 				onToggleModelSelectionPopup={props.toggleModelSelectionPopup}
-				logoPath={logoPath}
-				HistoryIconPath={HistoryIconPath}
-				PlusIconPath={PlusIconPath}
 			/>
 
 			{/* Middle Section */}
@@ -314,8 +306,6 @@ const DeepTutorMain = (props) => {
 
 				onToggleSubscriptionPopup={props.toggleSubscriptionPopup}
 				showProfilePopup={props.showProfilePopup}
-				feedIconPath={FeedIconPath}
-				personIconPath={PersonIconPath}
 				isAuthenticated={props.currentUser}
 				currentUser={props.currentUser}
 				onSignOut={props.handleSignOut}
@@ -390,6 +380,7 @@ const DeepTutorMain = (props) => {
 							onSignInSuccess={props.handleSignInSuccess}
 							onSignInSignUp={props.handleOpenSignUpPage}
 							onClose={props.toggleSignInPopup}
+							localhostServer={props.localhostServer}
 						/>
 					</div>
 				</div>

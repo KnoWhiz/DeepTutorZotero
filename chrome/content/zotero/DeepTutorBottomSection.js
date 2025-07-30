@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 
+// Icon path definitions
+const FEED_ICON_PATH = 'chrome://zotero/content/DeepTutorMaterials/Bot/BOT_FEEDBACK.svg';
+const PERSON_ICON_PATH = 'chrome://zotero/content/DeepTutorMaterials/Bot/BOT_PROFILE.svg';
 
 const DeepTutorBottomSection = (props) => {
 	const { colors } = useDeepTutorTheme();
@@ -356,7 +359,7 @@ const DeepTutorBottomSection = (props) => {
 								}
 							}}
 						>
-							<img src={props.feedIconPath} alt="Give Us Feedback" style={styles.buttonIcon} />
+							<img src={FEED_ICON_PATH} alt="Give Us Feedback" style={styles.buttonIcon} />
 							<span style={{ textDecoration: 'underline' }}>Give Us Feedback</span>
 						</button>
 					</div>
@@ -366,7 +369,7 @@ const DeepTutorBottomSection = (props) => {
 								e.stopPropagation();
 								props.onToggleProfilePopup();
 							}}>
-								<img src={props.personIconPath} alt="Profile" style={styles.buttonIcon} />
+								<img src={PERSON_ICON_PATH} alt="Profile" style={styles.buttonIcon} />
 								<span style={{ textDecoration: 'underline' }}>Profile</span>
 							</button>
 							{renderProfilePopup()}
@@ -428,8 +431,6 @@ DeepTutorBottomSection.propTypes = {
 
 	onToggleSubscriptionPopup: PropTypes.func.isRequired,
 	showProfilePopup: PropTypes.bool.isRequired,
-	feedIconPath: PropTypes.string.isRequired,
-	personIconPath: PropTypes.string.isRequired,
 	isAuthenticated: PropTypes.bool,
 	currentUser: PropTypes.object,
 	onSignOut: PropTypes.func,
