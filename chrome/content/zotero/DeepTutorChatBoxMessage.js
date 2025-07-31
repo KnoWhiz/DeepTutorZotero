@@ -608,7 +608,7 @@ const DeepTutorChatBoxMessage = ({
 		questionButton: {
 			all: 'revert',
 			background: colors.button.secondary,
-			color: colors.button.secondaryText,
+			color: theme === 'dark' ? '#ffffff' : colors.button.secondaryText,
 			border: `0.0625rem solid ${colors.button.secondaryBorder}`,
 			borderRadius: '0.625rem',
 			padding: '0.625rem 1.25rem',
@@ -637,7 +637,7 @@ const DeepTutorChatBoxMessage = ({
 			justifyContent: 'flex-end',
 			fontSize: '0.875rem',
 			fontWeight: 400,
-			color: '#757575',
+			color: theme === 'dark' ? '#ffffff' : '#757575',
 			lineHeight: '1.35',
 			cursor: 'pointer',
 			marginRight: '1rem',
