@@ -481,6 +481,14 @@ const ZoteroStandalone = new function() {
 		
 		// Show DeepTutor pane
 		if (isCollapsed) {
+			// Save item pane width before closing
+			var itemPaneWidth = itemPane.style.width;
+			if (itemPaneWidth) {
+				Zotero.debug('Standalone: Saving item pane width: ' + itemPaneWidth);
+				// Store the width in the DeepTutor pane for later use
+				deepTutorPane.setAttribute('data-shared-width', itemPaneWidth);
+			}
+			
 			// Stagger the hiding of other panes for smoother transition
 			if (!itemPane.getAttribute('collapsed')) {
 				itemsSplitter.setAttribute('state', 'collapsed');
@@ -494,6 +502,13 @@ const ZoteroStandalone = new function() {
 
 			Zotero.debug('Standalone: Opening DeepTutor pane');
 			
+			// Apply shared width if available
+			var sharedWidth = itemPane.getAttribute('data-shared-width');
+			if (sharedWidth) {
+				Zotero.debug('Standalone: Applying shared width to DeepTutor pane: ' + sharedWidth);
+				deepTutorPane.style.width = sharedWidth;
+			}
+			
 			// Use collapsed attribute for proper CSS handling, keep hidden=false for React compatibility
 			deepTutorPane.hidden = false;
 			deepTutorPane.removeAttribute('collapsed');
@@ -502,6 +517,14 @@ const ZoteroStandalone = new function() {
 		// Hide DeepTutor pane
 		else {
 			Zotero.debug('Standalone: Closing DeepTutor pane');
+			
+			// Save DeepTutor pane width before closing
+			var deepTutorWidth = deepTutorPane.style.width;
+			if (deepTutorWidth) {
+				Zotero.debug('Standalone: Saving DeepTutor pane width: ' + deepTutorWidth);
+				// Store the width in the item pane for later use
+				itemPane.setAttribute('data-shared-width', deepTutorWidth);
+			}
 			
 			// Use both hidden and collapsed for maximum compatibility
 			deepTutorPane.hidden = true;
@@ -568,9 +591,24 @@ const ZoteroStandalone = new function() {
 					var deeptutorSplitter = document.getElementById('zotero-deeptutor-splitter');
 					if (deepTutorPane && !deepTutorPane.hidden && deepTutorPane.getAttribute('collapsed') !== 'true') {
 						Zotero.debug('Standalone: Closing DeepTutor pane when opening items pane');
+						
+						// Save DeepTutor pane width before closing
+						var deepTutorWidth = deepTutorPane.style.width;
+						if (deepTutorWidth) {
+							Zotero.debug('Standalone: Saving DeepTutor pane width: ' + deepTutorWidth);
+							// Store the width in the item pane for later use
+							itemPane.setAttribute('data-shared-width', deepTutorWidth);
+						}
 						deepTutorPane.hidden = true;
 						deepTutorPane.setAttribute('collapsed', 'true');
 						deeptutorSplitter.setAttribute('state', 'collapsed');
+					}
+					
+					// Apply shared width if available
+					var sharedWidth = itemPane.getAttribute('data-shared-width');
+					if (sharedWidth) {
+						Zotero.debug('Standalone: Applying shared width to item pane: ' + sharedWidth);
+						itemPane.style.width = sharedWidth;
 					}
 					
 					document.getElementById('zotero-items-splitter').setAttribute('state', 'open');
@@ -579,6 +617,18 @@ const ZoteroStandalone = new function() {
 				// Hide
 				else {
 					Zotero.debug('Standalone: Closing item pane');
+					
+					// Save item pane width before closing
+					var itemPaneWidth = itemPane.style.width;
+					if (itemPaneWidth) {
+						Zotero.debug('Standalone: Saving item pane width: ' + itemPaneWidth);
+						// Store the width in the DeepTutor pane for later use
+						var deepTutorPane = document.getElementById('new-deep-tutor-pane-container');
+						if (deepTutorPane) {
+							deepTutorPane.setAttribute('data-shared-width', itemPaneWidth);
+						}
+					}
+					
 					document.getElementById('zotero-items-splitter').setAttribute('state', 'collapsed');
 					itemPane.setAttribute('collapsed', true);
 				}

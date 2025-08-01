@@ -97,9 +97,36 @@ var ZoteroPane = new function()
 							var deeptutorSplitter = document.getElementById('zotero-deeptutor-splitter');
 							if (deepTutorPane && !deepTutorPane.hidden && deepTutorPane.getAttribute('collapsed') !== 'true') {
 								Zotero.debug('ZoteroPane: Closing DeepTutor pane when items pane opens');
+								
+								// Save DeepTutor pane width before closing
+								var deepTutorWidth = deepTutorPane.style.width;
+								if (deepTutorWidth) {
+									Zotero.debug('ZoteroPane: Saving DeepTutor pane width: ' + deepTutorWidth);
+									// Store the width in the item pane for later use
+									this.itemPane.setAttribute('data-shared-width', deepTutorWidth);
+								}
+								
 								deepTutorPane.hidden = true;
 								deepTutorPane.setAttribute('collapsed', 'true');
 								deeptutorSplitter.setAttribute('state', 'collapsed');
+							}
+						}
+						
+						// Save item pane width when closing
+						if (isCollapsed) {
+							var itemPaneWidth = this.itemPane.style.width;
+							if (itemPaneWidth) {
+								Zotero.debug('ZoteroPane: Saving item pane width: ' + itemPaneWidth);
+								// Store the width in the DeepTutor pane for later use
+								deepTutorPane.setAttribute('data-shared-width', itemPaneWidth);
+							}
+						}
+						// Apply shared width if available when item pane opens
+						else {
+							var sharedWidth = this.itemPane.getAttribute('data-shared-width');
+							if (sharedWidth) {
+								Zotero.debug('ZoteroPane: Applying shared width to item pane: ' + sharedWidth);
+								this.itemPane.style.width = sharedWidth;
 							}
 						}
 						
@@ -108,6 +135,39 @@ var ZoteroPane = new function()
 				});
 			});
 			observer.observe(this.itemPane, { attributes: true });
+		}
+
+		// Add observer for DeepTutor pane collapsed state changes
+		var deepTutorPane = document.getElementById('new-deep-tutor-pane-container');
+		if (deepTutorPane) {
+			let deepTutorObserver = new MutationObserver((mutations) => {
+				mutations.forEach((mutation) => {
+					if (mutation.attributeName === 'collapsed') {
+						let isCollapsed = deepTutorPane.getAttribute('collapsed') === 'true';
+						
+						// Save DeepTutor pane width when closing
+						if (isCollapsed) {
+							var deepTutorWidth = deepTutorPane.style.width;
+							if (deepTutorWidth) {
+								Zotero.debug('ZoteroPane: Saving DeepTutor pane width: ' + deepTutorWidth);
+								// Store the width in the item pane for later use
+								this.itemPane.setAttribute('data-shared-width', deepTutorWidth);
+							}
+						}
+						// Apply shared width if available when DeepTutor pane opens
+						else {
+							var sharedWidth = deepTutorPane.getAttribute('data-shared-width');
+							if (sharedWidth) {
+								Zotero.debug('ZoteroPane: Applying shared width to DeepTutor pane: ' + sharedWidth);
+								deepTutorPane.style.width = sharedWidth;
+							}
+						}
+						
+						ZoteroPane.updateLayoutConstraints();
+					}
+				});
+			});
+			deepTutorObserver.observe(deepTutorPane, { attributes: true });
 		}
 
 		// Init toolbar buttons for all progress queues
