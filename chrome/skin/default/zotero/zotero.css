@@ -152,6 +152,11 @@ zoterosearch .menulist-icon {
     transition: width 0.2s ease-in-out, opacity 0.2s ease-in-out !important;
 }
 
+/* Remove transition during dragging for better responsiveness */
+#new-deep-tutor-pane-container:not([collapsed="true"])[data-dragging="true"] {
+    transition: none !important;
+}
+
 /* Ensure context pane can resize properly when DeepTutor is collapsed */
 #zotero-context-pane {
     flex-shrink: 1 !important;

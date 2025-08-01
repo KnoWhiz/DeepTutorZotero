@@ -6864,13 +6864,15 @@ var ZoteroPane = new function()
 		document.documentElement.style.setProperty('--width-of-fixed-components', `${fixedComponentWidth}px`);
 		document.documentElement.style.setProperty('--height-of-fixed-components', `${fixedComponentHeight}px`);
 
-		// Update DeepTutor pane container dimensions
+		// Update DeepTutor pane container dimensions only when needed
 		if (!isDeepTutorPaneCollapsed) {
 			let deepTutorContainer = document.getElementById('new-deep-tutor-pane-container');
 			if (deepTutorContainer) {
-				deepTutorContainer.style.minWidth = `${deepTutorPaneMinWidth}px`;
-				deepTutorContainer.style.maxWidth = `${deepTutorPaneMaxWidth}px`;
-				deepTutorContainer.style.width = `${deepTutorPaneDefaultWidth}px`;
+				// Only set default width if no width is already set (first load)
+				// The splitter will handle width changes naturally during dragging
+				if (!deepTutorContainer.style.width || deepTutorContainer.style.width === '0px') {
+					deepTutorContainer.style.width = `${deepTutorPaneDefaultWidth}px`;
+				}
 			}
 		}
 
