@@ -505,8 +505,14 @@ const ZoteroStandalone = new function() {
 			// Apply shared width if available
 			var sharedWidth = itemPane.getAttribute('data-shared-width');
 			if (sharedWidth) {
-				Zotero.debug('Standalone: Applying shared width to DeepTutor pane: ' + sharedWidth);
-				deepTutorPane.style.width = sharedWidth;
+				// Subtract sidebar width (37px) from item pane width for DeepTutor pane
+				var adjustedWidth = parseInt(sharedWidth) - 37;
+				if (adjustedWidth > 0) {
+					Zotero.debug('Standalone: Applying adjusted width to DeepTutor pane: ' + adjustedWidth + 'px (original: ' + sharedWidth + ')');
+					deepTutorPane.style.width = adjustedWidth + 'px';
+				} else {
+					Zotero.debug('Standalone: Adjusted width too small, using default width');
+				}
 			}
 			
 			// Use collapsed attribute for proper CSS handling, keep hidden=false for React compatibility
@@ -607,8 +613,10 @@ const ZoteroStandalone = new function() {
 					// Apply shared width if available
 					var sharedWidth = itemPane.getAttribute('data-shared-width');
 					if (sharedWidth) {
-						Zotero.debug('Standalone: Applying shared width to item pane: ' + sharedWidth);
-						itemPane.style.width = sharedWidth;
+						// Add sidebar width (37px) to DeepTutor pane width for item pane
+						var adjustedWidth = parseInt(sharedWidth) + 37;
+						Zotero.debug('Standalone: Applying adjusted width to item pane: ' + adjustedWidth + 'px (original: ' + sharedWidth + ')');
+						itemPane.style.width = adjustedWidth + 'px';
 					}
 					
 					document.getElementById('zotero-items-splitter').setAttribute('state', 'open');
