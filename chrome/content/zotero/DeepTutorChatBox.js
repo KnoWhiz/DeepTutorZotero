@@ -108,6 +108,7 @@ const MessageRole = {
 
 
 const SendIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_SEND.svg';
+const StopIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_STOP.svg';
 const ArrowDownPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/CHAT_ARROWDOWN.svg';
 const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	const { colors, theme } = useDeepTutorTheme();
@@ -432,6 +433,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	const [hoveredQuestion, setHoveredQuestion] = useState(null);
 	const [iniWait, setInitWait] = useState(false);
 	const [isStreaming, setIsStreaming] = useState(false);
+	const [isStreamingStopped, setIsStreamingStopped] = useState(false);
+	const streamReaderRef = useRef(null);
 	const isAutoScrollingRef = useRef(true);
 	const [showContextPopup, setShowContextPopup] = useState(false);
 	const [contextDocuments, setContextDocuments] = useState([]);
@@ -483,6 +486,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				&& messages.length > 0
 				&& messages[messages.length - 1].role === MessageRole.USER
 				&& checkTime(messages[messages.length - 1])
+				&& !isStreamingStopped
 			) {
 				getMessagesBySessionId(sessionId).then((response) => {
 					if (response && response.length > messages.length) {
@@ -491,6 +495,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 						// Stop streaming if it was active (AI response received)
 						
 						setIsStreaming(false);
+						setIsStreamingStopped(false); // Reset stopped state
 					}
 				}).catch((error) => {
 					Zotero.debug(error);
@@ -956,6 +961,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			setInputValue('');
 			// Reset textarea height after clearing
 			setTimeout(adjustTextareaHeight, 0);
+			setIsStreamingStopped(false); // Reset stopped state when sending new message
 			await userSendMessage(trimmedValue);
 		}
 		else {
@@ -965,9 +971,36 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 		}
 	};
 
+	const handleStopStreaming = async () => {
+		if (streamReaderRef.current) {
+			try {
+				await streamReaderRef.current.cancel();
+				setIsStreamingStopped(true);
+				setIsStreaming(false);
+				streamReaderRef.current = null; // Clear reader reference
+				
+				// Update the last message to show it was stopped
+				setMessages((prev) => {
+					const newMessages = [...prev];
+					const lastMessage = newMessages[newMessages.length - 1];
+					if (lastMessage && lastMessage.isStreaming) {
+						lastMessage.isStreaming = false;
+						lastMessage.streamText += '<stopped>';
+					}
+					return newMessages;
+				});
+			}
+			catch (error) {
+				Zotero.debug(`Error stopping stream: ${error.message}`);
+				streamReaderRef.current = null; // Clear reader reference even on error
+			}
+		}
+	};
+
 	const sendToAPI = async (message) => {
 		try {
 			setIsStreaming(true); // Set streaming to true at start
+			setIsStreamingStopped(false); // Reset stopped state
 			isAutoScrollingRef.current = true; // Re-enable auto-scrolling for new stream
 			// Send message to API
 			const responseData = await createMessage(message);
@@ -1008,6 +1041,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			}
 
 			const reader = streamResponse.body.getReader();
+			streamReaderRef.current = reader; // Store reader reference for stopping
 			const decoder = new TextDecoder();
 			let streamText = "";
 			let hasReceivedData = false;
@@ -1140,11 +1174,13 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			// Get only the last message from the response
 			const lastMessage = historyData.length > 0 ? historyData[historyData.length - 2] : null;
 			setIsStreaming(false); // Set streaming to false when done
+			streamReaderRef.current = null; // Clear reader reference
 			return lastMessage;
 		}
 		catch (error) {
 			Zotero.debug(error);
 			setIsStreaming(false); // Set streaming to false on any error
+			streamReaderRef.current = null; // Clear reader reference
 			
 			// Even on error, try to fetch message history to ensure UI consistency
 			try {
@@ -2242,34 +2278,34 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 					ref={textareaRef}
 					style={{
 						...styles.textInput,
-						opacity: isStreaming || iniWait ? 0.5 : 1,
-						cursor: isStreaming || iniWait ? "not-allowed" : "text"
+						opacity: iniWait ? 0.5 : 1,
+						cursor: iniWait ? "not-allowed" : "text"
 					}}
 					value={inputValue}
 					onChange={handleInputChange}
 					onKeyDown={(e) => {
-						if (e.key === "Enter" && !e.shiftKey && !isStreaming && !iniWait) {
+						if (e.key === "Enter" && !e.shiftKey && !iniWait) {
 							e.preventDefault(); // Prevent adding a new line
 							handleSend();
 						}
 						// Shift+Enter allows new line (default behavior)
 					}}
-					placeholder={isStreaming ? "Message is streaming, please wait" : `Ask DeepTutor ${curSessionType === SessionType.LITE ? "Standard" : curSessionType === SessionType.BASIC ? "Advanced" : curSessionType.toLowerCase()}`}
+					placeholder={`Ask DeepTutor ${curSessionType === SessionType.LITE ? "Standard" : curSessionType === SessionType.BASIC ? "Advanced" : curSessionType.toLowerCase()}`}
 					rows={1}
-					disabled={isStreaming || iniWait}
+					disabled={iniWait}
 				/>
 				<button
 					style={{
 						...styles.sendButton,
-						opacity: isStreaming || iniWait ? 0.5 : 1,
-						cursor: isStreaming || iniWait ? "not-allowed" : "pointer"
+						opacity: iniWait ? 0.5 : 1,
+						cursor: iniWait ? "not-allowed" : "pointer"
 					}}
-					onClick={handleSend}
-					disabled={isStreaming || iniWait}
+					onClick={isStreaming && !isStreamingStopped ? handleStopStreaming : handleSend}
+					disabled={iniWait}
 				>
 					<img
-						src={SendIconPath}
-						alt="Send"
+						src={isStreaming && !isStreamingStopped ? StopIconPath : SendIconPath}
+						alt={isStreaming && !isStreamingStopped ? "Stop" : "Send"}
 						style={styles.sendIcon}
 					/>
 				</button>

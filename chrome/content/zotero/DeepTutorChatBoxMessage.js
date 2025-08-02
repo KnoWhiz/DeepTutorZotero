@@ -681,7 +681,7 @@ const DeepTutorChatBoxMessage = ({
 						onMouseLeave={e => e.target.style.background = colors.background.quaternary}
 						title={isStreamingComponentVisible ? "Hide streaming view" : "Show streaming view"}
 					>
-						{isStreamingComponentVisible ? "Hide Thinking Process" : "Show Thinking Process"}
+						{isStreamingComponentVisible ? "Hide Thinking Process" : message.streamText.includes('<stopped>') ? "Show Stopped Thinking Process" : "Show Thinking Process"}
 					</button>
 				</div>
 			)}
@@ -692,6 +692,16 @@ const DeepTutorChatBoxMessage = ({
 					<DeepTutorStreamingComponent
 						streamText={message.streamText || ''}
 						hideStreamResponse={!message.isStreaming}
+					/>
+				</div>
+			)}
+			
+			{/* Show stopped tag when streaming was stopped */}
+			{!message.isStreaming && message.streamText && message.streamText.includes('<stopped>') && (
+				<div key={`stopped-${messageId}`} style={styles.messageContainer}>
+					<DeepTutorStreamingComponent
+						streamText={message.streamText}
+						hideStreamResponse={false}
 					/>
 				</div>
 			)}

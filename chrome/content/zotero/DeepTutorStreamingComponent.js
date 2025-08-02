@@ -330,6 +330,9 @@ const DeepTutorStreamingComponent = ({ streamText, hideStreamResponse }) => {
 		else if (streamText.includes('<id>')) {
 			setStreamingState(StreamingStates.ID);
 		}
+		else if (streamText.includes('<stopped>')) {
+			setStreamingState(StreamingStates.STOPPED);
+		}
 	}, [streamText]);
 
 	const removeSubstrings = (originalString, substringsToRemove) => {
@@ -448,7 +451,9 @@ const DeepTutorStreamingComponent = ({ streamText, hideStreamResponse }) => {
 			'<id>',
 			'</id>',
 			'<appendix>',
-			'</appendix>'
+			'</appendix>',
+			'<stopped>',
+			'</stopped>'
 		]);
 		
 		// Remove any other custom tags that might cause XML issues
@@ -947,7 +952,13 @@ const DeepTutorStreamingComponent = ({ streamText, hideStreamResponse }) => {
 			key: index,
 			streamState: status,
 			isCurrentTag: pastStatuses[pastStatuses.length - 1] === status
-		}))
+		})),
+		// Show stopped tag if stream text contains stopped tag
+		streamText.includes('<stopped>') && React.createElement(DeepTutorStreamingTag, {
+			key: 'stopped',
+			streamState: StreamingStates.STOPPED,
+			isCurrentTag: false
+		})
 	);
 };
 

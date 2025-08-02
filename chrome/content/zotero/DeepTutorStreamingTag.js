@@ -11,6 +11,7 @@ const StreamingStates = {
 	SOURCE_PAGE: 5,
 	FOLLOW_UP_QUESTIONS: 6,
 	APPENDIX: 7,
+	STOPPED: 8,
 };
 
 const getLoadingText = (currentStatus) => {
@@ -27,6 +28,8 @@ const getLoadingText = (currentStatus) => {
 			return 'Generating follow-up questions ...';
 		case StreamingStates.APPENDIX:
 			return 'Formatting response ...';
+		case StreamingStates.STOPPED:
+			return 'Thinking Stopped';
 		default:
 			return 'Generating ...';
 	}
@@ -40,7 +43,7 @@ const DeepTutorStreamingTag = ({ streamState, isCurrentTag }) => {
 		width: 'fit-content',
 		gap: '0.25rem',
 		borderRadius: '0.375rem',
-		border: `0.25rem solid ${theme === 'dark' ? colors.sky : '#E0E0E0'}`,
+		border: `2px solid ${theme === 'dark' ? colors.sky : '#E0E0E0'}`,
 		paddingLeft: '1rem',
 		paddingRight: '1rem',
 		paddingTop: '0.5rem',
@@ -81,7 +84,7 @@ const DeepTutorStreamingTag = ({ streamState, isCurrentTag }) => {
 				`
 			}
 		}),
-		!isCurrentTag && React.createElement('div', { style: tagStyle },
+		!isCurrentTag && streamState !== StreamingStates.STOPPED && React.createElement('div', { style: tagStyle },
 			React.createElement('div', {
 				style: {
 					display: 'flex',
@@ -101,7 +104,27 @@ const DeepTutorStreamingTag = ({ streamState, isCurrentTag }) => {
 			),
 			getLoadingText(streamState)
 		),
-		isCurrentTag && React.createElement('div', { style: tagStyle },
+		!isCurrentTag && streamState === StreamingStates.STOPPED && React.createElement('div', { style: tagStyle },
+			React.createElement('div', {
+				style: {
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center'
+				}
+			},
+			React.createElement('svg', checkIconStyle,
+				React.createElement('path', {
+					d: 'M6 6L18 18M18 6L6 18',
+					stroke: '#FF6B6B',
+					strokeWidth: '2',
+					strokeLinecap: 'round',
+					strokeLinejoin: 'round'
+				})
+			)
+			),
+			getLoadingText(streamState)
+		),
+		isCurrentTag && streamState !== StreamingStates.STOPPED && React.createElement('div', { style: tagStyle },
 			React.createElement('div', {
 				style: {
 					display: 'flex',
@@ -110,6 +133,26 @@ const DeepTutorStreamingTag = ({ streamState, isCurrentTag }) => {
 				}
 			},
 			React.createElement('div', { style: spinnerStyle })
+			),
+			getLoadingText(streamState)
+		),
+		isCurrentTag && streamState === StreamingStates.STOPPED && React.createElement('div', { style: tagStyle },
+			React.createElement('div', {
+				style: {
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center'
+				}
+			},
+			React.createElement('svg', checkIconStyle,
+				React.createElement('path', {
+					d: 'M6 6L18 18M18 6L6 18',
+					stroke: '#FF6B6B',
+					strokeWidth: '2',
+					strokeLinecap: 'round',
+					strokeLinejoin: 'round'
+				})
+			)
 			),
 			getLoadingText(streamState)
 		)
