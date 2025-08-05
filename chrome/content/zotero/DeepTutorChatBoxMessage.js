@@ -650,7 +650,6 @@ const DeepTutorChatBoxMessage = ({
 					display: 'flex',
 					justifyContent: 'flex-start',
 					marginTop: '1.5rem',
-					marginLeft: '0.5rem'
 				}}>
 					<button
 						style={{
@@ -658,7 +657,7 @@ const DeepTutorChatBoxMessage = ({
 							display: 'flex',
 							width: 'fit-content',
 							borderRadius: '0.375rem',
-							border: `0.25rem solid ${theme === 'dark' ? colors.sky : '#E0E0E0'}`,
+							border: `2px solid ${theme === 'dark' ? colors.sky : '#E0E0E0'}`,
 							paddingLeft: '1rem',
 							paddingRight: '1rem',
 							paddingTop: '0.5rem',
@@ -690,16 +689,6 @@ const DeepTutorChatBoxMessage = ({
 					<DeepTutorStreamingComponent
 						streamText={message.streamText || ''}
 						hideStreamResponse={!message.isStreaming}
-					/>
-				</div>
-			)}
-			
-			{/* Show stopped tag when streaming was stopped */}
-			{!message.isStreaming && message.streamText && message.streamText.includes('<stopped>') && (
-				<div key={`stopped-${messageId}`} style={styles.messageContainer}>
-					<DeepTutorStreamingComponent
-						streamText={message.streamText}
-						hideStreamResponse={false}
 					/>
 				</div>
 			)}

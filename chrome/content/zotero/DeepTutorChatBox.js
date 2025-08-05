@@ -982,6 +982,12 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 					if (lastMessage && lastMessage.isStreaming) {
 						lastMessage.isStreaming = false;
 						lastMessage.streamText += '<stopped>';
+						
+						// Hide streaming component by default when streaming is stopped
+						setStreamingComponentVisibility(prevVisibility => ({
+							...prevVisibility,
+							[lastMessage.id || newMessages.length - 1]: false
+						}));
 					}
 					return newMessages;
 				});
@@ -1131,6 +1137,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			}
 			if (!isStreamingRef.current) {
 				setIsStreaming(false);
+				toggleStreamingComponent(initialStreamingMessage.id);
 				return;
 			}
 			// Fetch message history for the session
@@ -1169,11 +1176,14 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			setLatestMessageId(historyData[historyData.length - 1].id);
 
             
-			// Get only the last message from the response
-			const lastMessage = historyData.length > 0 ? historyData[historyData.length - 2] : null;
 			setIsStreaming(false); // Set streaming to false when done
 			streamReaderRef.current = null; // Clear reader reference
-			return lastMessage;
+			
+			// Hide streaming component by default when streaming finishes
+			setStreamingComponentVisibility(prev => ({
+				...prev,
+				[initialStreamingMessage.id]: false
+			}));
 		}
 		catch (error) {
 			Zotero.debug(error);
