@@ -433,13 +433,13 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	const [hoveredQuestion, setHoveredQuestion] = useState(null);
 	const [iniWait, setInitWait] = useState(false);
 	const [isStreaming, setIsStreaming] = useState(false);
-	const [isStreamingStopped, setIsStreamingStopped] = useState(false);
 	const streamReaderRef = useRef(null);
 	const isAutoScrollingRef = useRef(true);
 	const [showContextPopup, setShowContextPopup] = useState(false);
 	const [contextDocuments, setContextDocuments] = useState([]);
 	const [currentSourceIndices, setCurrentSourceIndices] = useState([]);
 	const sessionIdRef = useRef(null);
+	const isStreamingRef = useRef(isStreaming);
 	const [_time, setTime] = useState(new Date());
 
 	// Add state for note container (parent item ID for creating notes)
@@ -471,6 +471,10 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 		return timeDiff < 600000; // 10 minutes in milliseconds
 	}, []);
 
+	useEffect(() => {
+		isStreamingRef.current = isStreaming;
+	}, [isStreaming]);
+
 	// Periodic message fetching useEffect
 	useEffect(() => {
 		let isActive = true;
@@ -486,16 +490,13 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				&& messages.length > 0
 				&& messages[messages.length - 1].role === MessageRole.USER
 				&& checkTime(messages[messages.length - 1])
-				&& !isStreamingStopped
 			) {
 				getMessagesBySessionId(sessionId).then((response) => {
 					if (response && response.length > messages.length) {
 						setMessages(response);
 						setLatestMessageId(response[response.length - 1].id);
 						// Stop streaming if it was active (AI response received)
-						
 						setIsStreaming(false);
-						setIsStreamingStopped(false); // Reset stopped state
 					}
 				}).catch((error) => {
 					Zotero.debug(error);
@@ -504,13 +505,13 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			
 			// Schedule next check
 			if (isActive) {
-				timeoutId = setTimeout(periodicCheck, 30000);
+				timeoutId = setTimeout(periodicCheck, 60000);
 			}
 		};
 		
 		// Start the periodic check if checkTime is available
 		if (checkTime) {
-			timeoutId = setTimeout(periodicCheck, 30000);
+			timeoutId = setTimeout(periodicCheck, 60000);
 		}
 		
 		// If checkTime is not available, don't start the periodic check
@@ -886,8 +887,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 		if (!messageString.trim()) {
 			return;
 		}
-		// TODO_DEEPTUTOR: Get user ID from Cognito user attributes, such as sending user object/userid from DeepTutor.jsx
-		setUserId("67f5b836cb8bb15b67a1149e");
         
 		// Always enable auto-scrolling when user sends a message (which will trigger streaming)
 		isAutoScrollingRef.current = true;
@@ -961,7 +960,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			setInputValue('');
 			// Reset textarea height after clearing
 			setTimeout(adjustTextareaHeight, 0);
-			setIsStreamingStopped(false); // Reset stopped state when sending new message
 			await userSendMessage(trimmedValue);
 		}
 		else {
@@ -974,11 +972,9 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	const handleStopStreaming = async () => {
 		if (streamReaderRef.current) {
 			try {
-				await streamReaderRef.current.cancel();
-				setIsStreamingStopped(true);
 				setIsStreaming(false);
-				streamReaderRef.current = null; // Clear reader reference
-				
+				await streamReaderRef.current.cancel();
+				console.log("streamReaderRef.current after stop", streamReaderRef.current);
 				// Update the last message to show it was stopped
 				setMessages((prev) => {
 					const newMessages = [...prev];
@@ -1000,7 +996,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	const sendToAPI = async (message) => {
 		try {
 			setIsStreaming(true); // Set streaming to true at start
-			setIsStreamingStopped(false); // Reset stopped state
 			isAutoScrollingRef.current = true; // Re-enable auto-scrolling for new stream
 			// Send message to API
 			const responseData = await createMessage(message);
@@ -1075,7 +1070,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				const { done, value } = await reader.read();
                 
 				// Check for timeout
-				if (Date.now() - lastDataTime > 300000) {
+				if (Date.now() - lastDataTime > 600000) {
 					setIsStreaming(false); // Set streaming to false on timeout
 					throw new Error('Stream timeout - no data received for 300 seconds');
 				}
@@ -1134,7 +1129,10 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 					}
 				});
 			}
-
+			if (!isStreamingRef.current) {
+				setIsStreaming(false);
+				return;
+			}
 			// Fetch message history for the session
 			await new Promise(resolve => setTimeout(resolve, 3000));
             
@@ -1278,9 +1276,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			Zotero.debug(error);
 		}
 	};
-
-
-
 
 	const renderMessage = (message, index) => {
 		return (
@@ -2300,12 +2295,12 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 						opacity: iniWait ? 0.5 : 1,
 						cursor: iniWait ? "not-allowed" : "pointer"
 					}}
-					onClick={isStreaming && !isStreamingStopped ? handleStopStreaming : handleSend}
+					onClick={isStreaming ? handleStopStreaming : handleSend}
 					disabled={iniWait}
 				>
 					<img
-						src={isStreaming && !isStreamingStopped ? StopIconPath : SendIconPath}
-						alt={isStreaming && !isStreamingStopped ? "Stop" : "Send"}
+						src={isStreaming ? StopIconPath : SendIconPath}
+						alt={isStreaming ? "Stop" : "Send"}
 						style={styles.sendIcon}
 					/>
 				</button>

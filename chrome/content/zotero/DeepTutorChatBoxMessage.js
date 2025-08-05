@@ -44,8 +44,6 @@ catch {
 	}
 }
 
-
-
 const MessageRole = {
 	TUTOR: 'TUTOR',
 	USER: 'USER'
