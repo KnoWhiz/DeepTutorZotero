@@ -439,7 +439,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	const [contextDocuments, setContextDocuments] = useState([]);
 	const [currentSourceIndices, setCurrentSourceIndices] = useState([]);
 	const sessionIdRef = useRef(null);
-	const isStreamingRef = useRef(isStreaming);
+	const [isManuallyStopped, setIsManuallyStopped] = useState(false);
+	const isManuallyStoppedRef = useRef(isManuallyStopped);
 	const [_time, setTime] = useState(new Date());
 
 	// Add state for note container (parent item ID for creating notes)
@@ -472,8 +473,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	}, []);
 
 	useEffect(() => {
-		isStreamingRef.current = isStreaming;
-	}, [isStreaming]);
+		isManuallyStoppedRef.current = isManuallyStopped;
+	}, [isManuallyStopped]);
 
 	// Periodic message fetching useEffect
 	useEffect(() => {
@@ -955,6 +956,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	};
 
 	const handleSend = async () => {
+		setIsManuallyStopped(false);
 		const trimmedValue = inputValue.trim(); // Remove both leading and trailing spaces
 		if (trimmedValue) { // Only send if there's actual content after trimming
 			setInputValue('');
@@ -972,17 +974,16 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	const handleStopStreaming = async () => {
 		if (streamReaderRef.current) {
 			try {
-				setIsStreaming(false);
+				setIsManuallyStopped(true);
 				await streamReaderRef.current.cancel();
-				console.log("streamReaderRef.current after stop", streamReaderRef.current);
 				// Update the last message to show it was stopped
 				setMessages((prev) => {
 					const newMessages = [...prev];
 					const lastMessage = newMessages[newMessages.length - 1];
 					if (lastMessage && lastMessage.isStreaming) {
 						lastMessage.isStreaming = false;
-						lastMessage.streamText += '<stopped>';
-						
+						lastMessage.subMessages[0].text += '<stopped>';
+						console.log("lastMessage", lastMessage);
 						// Hide streaming component by default when streaming is stopped
 						setStreamingComponentVisibility(prevVisibility => ({
 							...prevVisibility,
@@ -1135,7 +1136,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 					}
 				});
 			}
-			if (!isStreamingRef.current) {
+			if (isManuallyStoppedRef.current) {
 				setIsStreaming(false);
 				toggleStreamingComponent(initialStreamingMessage.id);
 				return;
@@ -2289,7 +2290,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 					value={inputValue}
 					onChange={handleInputChange}
 					onKeyDown={(e) => {
-						if (e.key === "Enter" && !e.shiftKey && !iniWait) {
+						if (e.key === "Enter" && !e.shiftKey && !iniWait && !isStreaming) {
 							e.preventDefault(); // Prevent adding a new line
 							handleSend();
 						}
