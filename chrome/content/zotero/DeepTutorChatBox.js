@@ -434,9 +434,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	const [iniWait, setInitWait] = useState(false);
 	const [isStreaming, setIsStreaming] = useState(false);
 	const [isStreamingStopped, setIsStreamingStopped] = useState(false);
-	const [wasManuallyStopped, setWasManuallyStopped] = useState(false);
-	const [shouldPreserveStreamedContent, setShouldPreserveStreamedContent] = useState(false);
-	const [streamingMessageId, setStreamingMessageId] = useState(null);
 	const streamReaderRef = useRef(null);
 	const isAutoScrollingRef = useRef(true);
 	const [showContextPopup, setShowContextPopup] = useState(false);
@@ -444,20 +441,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	const [currentSourceIndices, setCurrentSourceIndices] = useState([]);
 	const sessionIdRef = useRef(null);
 	const [_time, setTime] = useState(new Date());
-
-	// Comprehensive protection function to prevent message overwriting
-	const shouldPreventMessageOverwrite = () => {
-		return shouldPreserveStreamedContent || wasManuallyStopped || streamingMessageId !== null;
-	};
-
-	// Protected message setter that respects preservation flags
-	const setMessagesProtected = (updater) => {
-		if (shouldPreventMessageOverwrite()) {
-			Zotero.debug('DeepTutorChatBox: Blocked message overwrite due to content preservation');
-			return;
-		}
-		setMessages(updater);
-	};
 
 	// Add state for note container (parent item ID for creating notes)
 	const [noteContainer, setNoteContainer] = useState(null);
@@ -504,11 +487,10 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				&& messages[messages.length - 1].role === MessageRole.USER
 				&& checkTime(messages[messages.length - 1])
 				&& !isStreamingStopped
-				&& !shouldPreserveStreamedContent // Don't overwrite if we need to preserve content
 			) {
 				getMessagesBySessionId(sessionId).then((response) => {
-					if (response && response.length > messages.length && !shouldPreventMessageOverwrite()) {
-						setMessagesProtected(() => response);
+					if (response && response.length > messages.length) {
+						setMessages(response);
 						setLatestMessageId(response[response.length - 1].id);
 						// Stop streaming if it was active (AI response received)
 						
@@ -980,9 +962,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			// Reset textarea height after clearing
 			setTimeout(adjustTextareaHeight, 0);
 			setIsStreamingStopped(false); // Reset stopped state when sending new message
-			setWasManuallyStopped(false); // Reset manual stop flag when sending new message
-			setShouldPreserveStreamedContent(false); // Reset preserve flag when sending new message
-			setStreamingMessageId(null); // Reset streaming message ID when sending new message
 			await userSendMessage(trimmedValue);
 		}
 		else {
@@ -998,24 +977,18 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				await streamReaderRef.current.cancel();
 				setIsStreamingStopped(true);
 				setIsStreaming(false);
-				setWasManuallyStopped(true); // Mark as manually stopped
-				setShouldPreserveStreamedContent(true); // Preserve streamed content
 				streamReaderRef.current = null; // Clear reader reference
 				
-				// Update the last message to show it was stopped and store its ID
+				// Update the last message to show it was stopped
 				setMessages((prev) => {
 					const newMessages = [...prev];
 					const lastMessage = newMessages[newMessages.length - 1];
 					if (lastMessage && lastMessage.isStreaming) {
 						lastMessage.isStreaming = false;
 						lastMessage.streamText += '<stopped>';
-						// Store the message ID for protection
-						setStreamingMessageId(lastMessage.id || `stopped_${Date.now()}`);
 					}
 					return newMessages;
 				});
-				
-				Zotero.debug('DeepTutorChatBox: Stream manually stopped, content preservation activated');
 			}
 			catch (error) {
 				Zotero.debug(`Error stopping stream: ${error.message}`);
@@ -1028,9 +1001,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 		try {
 			setIsStreaming(true); // Set streaming to true at start
 			setIsStreamingStopped(false); // Reset stopped state
-			setWasManuallyStopped(false); // Reset manual stop flag
-			setShouldPreserveStreamedContent(false); // Reset preserve flag
-			setStreamingMessageId(null); // Reset streaming message ID
 			isAutoScrollingRef.current = true; // Re-enable auto-scrolling for new stream
 			// Send message to API
 			const responseData = await createMessage(message);
@@ -1165,58 +1135,44 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				});
 			}
 
-			// Only fetch server data if streaming wasn't manually stopped and we don't need to preserve content
-			let historyData = null;
-			if (!shouldPreventMessageOverwrite()) {
-				// Fetch message history for the session
-				await new Promise(resolve => setTimeout(resolve, 3000));
+			// Fetch message history for the session
+			await new Promise(resolve => setTimeout(resolve, 3000));
+            
+			const historyData = await getMessagesBySessionId(sessionId);
+			
+			// Preserve streaming message data when updating from server
+			setMessages((prevMessages) => {
+				// Find the streaming message (last message with isStreaming: true)
+				const streamingMessageIndex = prevMessages.findIndex(msg => msg.isStreaming);
 				
-				historyData = await getMessagesBySessionId(sessionId);
-				
-				// Preserve streaming message data when updating from server
-				setMessagesProtected((prevMessages) => {
-					// Find the streaming message (last message with isStreaming: true)
-					const streamingMessageIndex = prevMessages.findIndex(msg => msg.isStreaming);
+				if (streamingMessageIndex !== -1) {
+					// Replace the streaming message with the final server message, but preserve streamText
+					const streamingMessage = prevMessages[streamingMessageIndex];
+					const finalMessage = historyData[historyData.length - 1];
 					
-					if (streamingMessageIndex !== -1) {
-						// Replace the streaming message with the final server message, but preserve streamText
-						const streamingMessage = prevMessages[streamingMessageIndex];
-						const finalMessage = historyData[historyData.length - 1];
-						
-						// Create updated message that preserves streamText but uses server data
-						const updatedMessage = {
-							...finalMessage,
-							streamText: streamingMessage.streamText || finalMessage.subMessages?.[0]?.text || '',
-							isStreaming: false
-						};
-						
-						// Replace the streaming message with the updated one
-						const updatedMessages = [...prevMessages];
-						updatedMessages[streamingMessageIndex] = updatedMessage;
-						
-						return updatedMessages;
-					}
+					// Create updated message that preserves streamText but uses server data
+					const updatedMessage = {
+						...finalMessage,
+						streamText: streamingMessage.streamText || finalMessage.subMessages?.[0]?.text || '',
+						isStreaming: false
+					};
 					
-					// If no streaming message found, use server data as is
-					return historyData;
-				});
+					// Replace the streaming message with the updated one
+					const updatedMessages = [...prevMessages];
+					updatedMessages[streamingMessageIndex] = updatedMessage;
+					
+					return updatedMessages;
+				}
 				
-				setLatestMessageId(historyData[historyData.length - 1].id);
-			} else {
-				// If manually stopped or need to preserve content, just mark streaming as complete without fetching server data
-				setMessagesProtected((prevMessages) => {
-					const newMessages = [...prevMessages];
-					const lastMessage = newMessages[newMessages.length - 1];
-					if (lastMessage && lastMessage.isStreaming) {
-						lastMessage.isStreaming = false;
-					}
-					return newMessages;
-				});
-			}
+				// If no streaming message found, use server data as is
+				return historyData;
+			});
+			
+			setLatestMessageId(historyData[historyData.length - 1].id);
 
             
 			// Get only the last message from the response
-			const lastMessage = !wasManuallyStopped && historyData && historyData.length > 0 ? historyData[historyData.length - 2] : null;
+			const lastMessage = historyData.length > 0 ? historyData[historyData.length - 2] : null;
 			setIsStreaming(false); // Set streaming to false when done
 			streamReaderRef.current = null; // Clear reader reference
 			return lastMessage;
@@ -1226,20 +1182,18 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			setIsStreaming(false); // Set streaming to false on any error
 			streamReaderRef.current = null; // Clear reader reference
 			
-			// Only fetch message history on error if we don't need to preserve content
-			if (!shouldPreventMessageOverwrite()) {
-				try {
-					await new Promise(resolve => setTimeout(resolve, 1000)); // Shorter wait for error case
-					
-					const historyData = await getMessagesBySessionId(sessionId);
-					if (historyData && historyData.length > 0) {
-						setMessagesProtected(() => historyData);
-						setLatestMessageId(historyData[historyData.length - 1].id);
-					}
+			// Even on error, try to fetch message history to ensure UI consistency
+			try {
+				await new Promise(resolve => setTimeout(resolve, 1000)); // Shorter wait for error case
+				
+				const historyData = await getMessagesBySessionId(sessionId);
+				if (historyData && historyData.length > 0) {
+					setMessages(historyData);
+					setLatestMessageId(historyData[historyData.length - 1].id);
 				}
-				catch (historyError) {
-					Zotero.debug(historyError);
-				}
+			}
+			catch (historyError) {
+				Zotero.debug(historyError);
 			}
 			
 			throw error;
@@ -1839,23 +1793,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 		};
 	}, []);
 
-	// Debug logging for preserve flag
-	useEffect(() => {
-		if (shouldPreserveStreamedContent) {
-			Zotero.debug('DeepTutorChatBox: Content preservation flag is active');
-		}
-	}, [shouldPreserveStreamedContent]);
-
-	// Monitor for any message changes when preservation is active
-	useEffect(() => {
-		if (shouldPreventMessageOverwrite() && messages.length > 0) {
-			const lastMessage = messages[messages.length - 1];
-			if (lastMessage && lastMessage.streamText && lastMessage.streamText.includes('<stopped>')) {
-				Zotero.debug('DeepTutorChatBox: Preserved message detected with stopped marker');
-			}
-		}
-	}, [messages, shouldPreventMessageOverwrite]);
-
 	// Add copy event handler for the chat box
 	useEffect(() => {
 		const handleCopy = (e) => {
@@ -1900,6 +1837,344 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			className="deeptutor-chat-box"
 			style={styles.container}
 		>
+			{/* Add CSS styles for markdown tables and source buttons */}
+			<style dangerouslySetInnerHTML={{
+				__html: `
+					.markdown table {
+						border-collapse: collapse;
+						width: 100%;
+						margin: 1rem 0;
+						font-size: 1rem;
+						line-height: 1.4;
+						border: 0.0625rem solid ${colors.border.primary};
+						border-radius: 0.5rem;
+						overflow: hidden;
+						box-shadow: 0 0.0625rem 0.125rem rgba(0,0,0,0.1);
+						background: ${colors.table.background};
+						table-layout: auto;
+					}
+					.markdown thead {
+						background: ${colors.table.header};
+					}
+					.markdown tbody {
+						background: ${colors.table.background};
+					}
+					.markdown tr {
+						border-bottom: 0.0625rem solid ${colors.table.border};
+					}
+					.markdown tr:last-child {
+						border-bottom: none;
+					}
+					.markdown tr:hover {
+						background: ${colors.table.hover};
+					}
+					.markdown th {
+						padding: 0.75rem 0.5rem;
+						text-align: left;
+						font-weight: 600;
+						color: ${colors.text.allText};
+						border-bottom: 0.125rem solid ${colors.table.border};
+						background: ${colors.table.header};
+						font-size: 1.0rem;
+						line-height: 1.6;
+						white-space: normal;
+						vertical-align: top;
+					}
+					.markdown td {
+						padding: 0.75rem 0.5rem;
+						text-align: left;
+						color: ${colors.text.allText};
+						border-bottom: 0.0625rem solid ${colors.table.border};
+						border-right: 0.0625rem solid ${colors.table.border};
+						border-left: 0.0625rem solid ${colors.table.border};
+						font-size: 1.0rem;
+						line-height: 1.6;
+						white-space: normal;
+						word-break: keep-all;
+						overflow-wrap: break-word;
+						vertical-align: top;
+					}
+					/* First column - prevent word breaking but allow line wrapping */
+					.markdown td:first-child {
+						word-break: keep-all;
+						overflow-wrap: break-word;
+						white-space: normal;
+						width: fit-content;
+						min-width: fit-content;
+					}
+					/* Other columns - allow normal word breaking */
+					.markdown td:nth-child(n+2) {
+						word-break: break-word;
+						overflow-wrap: break-word;
+						white-space: normal;
+						width: auto;
+					}
+					
+					/* Special styling for source buttons within tables */
+					.markdown table .deeptutor-source-button {
+						width: 2em !important;
+						height: 2em !important;
+						font-size: 1em !important;
+						margin: 0 0.15em !important;
+						vertical-align: middle !important;
+					}
+					
+					/* Special styling for source placeholders within tables */
+					.markdown table .deeptutor-source-placeholder {
+						width: 1.5em !important;
+						height: 1.5em !important;
+						font-size: 0.75em !important;
+						margin: 0 0.15em !important;
+						vertical-align: middle !important;
+					}
+					/* First column styling - prevent word breaking but allow line wrapping */
+					.markdown table td:first-child,
+					.markdown table th:first-child {
+						width: fit-content;
+						min-width: fit-content;
+						white-space: normal;
+						word-break: keep-all;
+						overflow-wrap: break-word;
+					}
+					.deeptutor-source-button {
+						background: ${colors.sourceButton.background} !important;
+						opacity: 1 !important;
+						color: ${colors.sourceButton.text} !important;
+						border: none !important;
+						border-radius: 50% !important;
+						width: 2rem !important;
+						height: 2rem !important;
+						display: inline-flex !important;
+						align-items: center !important;
+						justify-content: center !important;
+						font-weight: 600 !important;
+						font-size: 0.875rem !important;
+						cursor: pointer !important;
+						box-shadow: 0 0.0625rem 0.125rem rgba(0,0,0,0.08) !important;
+						padding: 0 !important;
+						margin: 0 0.25rem !important;
+						transition: all 0.2s ease !important;
+						vertical-align: middle !important;
+						line-height: 1 !important;
+						text-decoration: none !important;
+						user-select: none !important;
+						font-family: 'Roboto', sans-serif !important;
+						position: relative !important;
+						overflow: hidden !important;
+					}
+					.deeptutor-source-button:hover {
+						background: ${colors.button.hover} !important;
+						opacity: 0.8 !important;
+						transform: scale(1.05) !important;
+						box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.15) !important;
+					}
+					.deeptutor-source-button:active {
+						transform: scale(0.95) !important;
+						box-shadow: 0 0.0625rem 0.125rem rgba(0,0,0,0.1) !important;
+					}
+					.deeptutor-source-button:focus {
+						outline: 0.125rem solid ${colors.sourceButton.background} !important;
+						outline-offset: 0.125rem !important;
+					}
+					.deeptutor-source-button:focus:not(:focus-visible) {
+						outline: none !important;
+					}
+					.deeptutor-source-placeholder {
+						background: ${colors.sourceButton.placeholder} !important;
+						color: white !important;
+						border: none !important;
+						border-radius: 50% !important;
+						width: 2rem !important;
+						height: 2rem !important;
+						display: inline-flex !important;
+						align-items: center !important;
+						justify-content: center !important;
+						font-weight: 600 !important;
+						font-size: 0.875rem !important;
+						cursor: default !important;
+						box-shadow: 0 0.0625rem 0.125rem rgba(0,0,0,0.08) !important;
+						padding: 0 !important;
+						margin: 0 0.25rem !important;
+						vertical-align: middle !important;
+						line-height: 1 !important;
+						text-decoration: none !important;
+						user-select: none !important;
+						font-family: 'Roboto', sans-serif !important;
+						position: relative !important;
+						overflow: hidden !important;
+					}
+					@keyframes pulse {
+						0% { opacity: 0.3; }
+						100% { opacity: 0.6; }
+					}
+					/* KaTeX math expression styles */
+					.katex {
+						font-size: 1.1em !important;
+						line-height: 1.2 !important;
+						vertical-align: middle !important;
+					}
+					/* Inline math adjustments */
+					.katex:not(.katex-display) {
+						font-size: 1em !important;
+						line-height: 1.1 !important;
+						vertical-align: middle !important;
+					}
+					/* Display math adjustments */
+					.katex-display {
+						font-size: 1.2em !important;
+						line-height: 1.4 !important;
+						margin-bottom: 1em !important;
+						margin-top: 0.5em !important;
+						
+					}
+					/* General subscript/superscript positioning */
+					.katex .msupsub {
+						text-align: left !important;
+					}
+					.katex .msubsup {
+						text-align: right !important;
+					}
+					/* Proper KaTeX subscript and superscript sizing */
+					.katex .msupsub > .vlist-t {
+						font-size: 0.7em !important;
+					}
+					.katex .msupsub .mord {
+						font-size: 0.7em !important;
+					}
+					.katex .scriptstyle {
+						font-size: 0.7em !important;
+					}
+					.katex .scriptscriptstyle {
+						font-size: 0.5em !important;
+					}
+					/* Target actual superscript and subscript elements */
+					.katex sup {
+						font-size: 0.7em !important;
+						vertical-align: super !important;
+					}
+					.katex sub {
+						font-size: 0.7em !important;
+						vertical-align: sub !important;
+					}
+					/* More specific KaTeX internal selectors */
+					.katex .vlist .sizing.reset-size6.size3,
+					.katex .vlist .fontsize-ensurer.reset-size6.size3 {
+						font-size: 0.7em !important;
+					}
+					/* Radicals - fix square root positioning issues */
+					.katex .sqrt {
+						vertical-align: baseline !important;
+						display: inline-block !important;
+						position: relative !important;
+					}
+					.katex .sqrt > .vlist-t {
+						display: inline-block !important;
+						vertical-align: baseline !important;
+					}
+					.katex .sqrt-sign {
+						position: relative !important;
+						display: inline-block !important;
+					}
+					.katex .sqrt-line {
+						border-top: 0.08em solid !important;
+						position: relative !important;
+						display: block !important;
+						width: 100% !important;
+						margin-top: -0.3em !important;
+					}
+					/* Fix radical symbol positioning */
+					.katex .sqrt > .vlist-t > .vlist-r > .vlist {
+						display: inline-block !important;
+						vertical-align: baseline !important;
+					}
+					/* Prevent radical content from floating */
+					.katex .sqrt .vlist {
+						position: relative !important;
+						display: inline-block !important;
+					}
+					/* Fractions - improve spacing and positioning */
+					.katex .frac-line {
+						border-bottom-width: 0.06em !important;
+					}
+					/* Fix outer containers that contain fractions */
+					.katex-display:has(.frac),
+					.katex-display:has(.mfrac) {
+						margin-top: -1em !important;
+						margin-bottom: 1.5em !important;
+						vertical-align: middle !important;
+
+					}
+					/* General vertical alignment for all math elements */
+					.katex * {
+						vertical-align: baseline !important;
+					}
+					/* Improve spacing for operators */
+					.katex .mop {
+						vertical-align: baseline !important;
+					}
+					/* Ensure proper spacing around inline math */
+					.katex:not(.katex-display)::after {
+						content: " " !important;
+						white-space: normal !important;
+					}
+					/* List styling - reduce horizontal spacing */
+					.markdown ul,
+					.markdown ol {
+						margin: 0.5em 0 !important;
+						padding-left: 1.5em !important;
+					}
+					.markdown li {
+						margin: 0.25em 0 !important;
+						padding-left: 0.5em !important;
+					}
+					/* Nested lists */
+					.markdown ul ul,
+					.markdown ol ol,
+					.markdown ul ol,
+					.markdown ol ul {
+						margin: 0.25em 0 !important;
+						padding-left: 1em !important;
+					}
+					/* Hide horizontal rules completely */
+					.markdown hr,
+					hr {
+						display: none !important;
+						border: none !important;
+						margin: 0 !important;
+						padding: 0 !important;
+						height: 0 !important;
+						width: 0 !important;
+						visibility: hidden !important;
+					}
+					
+					/* Image styling - make images fit their parent container */
+					.markdown img {
+						max-width: 100% !important;
+						height: auto !important;
+						display: block !important;
+						margin: 0.5rem auto !important;
+						border-radius: 0.375rem !important;
+						box-shadow: 0 0.0625rem 0.125rem rgba(0,0,0,0.1) !important;
+						object-fit: contain !important;
+					}
+					
+					/* Ensure images don't overflow their containers */
+					.markdown p img,
+					.markdown div img {
+						max-width: 100% !important;
+						width: auto !important;
+						height: auto !important;
+					}
+					
+					/* Responsive image handling for different screen sizes */
+					@media (max-width: 768px) {
+						.markdown img {
+							max-width: 95% !important;
+							margin: 0.375rem auto !important;
+						}
+					}
+				`
+			}} />
             
 			<div style={styles.sessionNameDiv}>
 				{currentSession?.sessionName || "New Session"}
