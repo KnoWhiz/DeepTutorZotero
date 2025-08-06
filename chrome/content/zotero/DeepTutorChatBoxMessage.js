@@ -530,7 +530,7 @@ const DeepTutorChatBoxMessage = ({
     
 	const isUser = message.role === MessageRole.USER;
 	const messageId = message.id || index;
-	const isStreamingComponentVisible = streamingComponentVisibility[messageId] !== false; // Default to true
+	const isStreamingComponentVisible = streamingComponentVisibility[messageId] === true; // Default to false
 	
 	// Message-related styles
 	const styles = {
@@ -684,8 +684,8 @@ const DeepTutorChatBoxMessage = ({
 				</div>
 			)}
 			
-			{/* Show streaming component based on visibility state */}
-			{isStreamingComponentVisible && (
+			{/* Show streaming component during streaming OR when explicitly visible */}
+			{(message.isStreaming || isStreamingComponentVisible) && (
 				<div key={`streaming-${messageId}`} style={styles.messageContainer}>
 					<DeepTutorStreamingComponent
 						streamText={message.streamText || ''}

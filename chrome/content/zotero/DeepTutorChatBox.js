@@ -106,7 +106,6 @@ const MessageRole = {
 };
 
 
-
 const SendIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_SEND.svg';
 const StopIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_STOP.svg';
 const ArrowDownPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/CHAT_ARROWDOWN.svg';
@@ -456,7 +455,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	const toggleStreamingComponent = (messageId) => {
 		setStreamingComponentVisibility(prev => ({
 			...prev,
-			[messageId]: prev[messageId] === undefined ? false : !prev[messageId]
+			[messageId]: !prev[messageId]
 		}));
 	};
 
@@ -983,7 +982,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 					if (lastMessage && lastMessage.isStreaming) {
 						lastMessage.isStreaming = false;
 						lastMessage.subMessages[0].text += '<stopped>';
-						console.log("lastMessage", lastMessage);
 						// Hide streaming component by default when streaming is stopped
 						setStreamingComponentVisibility(prevVisibility => ({
 							...prevVisibility,
@@ -1068,8 +1066,9 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			// Add the streaming message to messages
 			await new Promise((resolve) => {
 				setMessages((prev) => {
+					const newMessages = [...prev, initialStreamingMessage];
 					resolve();
-					return [...prev, initialStreamingMessage];
+					return newMessages;
 				});
 			});
 
@@ -1138,7 +1137,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			}
 			if (isManuallyStoppedRef.current) {
 				setIsStreaming(false);
-				toggleStreamingComponent(initialStreamingMessage.id);
+				// For manual stop, we need to handle this differently since the message doesn't have an ID yet
+				// We'll set the visibility when the message is processed later
 				return;
 			}
 			// Fetch message history for the session
@@ -1167,10 +1167,26 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 					const updatedMessages = [...prevMessages];
 					updatedMessages[streamingMessageIndex] = updatedMessage;
 					
+					// Hide streaming component by default when streaming finishes
+					// Use the actual message ID from the server
+					setStreamingComponentVisibility(prevVisibility => ({
+						...prevVisibility,
+						[updatedMessage.id]: false
+					}));
+					
 					return updatedMessages;
 				}
 				
 				// If no streaming message found, use server data as is
+				// Hide streaming component for the last message
+				if (historyData.length > 0) {
+					const lastMessage = historyData[historyData.length - 1];
+					setStreamingComponentVisibility(prevVisibility => ({
+						...prevVisibility,
+						[lastMessage.id]: false
+					}));
+				}
+				
 				return historyData;
 			});
 			
@@ -1181,10 +1197,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			streamReaderRef.current = null; // Clear reader reference
 			
 			// Hide streaming component by default when streaming finishes
-			setStreamingComponentVisibility(prev => ({
-				...prev,
-				[initialStreamingMessage.id]: false
-			}));
+			// We need to wait for the messages to be updated with server data
+			// The visibility will be set after the server message is processed
 		}
 		catch (error) {
 			Zotero.debug(error);
@@ -1199,6 +1213,13 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				if (historyData && historyData.length > 0) {
 					setMessages(historyData);
 					setLatestMessageId(historyData[historyData.length - 1].id);
+					
+					// Hide streaming component by default when streaming finishes (even on error)
+					const lastMessage = historyData[historyData.length - 1];
+					setStreamingComponentVisibility(prevVisibility => ({
+						...prevVisibility,
+						[lastMessage.id]: false
+					}));
 				}
 			}
 			catch (historyError) {
