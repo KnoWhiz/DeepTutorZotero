@@ -2,6 +2,7 @@
 import React from 'react'; // eslint-disable-line no-unused-vars
 import PropTypes from 'prop-types';
 import DeepTutorStreamingComponent from './DeepTutorStreamingComponent';
+import { StoppingTag } from './DeepTutorStreamingTag';
 
 const markdownit = require('markdown-it');
 // Try to require markdown-it-container, fallback to a simpler implementation if not available
@@ -761,6 +762,12 @@ const DeepTutorChatBoxMessage = ({
 							}
 						})}
 					</div>
+				
+					{/* Show StoppingTag if message contains <stopped> tag */}
+					{!isUser && (message.subMessages.some(subMsg => subMsg.text && subMsg.text.includes('<stopped>'))
+						|| (message.streamText && message.streamText.includes('<stopped>'))) && (
+						<StoppingTag />
+					)}
 				
 					{/* Add download button for tutor messages only */}
 					{!isUser && noteContainer && !message.isStreaming && !iniWait && !isSavingNote && (

@@ -1,5 +1,6 @@
  
 import React from 'react';
+import PropTypes from 'prop-types';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 
 const StreamingStates = {
@@ -159,5 +160,66 @@ const DeepTutorStreamingTag = ({ streamState, isCurrentTag }) => {
 	);
 };
 
-export { StreamingStates };
+// New StoppingTag component for displaying stopped thinking state
+const StoppingTag = () => {
+	const { colors, theme } = useDeepTutorTheme();
+	
+	const tagStyle = {
+		display: 'flex',
+		width: 'fit-content',
+		gap: '0.25rem',
+		borderRadius: '0.375rem',
+		border: `2px solid ${theme === 'dark' ? colors.sky : '#E0E0E0'}`,
+		paddingLeft: '1rem',
+		paddingRight: '1rem',
+		paddingTop: '0.5rem',
+		paddingBottom: '0.5rem',
+		marginTop: '1rem',
+		marginBottom: '1rem',
+		fontFamily: 'Roboto, sans-serif',
+		fontSize: '0.875rem',
+		alignItems: 'center',
+		color: colors.text.allText
+	};
+
+	const checkIconStyle = {
+		width: '1.5rem',
+		height: '1.5rem',
+		viewBox: '0 0 24 24',
+		fill: 'none',
+		xmlns: 'http://www.w3.org/2000/svg'
+	};
+
+	return React.createElement('div', { style: tagStyle },
+		React.createElement('div', {
+			style: {
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'center'
+			}
+		},
+		React.createElement('svg', checkIconStyle,
+			React.createElement('path', {
+				d: 'M6 6L18 18M18 6L6 18',
+				stroke: '#FF6B6B',
+				strokeWidth: '2',
+				strokeLinecap: 'round',
+				strokeLinejoin: 'round'
+			})
+		)
+		),
+		'Stopped Thinking'
+	);
+};
+
+DeepTutorStreamingTag.propTypes = {
+	streamState: PropTypes.number.isRequired,
+	isCurrentTag: PropTypes.bool.isRequired
+};
+
+StoppingTag.propTypes = {
+	// No props needed for StoppingTag
+};
+
+export { StreamingStates, StoppingTag };
 export default DeepTutorStreamingTag;
