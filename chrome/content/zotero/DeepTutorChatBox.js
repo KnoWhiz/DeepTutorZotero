@@ -1954,6 +1954,14 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 						margin: 0 0.15em !important;
 						vertical-align: middle !important;
 					}
+					/* Special styling for streaming source placeholders within tables */
+					.markdown table .deeptutor-source-placeholder-streaming {
+						width: 1.5em !important;
+						height: 1.5em !important;
+						font-size: 0.75em !important;
+						margin: 0 0.15em !important;
+						vertical-align: middle !important;
+					}
 					/* First column styling - prevent word breaking but allow line wrapping */
 					.markdown table td:first-child,
 					.markdown table th:first-child {
@@ -2008,7 +2016,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 					}
 					.deeptutor-source-placeholder {
 						background: ${colors.sourceButton.placeholder} !important;
-						color: white !important;
+						color: ${colors.sourceButton.text} !important;
 						border: none !important;
 						border-radius: 50% !important;
 						width: 2rem !important;
@@ -2029,6 +2037,32 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 						font-family: 'Roboto', sans-serif !important;
 						position: relative !important;
 						overflow: hidden !important;
+					}
+					/* Streaming-specific source placeholders - use theme colors */
+					.deeptutor-source-placeholder-streaming {
+						background: ${colors.sourceButton.streamingBackground} !important;
+						color: ${colors.sourceButton.streamingText} !important;
+						border: none !important;
+						border-radius: 50% !important;
+						width: 2rem !important;
+						height: 2rem !important;
+						display: inline-flex !important;
+						align-items: center !important;
+						justify-content: center !important;
+						font-weight: 600 !important;
+						font-size: 0.875rem !important;
+						cursor: default !important;
+						box-shadow: 0 0.0625rem 0.125rem rgba(0,0,0,0.08) !important;
+						padding: 0 !important;
+						margin: 0 0.25rem !important;
+						vertical-align: middle !important;
+						line-height: 1 !important;
+						text-decoration: none !important;
+						user-select: none !important;
+						font-family: 'Roboto', sans-serif !important;
+						position: relative !important;
+						overflow: hidden !important;
+						opacity: 0.7 !important;
 					}
 					@keyframes pulse {
 						0% { opacity: 0.3; }
