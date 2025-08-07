@@ -117,7 +117,8 @@ class DeepTutorLocalhostServer {
 
 			const domain = amplifyConfig.oauth.domain;
 			const clientId = amplifyConfig.aws_user_pools_web_client_id;
-			const redirectUri = encodeURIComponent(`https://${DT_BASE_URL}/`);
+			//const redirectUri = encodeURIComponent(`https://${DT_BASE_URL}/`);
+			const redirectUri = encodeURIComponent(`http://localhost:3000/`);
 			const scope = encodeURIComponent(amplifyConfig.oauth.scope.join(' '));
 
 			const url = `https://${domain}/oauth2/authorize?`
