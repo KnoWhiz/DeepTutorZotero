@@ -39,6 +39,7 @@
     "react-intl": "^3.4.0",
     "react-markdown": "5.0.3",
     "react-select": "^3.0.8",
+    "readable-stream": "^4.7.0",
     "rehype-katex": "^7.0.1",
     "rehype-raw": "5.1.0",
     "remark-gfm": "1.0.0",

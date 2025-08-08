@@ -7,6 +7,12 @@ import {
 	getDocumentById,
 	subscribeToChat
 } from './api/libs/api';
+import {
+	createClaudeMessage,
+	subscribeToClaudeStream,
+	convertConversationToClaudeFormat,
+	checkClaudeProxyHealth
+} from './api/libs/claudeApi';
 import DeepTutorChatBoxMessage from './DeepTutorChatBoxMessage';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 
@@ -430,6 +436,20 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	const textareaRef = useRef(null);
 	const [hoveredContextDoc, setHoveredContextDoc] = useState(null);
 	const [hoveredQuestion, setHoveredQuestion] = useState(null);
+	
+	// Claude integration configuration
+	const CLAUDE_CONFIG = {
+		ENABLED: true,
+		USE_CLAUDE_BY_DEFAULT: false,
+		FALLBACK_TO_DEEPTUTOR: true,
+		HEALTH_CHECK_INTERVAL: 300000, // 5 minutes
+		CLAUDE_PROMPT_PREFIX: "You are a helpful AI tutor. Please respond to the user's question: "
+	};
+	
+	// Claude integration state
+	const [useClaude, setUseClaude] = useState(CLAUDE_CONFIG.USE_CLAUDE_BY_DEFAULT);
+	const [claudeEnabled, setClaudeEnabled] = useState(CLAUDE_CONFIG.ENABLED);
+	const [claudeHealthy, setClaudeHealthy] = useState(false);
 	const [iniWait, setInitWait] = useState(false);
 	const [isStreaming, setIsStreaming] = useState(false);
 	const streamReaderRef = useRef(null);
@@ -474,6 +494,23 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	useEffect(() => {
 		isManuallyStoppedRef.current = isManuallyStopped;
 	}, [isManuallyStopped]);
+
+	// Claude health check useEffect
+	useEffect(() => {
+		if (CLAUDE_CONFIG.ENABLED && claudeEnabled) {
+			// Initial health check
+			checkClaudeHealth();
+			
+			// Set up periodic health checks
+			const healthCheckInterval = setInterval(() => {
+				checkClaudeHealth();
+			}, CLAUDE_CONFIG.HEALTH_CHECK_INTERVAL);
+			
+			return () => {
+				clearInterval(healthCheckInterval);
+			};
+		}
+	}, [claudeEnabled]);
 
 	// Periodic message fetching useEffect
 	useEffect(() => {
@@ -998,10 +1035,123 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 		}
 	};
 
+	// Claude integration helper functions
+	const checkClaudeHealth = async () => {
+		if (!CLAUDE_CONFIG.ENABLED) return false;
+		
+		try {
+			const healthResponse = await checkClaudeProxyHealth();
+			const isHealthy = healthResponse.status === 'healthy';
+			setClaudeHealthy(isHealthy);
+			Zotero.debug(`Claude health check: ${isHealthy ? 'HEALTHY' : 'UNHEALTHY'}`);
+			return isHealthy;
+		} catch (error) {
+			setClaudeHealthy(false);
+			Zotero.debug(`Claude health check failed: ${error.message}`);
+			return false;
+		}
+	};
+
+	const shouldUseClaude = (messageText) => {
+		if (!CLAUDE_CONFIG.ENABLED || !claudeEnabled) return false;
+		
+		// Check for explicit Claude trigger keywords
+		const claudeKeywords = ['[claude]', '[use claude]', '[claude ai]'];
+		const hasClaudeTrigger = claudeKeywords.some(keyword => 
+			messageText.toLowerCase().includes(keyword)
+		);
+		
+		// Use Claude if user explicitly requested it or if it's the default
+		return hasClaudeTrigger || (useClaude && claudeHealthy);
+	};
+
+	const cleanClaudeKeywords = (messageText) => {
+		return messageText
+			.replace(/\[claude\]/gi, '')
+			.replace(/\[use claude\]/gi, '')
+			.replace(/\[claude ai\]/gi, '')
+			.trim();
+	};
+
 	const sendToAPI = async (message) => {
 		try {
 			setIsStreaming(true); // Set streaming to true at start
 			isAutoScrollingRef.current = true; // Re-enable auto-scrolling for new stream
+			
+			// Determine if we should use Claude
+			const messageText = message.subMessages?.[0]?.text || '';
+			const useClaudeForThisMessage = shouldUseClaude(messageText);
+			
+			if (useClaudeForThisMessage) {
+				Zotero.debug('DeepTutorChatBox: Using Claude API for message');
+				return await sendToClaudeAPI(message);
+			} else {
+				Zotero.debug('DeepTutorChatBox: Using DeepTutor API for message');
+				return await sendToDeepTutorAPI(message);
+			}
+		} catch (error) {
+			Zotero.debug(`DeepTutorChatBox: Error in sendToAPI: ${error.message}`);
+			
+			// If Claude failed and fallback is enabled, try DeepTutor
+			if (CLAUDE_CONFIG.FALLBACK_TO_DEEPTUTOR && error.message.includes('Claude')) {
+				Zotero.debug('DeepTutorChatBox: Claude failed, falling back to DeepTutor');
+				try {
+					return await sendToDeepTutorAPI(message);
+				} catch (fallbackError) {
+					Zotero.debug(`DeepTutorChatBox: Fallback to DeepTutor also failed: ${fallbackError.message}`);
+					throw fallbackError;
+				}
+			}
+			
+			throw error;
+		}
+	};
+
+	const sendToClaudeAPI = async (message) => {
+		try {
+			// Clean up the message text
+			const originalText = message.subMessages?.[0]?.text || '';
+			const cleanedText = cleanClaudeKeywords(originalText);
+			const claudeMessage = CLAUDE_CONFIG.CLAUDE_PROMPT_PREFIX + cleanedText;
+			
+			// Convert conversation to Claude format
+			const conversationContext = {
+				messages: messages.map(msg => ({
+					role: msg.role === 'USER' ? 'user' : 'assistant',
+					content: msg.subMessages?.[0]?.text || ''
+				})).filter(msg => msg.content.trim()),
+				context: {
+					sessionId: sessionId,
+					userId: userId,
+					sessionType: curSessionType,
+					storagePaths: currentSession?.documentIds || []
+				}
+			};
+			
+			// Subscribe to Claude stream
+			const streamResponse = await subscribeToClaudeStream(claudeMessage, conversationContext);
+			
+			if (!streamResponse.ok) {
+				setIsStreaming(false);
+				throw new Error(`Claude stream request failed: ${streamResponse.status}`);
+			}
+			
+			if (!streamResponse.body) {
+				setIsStreaming(false);
+				throw new Error('Claude stream response body is null');
+			}
+
+			return await processClaudeStream(streamResponse);
+			
+		} catch (error) {
+			setIsStreaming(false);
+			Zotero.debug(`DeepTutorChatBox: Claude API error: ${error.message}`);
+			throw new Error(`Claude API error: ${error.message}`);
+		}
+	};
+
+	const sendToDeepTutorAPI = async (message) => {
+		try {
 			// Send message to API
 			const responseData = await createMessage(message);
 			const newDocumentFiles2 = [];
@@ -1230,6 +1380,135 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 		}
 	};
 
+	const processClaudeStream = async (streamResponse) => {
+		const reader = streamResponse.body.getReader();
+		streamReaderRef.current = reader; // Store reader reference for stopping
+		const decoder = new TextDecoder();
+		let streamText = "";
+		let hasReceivedData = false;
+		let lastDataTime = Date.now();
+
+		// Create initial streaming message for TUTOR
+		const initialStreamingMessage = {
+			subMessages: [{
+				text: "",
+				contentType: ContentType.TEXT,
+				creationTime: new Date().toISOString(),
+				sources: []
+			}],
+			role: MessageRole.TUTOR,
+			creationTime: new Date().toISOString(),
+			lastUpdatedTime: new Date().toISOString(),
+			status: MessageStatus.UNVIEW,
+			isStreaming: true,
+			streamText: "",
+			source: 'claude' // Tag to identify Claude responses
+		};
+        
+		// Add the streaming message to messages
+		await new Promise((resolve) => {
+			setMessages((prev) => {
+				const newMessages = [...prev, initialStreamingMessage];
+				resolve();
+				return newMessages;
+			});
+		});
+
+		while (true) {
+			const { done, value } = await reader.read();
+            
+			// Check for timeout
+			if (Date.now() - lastDataTime > 600000) {
+				setIsStreaming(false); // Set streaming to false on timeout
+				throw new Error('Claude stream timeout - no data received for 600 seconds');
+			}
+            
+			if (done) {
+				if (!hasReceivedData) {
+					setIsStreaming(false); // Set streaming to false if no data received
+					throw new Error('Claude stream closed without receiving any data');
+				}
+				break;
+			}
+
+			lastDataTime = Date.now();
+			const data = decoder.decode(value);
+            
+			data.split('\n\n').forEach((event) => {
+				if (!event.startsWith('data:')) return;
+
+				const jsonStr = event.slice(5);
+				// Skip empty or whitespace-only strings
+				if (!jsonStr || !jsonStr.trim()) return;
+
+				try {
+					const parsed = JSON.parse(jsonStr);
+					// Claude response format might be different, adapt as needed
+					const output = parsed.content || parsed.text || parsed.msg_content || parsed.delta?.text;
+					
+					if (output && output.length > 0) {
+						hasReceivedData = true;
+						streamText += output;
+						
+						// Create a temporary streaming message to display the stream
+						const streamMessage = {
+							subMessages: [{
+								text: streamText,
+								contentType: ContentType.TEXT,
+								creationTime: new Date().toISOString(),
+								sources: []
+							}],
+							role: MessageRole.TUTOR,
+							creationTime: new Date().toISOString(),
+							lastUpdatedTime: new Date().toISOString(),
+							status: MessageStatus.UNVIEW,
+							isStreaming: true,
+							streamText: streamText,
+							source: 'claude'
+						};
+
+						// Update the last message in the chat
+						setMessages((prev) => {
+							const newMessages = [...prev];
+							newMessages[newMessages.length - 1] = streamMessage;
+							return newMessages;
+						});
+					}
+				} catch (error) {
+					Zotero.debug('DeepTutorChatBox: Error parsing Claude SSE data:', error);
+				}
+			});
+		}
+
+		// Finalize the streaming
+		setIsStreaming(false);
+		streamReaderRef.current = null; // Clear reader reference
+		
+		// Create final message
+		const finalMessage = {
+			subMessages: [{
+				text: streamText,
+				contentType: ContentType.TEXT,
+				creationTime: new Date().toISOString(),
+				sources: []
+			}],
+			role: MessageRole.TUTOR,
+			creationTime: new Date().toISOString(),
+			lastUpdatedTime: new Date().toISOString(),
+			status: MessageStatus.UNVIEW,
+			isStreaming: false,
+			source: 'claude'
+		};
+
+		// Update the final message
+		setMessages((prev) => {
+			const newMessages = [...prev];
+			newMessages[newMessages.length - 1] = finalMessage;
+			return newMessages;
+		});
+
+		return { success: true, content: streamText };
+	};
 
 	const _appendMessage = async (sender, message) => {
 		// Process subMessages
@@ -1310,10 +1589,16 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	};
 
 	const renderMessage = (message, index) => {
+		// Add Claude source indicator to message
+		const enhancedMessage = {
+			...message,
+			isClaudeResponse: message.source === 'claude'
+		};
+		
 		return (
 			<DeepTutorChatBoxMessage
 				key={`message-${message.id || index}`}
-				message={message}
+				message={enhancedMessage}
 				index={index}
 				messages={messages}
 				sessionId={sessionId}
@@ -2324,6 +2609,59 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 					</div>
 				)}
 			</div>
+
+			{/* Claude Integration Controls */}
+			{CLAUDE_CONFIG.ENABLED && (
+				<div style={{
+					padding: '8px 12px',
+					backgroundColor: colors.background.secondary,
+					borderBottom: `1px solid ${colors.border.primary}`,
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'space-between',
+					fontSize: '0.85rem'
+				}}>
+					<div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+						<label style={{ 
+							display: 'flex', 
+							alignItems: 'center', 
+							gap: '6px', 
+							cursor: 'pointer',
+							color: colors.text.allText
+						}}>
+							<input
+								type="checkbox"
+								checked={useClaude}
+								onChange={(e) => setUseClaude(e.target.checked)}
+								style={{ marginRight: '4px' }}
+							/>
+							Use Claude AI
+						</label>
+						
+						<span style={{
+							display: 'inline-flex',
+							alignItems: 'center',
+							gap: '4px',
+							color: claudeHealthy ? colors.accent : colors.error
+						}}>
+							<span style={{
+								width: '8px',
+								height: '8px',
+								borderRadius: '50%',
+								backgroundColor: claudeHealthy ? colors.accent : colors.error
+							}}></span>
+							{claudeHealthy ? 'Claude Available' : 'Claude Unavailable'}
+						</span>
+					</div>
+					
+					<div style={{
+						fontSize: '0.75rem',
+						color: colors.text.secondary
+					}}>
+						Type [claude] to use Claude for a specific message
+					</div>
+				</div>
+			)}
 
 			<div
 				ref={chatLogRef}
