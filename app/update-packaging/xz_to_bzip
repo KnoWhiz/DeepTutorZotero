@@ -12,11 +12,12 @@ if [[ -z "$infile" ]] || [[ -z "$infile" ]]; then
 	exit 1
 fi
 
-mar="$APP_ROOT_DIR/xulrunner/bin/mar"
-if [ ! -f "$mar" ]; then
-	echo "$mar not found"
-	exit 1
-fi
+mar="mar"
+# mar="$APP_ROOT_DIR/xulrunner/bin/mar"
+# if [ ! -f "$mar" ]; then
+# 	echo "$mar not found"
+# 	exit 1
+# fi
 
 tmp_dir=`mktemp -d`
 function cleanup {
@@ -34,6 +35,7 @@ if [ "`uname -o 2> /dev/null`" = "Cygwin" ]; then
 fi
 
 echo "Extracting MAR"
+echo "infile path: $infile"
 $mar -x "$infile"
 
 echo "Renaming all files to .xz"
