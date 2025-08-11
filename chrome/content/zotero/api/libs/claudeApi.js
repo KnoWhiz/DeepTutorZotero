@@ -1,15 +1,13 @@
 // Claude API Integration for DeepTutor
 // This module handles communication with the company's Claude proxy server
 
-import { authState } from '../../auth/cognitoAuth.js';
-
 // Configuration for Claude proxy server
 const CLAUDE_PROXY_CONFIG = {
 	// This should be configured based on your company's proxy server
-	PROXY_BASE_URL: process.env.CLAUDE_PROXY_URL || 'http://localhost:8080/api/claude',
-	API_KEY: process.env.CLAUDE_API_KEY || '', // Should be set on backend
-	MODEL: 'claude-sonnet-4-20250514',
-	MAX_TOKENS: 1024,
+	PROXY_BASE_URL: 'https://api.anthropic.com' || 'http://localhost:8082' || 'http://localhost:8080/api/claude',
+	API_KEY: 'TODO' || '', // Should be set on backend
+	MODEL: 'claude-3-5-sonnet-20241022', // Updated to match working model from test
+	MAX_TOKENS: 1000,
 	STREAMING: true
 };
 
@@ -21,10 +19,9 @@ const getClaudeAuthHeaders = () => {
 		'X-DeepTutor-Source': 'zotero-extension'
 	};
 
-	// Add Bearer token if user is authenticated
-	const accessToken = authState.getAccessToken();
-	if (accessToken) {
-		headers['Authorization'] = `Bearer ${accessToken}`;
+	// Add API key if available
+	if (CLAUDE_PROXY_CONFIG.API_KEY) {
+		headers['x-api-key'] = CLAUDE_PROXY_CONFIG.API_KEY;
 	}
 
 	return headers;
@@ -32,32 +29,7 @@ const getClaudeAuthHeaders = () => {
 
 // Helper function to handle Claude API responses
 const handleClaudeApiResponse = async (response, originalRequest) => {
-	if (response.status === 401) {
-		// Token might be expired, try to refresh
-		try {
-			const { refreshSession } = await import('../../auth/cognitoAuth.js');
-			await refreshSession();
-
-			// Retry the original request with new token
-			const newHeaders = getClaudeAuthHeaders();
-			const retryResponse = await window.fetch(originalRequest.url, {
-				...originalRequest,
-				headers: newHeaders
-			});
-
-			if (!retryResponse.ok) {
-				throw new Error(`Claude API request failed: ${retryResponse.status}`);
-			}
-
-			return retryResponse;
-		} catch (refreshError) {
-			Zotero.debug(`Claude API: Token refresh failed: ${refreshError.message}`);
-			authState.setUnauthenticated();
-			throw new Error('Authentication required');
-		}
-	}
-
-	if (!response.ok) {
+	if (response.status !== 200) {
 		throw new Error(`Claude API request failed: ${response.status}`);
 	}
 
@@ -70,19 +42,22 @@ export const createClaudeMessage = async (message, conversationContext = {}) => 
 		method: 'POST',
 		headers: getClaudeAuthHeaders(),
 		body: JSON.stringify({
-			message: message,
-			conversationContext: conversationContext,
 			model: CLAUDE_PROXY_CONFIG.MODEL,
 			max_tokens: CLAUDE_PROXY_CONFIG.MAX_TOKENS,
-			stream: false
+			messages: [{
+				role: 'user',
+				content: message.subMessages?.[0]?.text || message.text || ''
+			}]
 		})
 	};
 
-	const response = await window.fetch(`${CLAUDE_PROXY_CONFIG.PROXY_BASE_URL}/messages/create`, requestConfig);
+	const response = await window.fetch(`${CLAUDE_PROXY_CONFIG.PROXY_BASE_URL}/v1/messages`, requestConfig);
+	Zotero.debug('SSSS createClaudeMessage: Response', response);
 	const handledResponse = await handleClaudeApiResponse(response, {
-		url: `${CLAUDE_PROXY_CONFIG.PROXY_BASE_URL}/messages/create`,
+		url: `${CLAUDE_PROXY_CONFIG.PROXY_BASE_URL}/v1/messages`,
 		...requestConfig
 	});
+	Zotero.debug('SSSS createClaudeMessage: Handled response', handledResponse);
 
 	return handledResponse.json();
 };
@@ -96,17 +71,21 @@ export const subscribeToClaudeStream = async (message, conversationContext = {})
 			'Accept': 'text/event-stream'
 		},
 		body: JSON.stringify({
-			message: message,
-			conversationContext: conversationContext,
 			model: CLAUDE_PROXY_CONFIG.MODEL,
 			max_tokens: CLAUDE_PROXY_CONFIG.MAX_TOKENS,
+			messages: [{
+				role: 'user',
+				content: message.subMessages?.[0]?.text || message.text || ''
+			}],
 			stream: true
 		})
 	};
 
-	const response = await window.fetch(`${CLAUDE_PROXY_CONFIG.PROXY_BASE_URL}/messages/stream`, requestConfig);
+	Zotero.debug('SSSS subscribeToClaudeStream: Request config', requestConfig);
+
+	const response = await window.fetch(`${CLAUDE_PROXY_CONFIG.PROXY_BASE_URL}/v1/messages`, requestConfig);
 	const handledResponse = await handleClaudeApiResponse(response, {
-		url: `${CLAUDE_PROXY_CONFIG.PROXY_BASE_URL}/messages/stream`,
+		url: `${CLAUDE_PROXY_CONFIG.PROXY_BASE_URL}/v1/messages`,
 		...requestConfig
 	});
 
@@ -119,35 +98,28 @@ export const createClaudeMessageBatch = async (requests) => {
 		method: 'POST',
 		headers: getClaudeAuthHeaders(),
 		body: JSON.stringify({
-			requests: requests,
 			model: CLAUDE_PROXY_CONFIG.MODEL,
-			max_tokens: CLAUDE_PROXY_CONFIG.MAX_TOKENS
+			max_tokens: CLAUDE_PROXY_CONFIG.MAX_TOKENS,
+			messages: requests.map(req => ({
+				role: 'user',
+				content: req.subMessages?.[0]?.text || req.text || ''
+			}))
 		})
 	};
 
-	const response = await window.fetch(`${CLAUDE_PROXY_CONFIG.PROXY_BASE_URL}/messages/batches/create`, requestConfig);
+	const response = await window.fetch(`${CLAUDE_PROXY_CONFIG.PROXY_BASE_URL}/v1/messages`, requestConfig);
 	const handledResponse = await handleClaudeApiResponse(response, {
-		url: `${CLAUDE_PROXY_CONFIG.PROXY_BASE_URL}/messages/batches/create`,
+		url: `${CLAUDE_PROXY_CONFIG.PROXY_BASE_URL}/v1/messages`,
 		...requestConfig
 	});
 
 	return handledResponse.json();
 };
 
-// Get Claude batch results
+// Get Claude batch results - Not supported by proxy, return single response
 export const getClaudeBatchResults = async (batchId) => {
-	const requestConfig = {
-		method: 'GET',
-		headers: getClaudeAuthHeaders()
-	};
-
-	const response = await window.fetch(`${CLAUDE_PROXY_CONFIG.PROXY_BASE_URL}/messages/batches/${batchId}/results`, requestConfig);
-	const handledResponse = await handleClaudeApiResponse(response, {
-		url: `${CLAUDE_PROXY_CONFIG.PROXY_BASE_URL}/messages/batches/${batchId}/results`,
-		...requestConfig
-	});
-
-	return handledResponse;
+	Zotero.debug('Claude batch results not supported by proxy, returning empty response');
+	return { content: 'Batch processing not supported by this proxy server' };
 };
 
 // Health check for Claude proxy

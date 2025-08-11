@@ -497,19 +497,31 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 
 	// Claude health check useEffect
 	useEffect(() => {
+		let isActive = true;
+		let timeoutId = null;
+
 		if (CLAUDE_CONFIG.ENABLED && claudeEnabled) {
-			// Initial health check
-			checkClaudeHealth();
-			
-			// Set up periodic health checks
-			const healthCheckInterval = setInterval(() => {
-				checkClaudeHealth();
-			}, CLAUDE_CONFIG.HEALTH_CHECK_INTERVAL);
-			
-			return () => {
-				clearInterval(healthCheckInterval);
+			const runHealthCheck = () => {
+				if (!isActive) return;
+				try {
+					checkClaudeHealth();
+				} finally {
+					if (isActive) {
+						timeoutId = setTimeout(runHealthCheck, CLAUDE_CONFIG.HEALTH_CHECK_INTERVAL);
+					}
+				}
 			};
+
+			// Kick off the loop immediately
+			timeoutId = setTimeout(runHealthCheck, 0);
 		}
+
+		return () => {
+			isActive = false;
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+			}
+		};
 	}, [claudeEnabled]);
 
 	// Periodic message fetching useEffect
@@ -1061,8 +1073,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			messageText.toLowerCase().includes(keyword)
 		);
 		
-		// Use Claude if user explicitly requested it or if it's the default
-		return hasClaudeTrigger || (useClaude && claudeHealthy);
+		// Use Claude if user explicitly requested it or if it's the default (ignore health gate)
+		return hasClaudeTrigger || useClaude;
 	};
 
 	const cleanClaudeKeywords = (messageText) => {
@@ -1081,9 +1093,11 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			// Determine if we should use Claude
 			const messageText = message.subMessages?.[0]?.text || '';
 			const useClaudeForThisMessage = shouldUseClaude(messageText);
+			let attemptedClaude = false;
 			
 			if (useClaudeForThisMessage) {
 				Zotero.debug('DeepTutorChatBox: Using Claude API for message');
+				attemptedClaude = true;
 				return await sendToClaudeAPI(message);
 			} else {
 				Zotero.debug('DeepTutorChatBox: Using DeepTutor API for message');
@@ -1093,7 +1107,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			Zotero.debug(`DeepTutorChatBox: Error in sendToAPI: ${error.message}`);
 			
 			// If Claude failed and fallback is enabled, try DeepTutor
-			if (CLAUDE_CONFIG.FALLBACK_TO_DEEPTUTOR && error.message.includes('Claude')) {
+			if (CLAUDE_CONFIG.FALLBACK_TO_DEEPTUTOR) {
 				Zotero.debug('DeepTutorChatBox: Claude failed, falling back to DeepTutor');
 				try {
 					return await sendToDeepTutorAPI(message);
@@ -1129,6 +1143,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			};
 			
 			// Subscribe to Claude stream
+			Zotero.debug('SSSS DeepTutorChatBox: Subscribing to Claude stream');
 			const streamResponse = await subscribeToClaudeStream(claudeMessage, conversationContext);
 			
 			if (!streamResponse.ok) {
