@@ -12,12 +12,12 @@ if [[ -z "$infile" ]] || [[ -z "$infile" ]]; then
 	exit 1
 fi
 
-mar="mar"
-# mar="$APP_ROOT_DIR/xulrunner/bin/mar"
-# if [ ! -f "$mar" ]; then
-# 	echo "$mar not found"
-# 	exit 1
-# fi
+# mar="mar"
+mar="$APP_ROOT_DIR/xulrunner/bin/mar"
+if [ ! -f "$mar" ]; then
+	echo "$mar not found. Please run app/scripts/fetch_mar_tools"
+	exit 1
+fi
 
 tmp_dir=`mktemp -d`
 function cleanup {
