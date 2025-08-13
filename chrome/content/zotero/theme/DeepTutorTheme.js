@@ -47,8 +47,8 @@ const DeepTutorColors = {
 			primary: "#0687E5",
 			secondary: "#FFFFFF",
 			disabled: "#CCCCCC",
-			hover: "#0894F0",
-			primaryHover: "#0570c0",
+			hover: "#f0f8ff",
+			primaryHover: "#0894F0",
 			primaryText: "#FFFFFF",
 			secondaryText: "#1C1B1F",
 			secondaryBorder: "#0687E5"

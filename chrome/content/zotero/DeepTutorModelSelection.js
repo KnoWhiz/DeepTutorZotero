@@ -1393,7 +1393,7 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 
 	const createButtonDynamicStyle = {
 		...styles.createButton,
-		background: isCreateHovered ? colors.button.hover : colors.button.primary,
+		background: isCreateHovered ? colors.button.primaryHover : colors.button.primary,
 	};
 
 	const handleSearchItemMouseEnter = id => setHoveredSearchItem(id);
@@ -1609,7 +1609,7 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 					...createButtonDynamicStyle,
 					opacity: isEffectivelyFrozen ? 0.8 : 1,
 					cursor: isEffectivelyFrozen ? 'not-allowed' : 'pointer',
-					background: isEffectivelyFrozen ? '#6B7B84' : (isCreateHovered ? colors.button.hover : colors.button.primary)
+					background: isEffectivelyFrozen ? '#6B7B84' : (isCreateHovered ? colors.button.primaryHover : colors.button.primary)
 				}}
 				onClick={!isEffectivelyFrozen ? handleSubmit : undefined}
 				onMouseEnter={!isEffectivelyFrozen ? handleCreateMouseEnter : undefined}

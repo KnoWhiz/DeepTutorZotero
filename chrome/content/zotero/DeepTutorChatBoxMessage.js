@@ -822,7 +822,7 @@ const DeepTutorChatBoxMessage = ({
 										key={qIndex}
 										style={{
 											...styles.questionButton,
-											background: hoveredQuestion === qIndex ? (theme === 'dark' ? colors.button.hover : colors.background.quaternary) : colors.button.secondary
+											background: hoveredQuestion === qIndex ? colors.background.quaternary : colors.button.secondary
 										}}
 										onClick={() => handleQuestionClick(question)}
 										onMouseEnter={() => setHoveredQuestion(qIndex)}
