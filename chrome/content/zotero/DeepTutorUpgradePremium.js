@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
-import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 import DeepTutorProcessingSubscription from "./DeepTutorProcessingSubscription.js";
 
 const SKY = '#0687E5';
@@ -109,13 +108,6 @@ const styles = {
 };
 
 export default function DeepTutorUpgradePremium({ onGetPremium }) {
-	const { colors } = useDeepTutorTheme();
-	const [isButtonHovered, setIsButtonHovered] = useState(false);
-
-	const buttonDynamicStyle = {
-		...styles.button,
-		background: isButtonHovered ? colors.button.primaryHover : colors.button.primary,
-	};
 
 	return (
 		<div style={styles.container}>
@@ -134,14 +126,7 @@ export default function DeepTutorUpgradePremium({ onGetPremium }) {
 					<div style={styles.featureRow}>✅ Up to 100 pages and 30Mb/file</div>
 				</div>
 			</div>
-			<button 
-				style={buttonDynamicStyle} 
-				onClick={onGetPremium}
-				onMouseEnter={() => setIsButtonHovered(true)}
-				onMouseLeave={() => setIsButtonHovered(false)}
-			>
-				Get Premium
-			</button>
+			<button style={styles.button} onClick={onGetPremium}>Get Premium</button>
 		</div>
 	);
 }

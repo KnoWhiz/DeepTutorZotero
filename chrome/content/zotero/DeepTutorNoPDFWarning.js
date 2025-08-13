@@ -67,7 +67,7 @@ export default function DeepTutorNoPDFWarning({ onClose }) {
 			width: '100%',
 		},
 		buttonHover: {
-			background: colors.button.primaryHover,
+			background: '#007BD5',
 		}
 	};
 

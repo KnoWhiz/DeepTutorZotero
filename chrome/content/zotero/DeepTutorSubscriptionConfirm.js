@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
-import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 
 const AQUA = '#0AE2FF';
 const SKY = '#0687E5';
@@ -67,26 +66,11 @@ const styles = {
 };
 
 export default function DeepTutorSubscriptionConfirm({ onClose, imagePath }) {
-	const { colors } = useDeepTutorTheme();
-	const [isButtonHovered, setIsButtonHovered] = useState(false);
-
-	const buttonDynamicStyle = {
-		...styles.button,
-		background: isButtonHovered ? colors.button.primaryHover : colors.button.primary,
-	};
-
 	return (
 		<div style={styles.container}>
 			<img src={imagePath} alt="Subscription Confirm" style={styles.image} />
 			<div style={styles.text}>Your Support for DeepTutor<br />is greatly appreciated!</div>
-			<button 
-				style={buttonDynamicStyle} 
-				onClick={onClose}
-				onMouseEnter={() => setIsButtonHovered(true)}
-				onMouseLeave={() => setIsButtonHovered(false)}
-			>
-				Start Using Premium
-			</button>
+			<button style={styles.button} onClick={onClose}>Start Using Premium</button>
 		</div>
 	);
 }

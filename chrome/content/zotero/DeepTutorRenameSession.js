@@ -161,7 +161,7 @@ export default function DeepTutorRenameSession({
 			marginBottom: '0.5rem',
 		},
 		confirmButtonHover: {
-			background: colors.button.primaryHover,
+			background: SKY,
 		},
 		cancelButton: {
 			background: colors.button.secondary,

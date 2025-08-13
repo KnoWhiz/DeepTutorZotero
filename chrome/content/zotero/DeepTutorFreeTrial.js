@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
-import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 import DeepTutorProcessingSubscription from "./DeepTutorProcessingSubscription.js";
 
 const SKY = '#0687E5';
@@ -117,14 +116,6 @@ const styles = {
 };
 
 export default function DeepTutorFreeTrial({ onStartTrial }) {
-	const { colors } = useDeepTutorTheme();
-	const [isButtonHovered, setIsButtonHovered] = useState(false);
-
-	const buttonDynamicStyle = {
-		...styles.button,
-		background: isButtonHovered ? colors.button.primaryHover : colors.button.primary,
-	};
-
 	return (
 		<div style={styles.container}>
 			<div style={styles.contentFrame}>
@@ -144,14 +135,7 @@ export default function DeepTutorFreeTrial({ onStartTrial }) {
 					<div style={styles.featureRow}>✅ No payment method needed</div>
 				</div>
 			</div>
-			<button 
-				style={buttonDynamicStyle} 
-				onClick={onStartTrial}
-				onMouseEnter={() => setIsButtonHovered(true)}
-				onMouseLeave={() => setIsButtonHovered(false)}
-			>
-				Start 30 Days Free Trial
-			</button>
+			<button style={styles.button} onClick={onStartTrial}>Start 30 Days Free Trial</button>
 		</div>);
 }
 

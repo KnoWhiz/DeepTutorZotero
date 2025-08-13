@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
+import React from "react";
 
 const SKY = "#0687E5";
 const styles = {
@@ -83,20 +82,6 @@ const styles = {
  * @param {() => void} props.onCancel - Called when user clicks Cancel
  */
 export default function DeepTutorProcessingSubscription({ onContinue, onCancel }) {
-	const { colors } = useDeepTutorTheme();
-	const [isContinueHovered, setIsContinueHovered] = useState(false);
-	const [isCancelHovered, setIsCancelHovered] = useState(false);
-
-	const continueButtonDynamicStyle = {
-		...styles.button,
-		background: isContinueHovered ? colors.button.primaryHover : colors.button.primary,
-	};
-
-	const cancelButtonDynamicStyle = {
-		...styles.cancelButton,
-		background: isCancelHovered ? colors.background.quaternary : colors.button.secondary,
-	};
-
 	return (
 		<div style={styles.container}>
 			<div style={styles.contentFrame}>
@@ -106,22 +91,8 @@ export default function DeepTutorProcessingSubscription({ onContinue, onCancel }
 					Once done, come back here and click &apos;Continue&apos;.
 				</div>
 				<div style={styles.buttonCol}>
-					<button 
-						style={continueButtonDynamicStyle} 
-						onClick={onContinue}
-						onMouseEnter={() => setIsContinueHovered(true)}
-						onMouseLeave={() => setIsContinueHovered(false)}
-					>
-						Continue
-					</button>
-					<button 
-						style={cancelButtonDynamicStyle} 
-						onClick={onCancel}
-						onMouseEnter={() => setIsCancelHovered(true)}
-						onMouseLeave={() => setIsCancelHovered(false)}
-					>
-						Cancel
-					</button>
+					<button style={styles.button} onClick={onContinue}>Continue</button>
+					<button style={styles.cancelButton} onClick={onCancel}>Cancel</button>
 				</div>
 			</div>
 		</div>
