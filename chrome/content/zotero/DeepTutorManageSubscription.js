@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
+import React from 'react';
 
 const SKY = '#0687E5';
 const styles = {
@@ -82,20 +81,6 @@ const styles = {
 };
 
 export default function DeepTutorManageSubscription({ imagePath, onManage, onCancel }) {
-	const { colors } = useDeepTutorTheme();
-	const [isManageHovered, setIsManageHovered] = useState(false);
-	const [isCancelHovered, setIsCancelHovered] = useState(false);
-
-	const manageButtonDynamicStyle = {
-		...styles.button,
-		background: isManageHovered ? colors.button.primaryHover : colors.button.primary,
-	};
-
-	const cancelButtonDynamicStyle = {
-		...styles.cancelButton,
-		background: isCancelHovered ? colors.background.quaternary : colors.button.secondary,
-	};
-
 	return (
 		<div style={styles.container}>
 			<img src={imagePath} alt="Manage Subscription" style={styles.image} />
@@ -104,22 +89,8 @@ export default function DeepTutorManageSubscription({ imagePath, onManage, onCan
         changing your billing information, view your payment history,
         or cancel your subscription here.
 			</div>
-			<button 
-				style={manageButtonDynamicStyle} 
-				onClick={onManage}
-				onMouseEnter={() => setIsManageHovered(true)}
-				onMouseLeave={() => setIsManageHovered(false)}
-			>
-				Manage
-			</button>
-			<button 
-				style={cancelButtonDynamicStyle} 
-				onClick={onCancel}
-				onMouseEnter={() => setIsCancelHovered(true)}
-				onMouseLeave={() => setIsCancelHovered(false)}
-			>
-				Cancel
-			</button>
+			<button style={styles.button} onClick={onManage}>Manage</button>
+			<button style={styles.cancelButton} onClick={onCancel}>Cancel</button>
 		</div>
 	);
 }

@@ -269,7 +269,7 @@ function SessionHistory({ sessions = [], onSessionSelect, isLoading = false, err
 	const createSessionButtonDynamicStyle = {
 		...createSessionButtonStyle,
 		background: isCreateSessionHovered
-			? colors.background.quaternary
+			? (isDark ? '#1A8CD8' : '#E6F3FF')
 			: '#FFFFFF',
 	};
 
