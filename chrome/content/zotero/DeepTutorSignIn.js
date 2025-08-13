@@ -256,7 +256,7 @@ export default function DeepTutorSignIn({ onSignInSignUp, onSignInSuccess, local
 
 	const signInButtonDynamicStyle = {
 		...styles.signInButton,
-		background: isSignInHovered ? '#007BD5' : SKY,
+		background: isSignInHovered ? colors.button.primaryHover : colors.button.primary,
 		...(isLoading ? styles.signInButtonDisabled : {})
 	};
 
