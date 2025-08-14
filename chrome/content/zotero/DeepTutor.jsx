@@ -111,6 +111,7 @@ class DeepTutorSession {
 }
 
 var DeepTutor = class DeepTutor extends React.Component {
+
 	/**
 	 * Initialize the DeepTutor React component in the given DOM element.
 	 * @param {Element} domEl - The DOM element to render into
@@ -575,8 +576,6 @@ var DeepTutor = class DeepTutor extends React.Component {
 		}));
 	};
 
-
-
 	toggleModelSelectionPopup = () => {
 		this.setState(prevState => ({
 			showModelSelectionPopup: !prevState.showModelSelectionPopup
@@ -881,8 +880,6 @@ var DeepTutor = class DeepTutor extends React.Component {
 			}
 		}
 	};
-
-
 
 	async loadSession() {
 		// Only load sessions if user is authenticated
@@ -1497,6 +1494,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 				showNoPDFWarningPopup={this.state.showNoPDFWarningPopup}
 				showSubscriptionConfirmPopup={this.state.showSubscriptionConfirmPopup}
 				showManageSubscriptionPopup={this.state.showManageSubscriptionPopup}
+				showSubscriptionPopup={this.state.showSubscriptionPopup}
 				
 				// Session props
 				sessionToDelete={this.state.sessionToDelete}

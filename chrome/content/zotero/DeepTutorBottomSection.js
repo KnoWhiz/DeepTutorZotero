@@ -183,8 +183,8 @@ const DeepTutorBottomSection = (props) => {
 		},
 	};
 
-	// Temporarily hide subscription button - set to true to show it again
-	const showSubscriptionButton = false;
+    // Show subscription button
+    const showSubscriptionButton = true;
 
 	const handleUpgradeMouseEnter = () => {
 		setIsUpgradeHovered(true);
@@ -262,14 +262,11 @@ const DeepTutorBottomSection = (props) => {
 			background: isUpgradeHovered ? colors.button.primaryHover : colors.button.primary,
 		};
 
-		// Determine button text based on subscription status
-		let buttonText = "Upgrade";
-		if (props.userSubscribed) {
-			buttonText = "Premium";
-		}
-		else if (props.isFreeTrial) {
-			buttonText = "Start Trial";
-		}
+        // Determine button text based on subscription status
+        let buttonText = "Upgrade";
+        if (props.userSubscribed) {
+            buttonText = "Manage";
+        }
 
 		return (
 			<div style={styles.contentWrapper}>
@@ -377,7 +374,7 @@ const DeepTutorBottomSection = (props) => {
 							</button>
 							{renderProfilePopup()}
 						</div>
-						{/* Temporarily hide subscription button - set to true to show it again */}
+                        {/* Subscription button */}
 						{showSubscriptionButton && (
 							<button
 								style={upgradeButtonDynamicStyle}
