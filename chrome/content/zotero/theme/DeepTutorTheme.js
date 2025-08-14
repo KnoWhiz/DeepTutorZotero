@@ -48,7 +48,7 @@ const DeepTutorColors = {
 			secondary: "#FFFFFF",
 			disabled: "#CCCCCC",
 			hover: "#f0f8ff",
-			primaryHover: "#0570c0",
+			primaryHover: "#2B99E8",
 			primaryText: "#FFFFFF",
 			secondaryText: "#1C1B1F",
 			secondaryBorder: "#0687E5"
@@ -265,4 +265,4 @@ class DeepTutorThemeManager {
 const themeManager = new DeepTutorThemeManager();
 
 // Export for use in components
-export { DeepTutorColors, DeepTutorThemeManager, themeManager }; 
+export { DeepTutorColors, DeepTutorThemeManager, themeManager };

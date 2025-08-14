@@ -376,7 +376,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			left: 0,
 			right: 0,
 			background: theme === 'light' ? '#FFFFFF' : colors.background.tertiary,
-			border: 'none',
+			border: `0.0625rem solid ${colors.border.primary}`,
 			borderRadius: '0.5rem',
 			boxShadow: '0 0.125rem 0.25rem rgba(0,0,0,0.1)',
 			zIndex: 1000,
@@ -2001,7 +2001,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 						overflow: hidden !important;
 					}
 					.deeptutor-source-button:hover {
-						background: ${colors.button.hover} !important;
+						background: ${colors.button.primaryHover} !important;
 						opacity: 0.8 !important;
 						transform: scale(1.05) !important;
 						box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.15) !important;
