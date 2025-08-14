@@ -110,7 +110,7 @@ const SendIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_SEND.s
 const StopIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_STOP.svg';
 const ArrowDownPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/CHAT_ARROWDOWN.svg';
 const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
-	const { colors, theme } = useDeepTutorTheme();
+	const { colors, theme, isDark } = useDeepTutorTheme();
 	
 	// Theme-aware styles
 	const styles = {
@@ -376,7 +376,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			left: 0,
 			right: 0,
 			background: theme === 'light' ? '#FFFFFF' : colors.background.tertiary,
-			border: `0.0625rem solid ${colors.border.primary}`,
+			border: 'none',
 			borderRadius: '0.5rem',
 			boxShadow: '0 0.125rem 0.25rem rgba(0,0,0,0.1)',
 			zIndex: 1000,

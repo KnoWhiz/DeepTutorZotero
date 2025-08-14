@@ -124,6 +124,11 @@ const DeepTutorColors = {
 			secondaryBorder: "#BDBDBD"
 		},
 		
+		// Popup colors
+		popup: {
+			border: "#33A9FF" // Same as primary button background for consistency
+		},
+		
 		// Message colors
 		message: {
 			user: "#1C1B1F",

@@ -371,7 +371,7 @@ export function generateDeepTutorStyles(theme = "light") {
 			backgroundClip: "text",
 			color: colors.red,
 			fontWeight: 700,
-			fontSize: "1.25rem",
+			fontSize: "1.5rem",
 			lineHeight: "100%",
 			letterSpacing: "0%",
 			textAlign: "center",
