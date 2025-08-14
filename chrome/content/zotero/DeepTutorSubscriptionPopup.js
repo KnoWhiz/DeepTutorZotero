@@ -10,7 +10,7 @@ const PopupClosePath = "chrome://zotero/content/DeepTutorMaterials/Main/MAIN_CLO
  * Popup to select plan: Free, Pro, Premium. Each tab shows different content and action.
  */
 export default function DeepTutorSubscriptionPopup({ onClose, onAction }) {
-	const { colors } = useDeepTutorTheme();
+	const { colors, isDark } = useDeepTutorTheme();
 	const [activeTab, setActiveTab] = useState("premium"); // "free" | "pro" | "premium"
 
 	const styles = {
@@ -21,7 +21,8 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction }) {
 			maxWidth: "28rem",
 			width: "100%",
 			position: "relative",
-			boxSizing: "border-box"
+			boxSizing: "border-box",
+			border: isDark ? "1px solid #0687E5" : "none"
 		},
 		title: {
 			width: "100%",
@@ -69,7 +70,10 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction }) {
 			fontFamily: "Roboto, Inter, Arial, sans-serif",
 			border: `1px solid ${colors.border.primary}`,
 			background: colors.background.quaternary,
-			color: colors.text.allText
+			color: colors.text.allText,
+			display: "flex",
+			alignItems: "center",
+			justifyContent: "center"
 		},
 		tabActive: {
 			background: colors.button.primary,
@@ -176,9 +180,10 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction }) {
 				<p style={styles.monthly}>per month</p>
 			</div>
 			<div style={styles.featureList}>
-				<div style={styles.feature}>• Limited sessions</div>
-				<div style={styles.feature}>• Lite Mode only</div>
-				<div style={styles.feature}>• Smaller documents</div>
+				<div style={styles.feature}>✅ Standard Mode</div>
+				<div style={styles.feature}>✅ Up to 5 new sessions / week</div>
+				<div style={styles.feature}>✅ 1 context file per session</div>
+				<div style={styles.feature}>✅ Up to 10MB per file</div>
 			</div>
 		</div>
 	);
@@ -187,13 +192,14 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction }) {
 		<div style={styles.content}>
 			<div style={styles.planTitle}>Pro</div>
 			<div style={styles.priceRow}>
-				<p style={styles.price}>$TBD</p>
+				<p style={styles.price}>$9.99</p>
 				<p style={styles.monthly}>per month</p>
 			</div>
 			<div style={styles.featureList}>
-				<div style={styles.feature}>• More sessions than Free</div>
-				<div style={styles.feature}>• Standard Mode access</div>
-				<div style={styles.feature}>• Larger document limits</div>
+				<div style={styles.feature}>✅ Standard + Advanced Mode</div>
+				<div style={styles.feature}>✅ Up to 200 new sessions / month</div>
+				<div style={styles.feature}>✅ Up to 10 context files per session</div>
+				<div style={styles.feature}>✅ Up to 50MB per file</div>
 			</div>
 		</div>
 	);
@@ -203,13 +209,13 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction }) {
 			<div style={styles.planTitle}>Premium</div>
 			<div style={styles.priceRow}>
 				<p style={styles.price}>$14.99</p>
-				<p style={styles.monthly}>monthly</p>
+				<p style={styles.monthly}>per month</p>
 			</div>
 			<div style={styles.featureList}>
-				<div style={styles.feature}>✅ Unlimited Lite Mode</div>
-				<div style={styles.feature}>✅ Unlimited Standard Mode sessions</div>
-				<div style={styles.feature}>✅ Unlimited Advanced Mode sessions</div>
-				<div style={styles.feature}>✅ Up to 100 pages and 30Mb/file</div>
+				<div style={styles.feature}>✅ Standard + Advanced Mode</div>
+				<div style={styles.feature}>✅ Unlimited new sessions</div>
+				<div style={styles.feature}>✅ Up to 20 context files per session</div>
+				<div style={styles.feature}>✅ Up to 100MB per file</div>
 			</div>
 		</div>
 	);
@@ -244,7 +250,6 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction }) {
 			{activeTab === "premium" && renderPremium()}
 
 			<div style={styles.footer}>
-				<button style={styles.secondaryButton} onClick={onClose}>Cancel</button>
 				<button style={styles.primaryButton} onClick={handlePrimary}>{getPrimaryText()}</button>
 			</div>
 		</div>
