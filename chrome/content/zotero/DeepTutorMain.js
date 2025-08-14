@@ -13,6 +13,8 @@ import DeepTutorNoSessionPane from './DeepTutorNoSessionPane.js';
 import DeepTutorSessionDelete from './DeepTutorSessionDelete.js';
 import DeepTutorRenameSession from './DeepTutorRenameSession.js';
 import DeepTutorNoPDFWarning from './DeepTutorNoPDFWarning.js';
+import DeepTutorSubscriptionPopup from './DeepTutorSubscriptionPopup.js';
+import { DT_BASE_URL } from './api/libs/api.js';
 
 // Icon paths for popup close buttons
 const PopupClosePath = 'chrome://zotero/content/DeepTutorMaterials/Main/MAIN_CLOSE.svg';
@@ -535,6 +537,65 @@ const DeepTutorMain = (props) => {
 				</div>
 			)}
 
+			{props.showSubscriptionPopup && (
+				<div style={{
+					position: 'absolute',
+					top: 0,
+					left: 0,
+					right: 0,
+					bottom: 0,
+					background: 'rgba(0, 0, 0, 0.5)',
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+					zIndex: 1000,
+				}}>
+					<DeepTutorSubscriptionPopup
+						onClose={props.toggleSubscriptionPopup}
+						onAction={(plan) => {
+							// Open different URLs based on selected plan
+							let url = `https://${DT_BASE_URL}/dzSubscription`;
+							if (plan === 'pro') {
+								url = `https://${DT_BASE_URL}/dzSubscription?plan=pro`;
+							}
+							else if (plan === 'free') {
+								// No external action for free; simply close
+								props.toggleSubscriptionPopup();
+								return;
+							}
+
+							try {
+								Zotero.launchURL(url);
+							}
+							catch (error) {
+								Zotero.debug(`DeepTutor: Error opening subscription URL: ${error.message}`);
+								try {
+									if (Zotero.Utilities && Zotero.Utilities.Internal && Zotero.Utilities.Internal.launchURL) {
+										Zotero.Utilities.Internal.launchURL(url);
+									}
+									else {
+										throw new Error('No launchURL available');
+									}
+								}
+								catch (fallbackError) {
+									Zotero.debug(`DeepTutor: Fallback launchURL failed: ${fallbackError.message}`);
+									if (navigator.clipboard) {
+										navigator.clipboard.writeText(url).then(() => {
+											Zotero.alert(null, 'DeepTutor', 'Subscription URL copied to clipboard!');
+										});
+									}
+									else {
+										Zotero.alert(null, 'DeepTutor', `Please manually open this URL:\n${url}`);
+									}
+								}
+							}
+							finally {
+								props.toggleSubscriptionPopup();
+							}
+						}}
+					/>
+				</div>
+			)}
 			{props.showManageSubscriptionPopup && (
 				<div style={{
 					position: 'absolute',
@@ -688,6 +749,7 @@ DeepTutorMain.propTypes = {
 	showNoPDFWarningPopup: PropTypes.bool.isRequired,
 	showSubscriptionConfirmPopup: PropTypes.bool.isRequired,
 	showManageSubscriptionPopup: PropTypes.bool.isRequired,
+	showSubscriptionPopup: PropTypes.bool.isRequired,
 
 	// Session props
 	sessionToDelete: PropTypes.string,
