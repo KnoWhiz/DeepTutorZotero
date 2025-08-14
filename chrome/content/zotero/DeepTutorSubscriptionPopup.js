@@ -1,17 +1,46 @@
-import React, { useState } from "react"; // eslint-disable-line no-unused-vars
+import React, { useEffect, useState } from "react"; // eslint-disable-line no-unused-vars
 import PropTypes from "prop-types";
 import { useDeepTutorTheme } from "./theme/useDeepTutorTheme.js";
+import { getActiveUserSubscriptionByUserId } from "./api/libs/api.js";
 
-// Close icon path (matches other popups)
+// Close icon paths (match other popups)
 const PopupClosePath = "chrome://zotero/content/DeepTutorMaterials/Main/MAIN_CLOSE.svg";
+const PopupCloseDarkPath = "chrome://zotero/content/DeepTutorMaterials/Main/CLOSE_DARK.svg";
 
 /**
  * DeepTutorSubscriptionPopup
  * Popup to select plan: Free, Pro, Premium. Each tab shows different content and action.
  */
-export default function DeepTutorSubscriptionPopup({ onClose, onAction }) {
+export default function DeepTutorSubscriptionPopup({ onClose, onAction, userId }) {
 	const { colors, isDark } = useDeepTutorTheme();
-	const [activeTab, setActiveTab] = useState("premium"); // "free" | "pro" | "premium"
+	const closePath = isDark ? PopupCloseDarkPath : PopupClosePath;
+	const [currentPlan, setCurrentPlan] = useState(null); // 'free' | 'pro' | 'premium' | null
+
+	useEffect(() => {
+		let mounted = true;
+		(async () => {
+			try {
+				if (!userId) {
+					setCurrentPlan("free");
+					return;
+				}
+				const active = await getActiveUserSubscriptionByUserId(userId);
+				if (!mounted) return;
+				// Expect API to return plan info; fallback to mapping by productName/plan field
+				const plan = (active && (active.plan || active.productName || "")).toString().toLowerCase();
+				if (plan.includes("premium")) setCurrentPlan("premium");
+				else if (plan.includes("pro")) setCurrentPlan("pro");
+				else setCurrentPlan("free");
+			}
+			catch {
+				if (mounted) setCurrentPlan("free");
+			}
+		})();
+		return () => {
+			mounted = false;
+		};
+	}, [userId]);
+	const [activeTab, setActiveTab] = useState("pro"); // "free" | "pro" | "premium"
 
 	const styles = {
 		container: {
@@ -22,6 +51,7 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction }) {
 			width: "100%",
 			position: "relative",
 			boxSizing: "border-box",
+			fontFamily: "Roboto, sans-serif",
 			border: isDark ? "1px solid #0687E5" : "none"
 		},
 		title: {
@@ -57,8 +87,11 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction }) {
 			flexDirection: "row",
 			alignItems: "center",
 			justifyContent: "space-between",
-			gap: "0.375rem",
-			marginBottom: "1rem"
+			gap: 0,
+			marginBottom: "1rem",
+			width: "90%",
+			marginLeft: "auto",
+			marginRight: "auto"
 		},
 		tab: {
 			flex: 1,
@@ -66,19 +99,18 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction }) {
 			textAlign: "center",
 			borderRadius: "0.375rem",
 			cursor: "pointer",
-			fontWeight: 600,
-			fontFamily: "Roboto, Inter, Arial, sans-serif",
-			border: `1px solid ${colors.border.primary}`,
-			background: colors.background.quaternary,
-			color: colors.text.allText,
+			fontWeight: 400,
+			fontSize: "16px",
+			fontFamily: "Roboto, sans-serif",
+			background: isDark ? "#2B2B2B" : "#F8F6F7",
+			color: isDark ? "#BBBBBB" : "#757575",
 			display: "flex",
 			alignItems: "center",
 			justifyContent: "center"
 		},
 		tabActive: {
-			background: colors.button.primary,
-			color: colors.button.primaryText,
-			border: `1px solid ${colors.button.primary}`
+			background: isDark ? "#4A4A4A" : "#D9D9D9",
+			color: isDark ? "#FFFFFF" : "#000000"
 		},
 		content: {
 			display: "flex",
@@ -86,35 +118,53 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction }) {
 			gap: "0.75rem",
 			marginBottom: "1rem"
 		},
-		planTitle: {
-			color: "#0687E5",
-			fontWeight: 700,
-			fontSize: "1rem",
-			lineHeight: "1.4375rem",
-			textAlign: "left",
+		planHeaderRow: {
+			display: "flex",
+			flexDirection: "row",
+			alignItems: "center",
+			gap: "0.5rem",
 			width: "100%",
 			marginBottom: "0.25rem"
+		},
+		planTitle: {
+			color: isDark ? "#FFFFFF" : "#292929",
+			fontWeight: 500,
+			fontSize: "1.25rem",
+			lineHeight: "1.4375rem",
+			textAlign: "left",
+			fontFamily: "Roboto, sans-serif"
+		},
+		bestDealBadge: {
+			background: "#0687E5",
+			color: "#FFFFFF",
+			fontWeight: 700,
+			fontSize: "12px",
+			padding: "2px 6px",
+			borderRadius: "0.375rem"
 		},
 		priceRow: {
 			display: "flex",
 			flexDirection: "row",
-			alignItems: "flex-end",
+			alignItems: "baseline",
 			gap: "0.5rem",
-			marginBottom: "0.75rem"
+			marginTop: 0,
+			marginBottom: 0
 		},
 		price: {
 			fontWeight: 700,
-			fontSize: "2rem",
+			fontSize: "4rem",
 			color: colors.text.allText,
 			margin: 0,
 			display: "flex",
-			alignItems: "center"
+			alignItems: "center",
+			fontFamily: "Roboto, sans-serif"
 		},
 		monthly: {
-			color: colors.text.tertiary,
-			fontWeight: 500,
-			fontSize: "0.875rem",
-			margin: 0
+			color: "#757575",
+			fontWeight: 400,
+			fontSize: "1rem",
+			margin: 0,
+			fontFamily: "Roboto, sans-serif"
 		},
 		featureList: {
 			display: "flex",
@@ -125,7 +175,8 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction }) {
 			fontSize: "0.9rem",
 			lineHeight: "1.375rem",
 			color: colors.text.allText,
-			fontWeight: 500
+			fontWeight: 500,
+			fontFamily: "Roboto, sans-serif"
 		},
 		footer: {
 			display: "flex",
@@ -141,10 +192,23 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction }) {
 			border: "none",
 			borderRadius: "0.5rem",
 			padding: "0.75rem 1rem",
-			fontWeight: 700,
-			fontSize: "1rem",
+			fontWeight: 500,
+			fontSize: "16px",
 			cursor: "pointer",
 			boxShadow: "0 0.0625rem 0.125rem rgba(0,0,0,0.08)",
+			fontFamily: "Roboto, sans-serif"
+		},
+		currentPlanButton: {
+			all: "revert",
+			flex: 1,
+			background: "#FFFFFF",
+			color: "#757575",
+			border: "1px solid #757575",
+			borderRadius: "0.5rem",
+			padding: "0.75rem 1rem",
+			fontWeight: 500,
+			fontSize: "16px",
+			cursor: "default",
 			fontFamily: "Roboto, sans-serif"
 		},
 		secondaryButton: {
@@ -165,7 +229,7 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction }) {
 	const renderTabButton = (tabKey, label) => (
 		<button
 			key={tabKey}
-			style={activeTab === tabKey ? { ...styles.tab, ...styles.tabActive } : styles.tab}
+			style={activeTab === tabKey ? { ...styles.tab, ...styles.tabActive, border: 'none' } : { ...styles.tab, border: 'none' }}
 			onClick={() => setActiveTab(tabKey)}
 		>
 			{label}
@@ -177,7 +241,7 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction }) {
 			<div style={styles.planTitle}>Free</div>
 			<div style={styles.priceRow}>
 				<p style={styles.price}>$0</p>
-				<p style={styles.monthly}>per month</p>
+				<p style={styles.monthly}>/month</p>
 			</div>
 			<div style={styles.featureList}>
 				<div style={styles.feature}>✅ Standard Mode</div>
@@ -190,10 +254,13 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction }) {
 
 	const renderPro = () => (
 		<div style={styles.content}>
-			<div style={styles.planTitle}>Pro</div>
+			<div style={styles.planHeaderRow}>
+				<div style={styles.planTitle}>Pro</div>
+				<div style={styles.bestDealBadge}>BEST DEAL</div>
+			</div>
 			<div style={styles.priceRow}>
 				<p style={styles.price}>$9.99</p>
-				<p style={styles.monthly}>per month</p>
+				<p style={styles.monthly}>/month</p>
 			</div>
 			<div style={styles.featureList}>
 				<div style={styles.feature}>✅ Standard + Advanced Mode</div>
@@ -206,10 +273,12 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction }) {
 
 	const renderPremium = () => (
 		<div style={styles.content}>
-			<div style={styles.planTitle}>Premium</div>
+			<div style={styles.planHeaderRow}>
+				<div style={styles.planTitle}>Premium</div>
+			</div>
 			<div style={styles.priceRow}>
 				<p style={styles.price}>$14.99</p>
-				<p style={styles.monthly}>per month</p>
+				<p style={styles.monthly}>/month</p>
 			</div>
 			<div style={styles.featureList}>
 				<div style={styles.feature}>✅ Standard + Advanced Mode</div>
@@ -221,6 +290,7 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction }) {
 	);
 
 	const getPrimaryText = () => {
+		if (currentPlan && activeTab === currentPlan) return "Current Plan";
 		if (activeTab === "free") return "Continue with Free";
 		if (activeTab === "pro") return "Get Pro";
 		return "Get Premium";
@@ -228,6 +298,9 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction }) {
 
 	const handlePrimary = () => {
 		try {
+			if (currentPlan && activeTab === currentPlan) {
+				return; // no-op for current plan
+			}
 			onAction(activeTab);
 		}
 		catch { }
@@ -237,7 +310,7 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction }) {
 		<div style={styles.container}>
 			<div style={styles.title}>Upgrade Your Plan</div>
 			<button style={styles.closeButton} onClick={onClose}>
-				<img src={PopupClosePath} alt="Close" style={{ width: "1rem", height: "1rem" }} />
+				<img src={closePath} alt="Close" style={{ width: "1rem", height: "1rem" }} />
 			</button>
 			<div style={styles.tabs}>
 				{renderTabButton("free", "Free")}
@@ -250,7 +323,12 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction }) {
 			{activeTab === "premium" && renderPremium()}
 
 			<div style={styles.footer}>
-				<button style={styles.primaryButton} onClick={handlePrimary}>{getPrimaryText()}</button>
+				<button
+					style={currentPlan && activeTab === currentPlan ? styles.currentPlanButton : styles.primaryButton}
+					onClick={handlePrimary}
+				>
+					{getPrimaryText()}
+				</button>
 			</div>
 		</div>
 	);
@@ -263,7 +341,10 @@ DeepTutorSubscriptionPopup.propTypes = {
 	onClose: PropTypes.func.isRequired,
 
 	/** Called when user confirms on a plan; receives one of: "free" | "pro" | "premium" */
-	onAction: PropTypes.func
+	onAction: PropTypes.func,
+
+	/** User id for resolving current plan */
+	userId: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
 };
 
 DeepTutorSubscriptionPopup.defaultProps = {

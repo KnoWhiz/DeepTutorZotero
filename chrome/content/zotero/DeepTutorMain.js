@@ -593,6 +593,7 @@ const DeepTutorMain = (props) => {
 								props.toggleSubscriptionPopup();
 							}
 						}}
+						userId={props.userData && props.userData.id}
 					/>
 				</div>
 			)}
