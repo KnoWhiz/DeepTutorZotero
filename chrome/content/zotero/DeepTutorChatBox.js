@@ -2348,7 +2348,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 						...styles.textInput,
 						opacity: iniWait ? 0.5 : 1,
 						cursor: iniWait ? "not-allowed" : "text",
-						color: colors.text.tertiary
+						color: colors.text.primary
 					}}
 					value={inputValue}
 					onChange={handleInputChange}

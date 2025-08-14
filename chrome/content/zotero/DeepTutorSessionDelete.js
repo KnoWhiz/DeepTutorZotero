@@ -130,7 +130,7 @@ export default function DeepTutorSessionDelete({
 			width: '100%',
 		},
 		cancelButtonHover: {
-			background: isDark ? '#1A8CD8' : '#F8F6F7',
+			background: colors.background.quaternary,
 		}
 	};
 

@@ -117,8 +117,8 @@ const DeepTutorColors = {
 			primary: "#33A9FF",
 			secondary: "#1C1B1F",
 			disabled: "#666666",
-			hover: "#0570c0",
-			primaryHover: "#0570c0",
+			hover: "#4DB8FF",
+			primaryHover: "#4DB8FF",
 			primaryText: "#1C1B1F",
 			secondaryText: "#BDBDBD",
 			secondaryBorder: "#BDBDBD"
@@ -126,8 +126,8 @@ const DeepTutorColors = {
 		
 		// Message colors
 		message: {
-			user: "#33A9FF",
-			bot: "#2A2A2E",
+			user: "#1C1B1F",
+			bot: "transparent",
 			userText: "#FFFFFF",
 			botText: "#E1E1E1"
 		},
