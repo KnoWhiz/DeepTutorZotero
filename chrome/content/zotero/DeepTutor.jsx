@@ -192,6 +192,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 			userData: null,
 			userSubscribed: false,
 			isFreeTrial: true,
+			activeSubscription: null,
 			// Model selection freezing state
 			modelSelectionFrozen: false,
 			// Window dimensions for responsive layout
@@ -705,18 +706,34 @@ var DeepTutor = class DeepTutor extends React.Component {
 			// Update the subscription status in state
 			this.setState({ userSubscribed: hasActiveSubscription });
 
-			// If user now has subscription, also update isFreeTrial status
-			if (hasActiveSubscription) {
-				this.setState({ isFreeTrial: false });
+			// If user now has subscription, also update isFreeTrial status and fetch active subscription
+			if (hasActiveSubscription && this.state.userData?.id) {
+				try {
+					const activeSubscription = await getActiveUserSubscriptionByUserId(this.state.userData.id);
+					this.setState({
+						isFreeTrial: false,
+						activeSubscription
+					});
+				}
+				catch (error) {
+					Zotero.debug(`DeepTutor: Error fetching active subscription: ${error.message}`);
+					this.setState({ isFreeTrial: false });
+				}
 			}
 			else if (this.state.userData?.id) {
 				try {
 					const latestSubscription = await getLatestUserSubscriptionByUserId(this.state.userData.id);
-					this.setState({ isFreeTrial: !latestSubscription });
+					this.setState({
+						isFreeTrial: !latestSubscription,
+						activeSubscription: null
+					});
 				}
 				catch (error) {
 					Zotero.debug(`DeepTutor: Error checking latest subscription: ${error.message}`);
-					this.setState({ isFreeTrial: true });
+					this.setState({
+						isFreeTrial: true,
+						activeSubscription: null
+					});
 				}
 			}
 		}
@@ -739,8 +756,9 @@ var DeepTutor = class DeepTutor extends React.Component {
 
 			// Check active subscription
 			let userSubscribed = false;
+			let activeSubscription = null;
 			try {
-				const activeSubscription = await getActiveUserSubscriptionByUserId(this.state.userData.id);
+				activeSubscription = await getActiveUserSubscriptionByUserId(this.state.userData.id);
 				userSubscribed = !!activeSubscription;
 				Zotero.debug('DeepTutor: Active subscription status:', userSubscribed);
 			}
@@ -762,7 +780,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 			// Update state with fresh subscription data
 			this.setState({
 				userSubscribed,
-				isFreeTrial
+				isFreeTrial,
+				activeSubscription
 			});
 
 			Zotero.debug("DeepTutor: Subscription data refreshed successfully");
@@ -777,8 +796,13 @@ var DeepTutor = class DeepTutor extends React.Component {
 			Zotero.debug("DeepTutor: Signing out user");
 			await signOut();
 
-			// Close profile popup
-			this.setState({ showProfilePopup: false });
+			// Close profile popup and clear subscription data
+			this.setState({
+				showProfilePopup: false,
+				activeSubscription: null,
+				userSubscribed: false,
+				isFreeTrial: true
+			});
 
 			Zotero.debug("DeepTutor: Sign out successful");
 		}
@@ -1063,8 +1087,9 @@ var DeepTutor = class DeepTutor extends React.Component {
 
 			// Check active subscription
 			let userSubscribed = false;
+			let activeSubscription = null;
 			try {
-				const activeSubscription = await getActiveUserSubscriptionByUserId(userData.id);
+				activeSubscription = await getActiveUserSubscriptionByUserId(userData.id);
 				userSubscribed = !!activeSubscription;
 				Zotero.debug('DeepTutor: Active subscription status:', userSubscribed);
 			}
@@ -1087,7 +1112,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 			this.setState({
 				userData,
 				userSubscribed,
-				isFreeTrial
+				isFreeTrial,
+				activeSubscription
 			});
 
 			// Wait a moment for all setState operations to complete, then switch panes
@@ -1334,8 +1360,9 @@ var DeepTutor = class DeepTutor extends React.Component {
 
 			// Check active subscription
 			let userSubscribed = false;
+			let activeSubscription = null;
 			try {
-				const activeSubscription = await getActiveUserSubscriptionByUserId(userData.id);
+				activeSubscription = await getActiveUserSubscriptionByUserId(userData.id);
 				userSubscribed = !!activeSubscription;
 				Zotero.debug('DeepTutor: Active subscription status:', userSubscribed);
 			}
@@ -1358,7 +1385,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 			this.setState({
 				userData,
 				userSubscribed,
-				isFreeTrial
+				isFreeTrial,
+				activeSubscription
 			});
 			return userData;
 		}
@@ -1378,7 +1406,10 @@ var DeepTutor = class DeepTutor extends React.Component {
 					isAuthenticated: false,
 					currentUser: null,
 					currentPane: 'welcome',
-					authError: 'Session expired, please sign in again'
+					authError: 'Session expired, please sign in again',
+					activeSubscription: null,
+					userSubscribed: false,
+					isFreeTrial: true
 				});
 			}
 
@@ -1483,6 +1514,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 				userData={this.state.userData}
 				userSubscribed={this.state.userSubscribed}
 				isFreeTrial={this.state.isFreeTrial}
+				activeSubscription={this.state.activeSubscription}
 				
 				// Popup state props
 				showProfilePopup={this.state.showProfilePopup}
