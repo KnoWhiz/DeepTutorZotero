@@ -307,6 +307,7 @@ const DeepTutorMain = (props) => {
 				userData={props.userData}
 				userSubscribed={props.userSubscribed}
 				isFreeTrial={props.isFreeTrial}
+				activeSubscription={props.activeSubscription}
 			/>
 
 			{/* Popups */}
@@ -594,6 +595,7 @@ const DeepTutorMain = (props) => {
 							}
 						}}
 						userId={props.userData && props.userData.id}
+						activeSubscription={props.activeSubscription}
 					/>
 				</div>
 			)}
@@ -739,6 +741,7 @@ DeepTutorMain.propTypes = {
 	userData: PropTypes.object,
 	userSubscribed: PropTypes.bool.isRequired,
 	isFreeTrial: PropTypes.bool.isRequired,
+	activeSubscription: PropTypes.object,
 
 	// Popup state props
 	showProfilePopup: PropTypes.bool.isRequired,

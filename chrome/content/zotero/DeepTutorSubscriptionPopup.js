@@ -7,11 +7,15 @@ import { getActiveUserSubscriptionByUserId } from "./api/libs/api.js";
 const PopupClosePath = "chrome://zotero/content/DeepTutorMaterials/Main/MAIN_CLOSE.svg";
 const PopupCloseDarkPath = "chrome://zotero/content/DeepTutorMaterials/Main/CLOSE_DARK.svg";
 
+// Arrow icon paths for upgrade buttons
+const ArrowForwardPath = "chrome://zotero/content/DeepTutorMaterials/Subscription/arrow_forward.svg";
+const ArrowForwardDarkPath = "chrome://zotero/content/DeepTutorMaterials/Subscription/arrow_forward_dark.svg";
+
 /**
  * DeepTutorSubscriptionPopup
  * Popup to select plan: Free, Pro, Premium. Each tab shows different content and action.
  */
-export default function DeepTutorSubscriptionPopup({ onClose, onAction, userId }) {
+export default function DeepTutorSubscriptionPopup({ onClose, onAction, userId, activeSubscription }) {
 	const { colors, isDark } = useDeepTutorTheme();
 	const closePath = isDark ? PopupCloseDarkPath : PopupClosePath;
 	const [currentPlan, setCurrentPlan] = useState(null); // 'free' | 'pro' | 'premium' | null
@@ -24,13 +28,30 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction, userId }
 					setCurrentPlan("free");
 					return;
 				}
-				const active = await getActiveUserSubscriptionByUserId(userId);
+				
+				// Use activeSubscription prop if available, otherwise fetch from API
+				let active = activeSubscription;
+				if (!active) {
+					active = await getActiveUserSubscriptionByUserId(userId);
+				}
+				
 				if (!mounted) return;
-				// Expect API to return plan info; fallback to mapping by productName/plan field
-				const plan = (active && (active.plan || active.productName || "")).toString().toLowerCase();
-				if (plan.includes("premium")) setCurrentPlan("premium");
-				else if (plan.includes("pro")) setCurrentPlan("pro");
-				else setCurrentPlan("free");
+				
+				// Determine current plan from subscription type
+				if (active && active.type) {
+					const subscriptionType = active.type.toUpperCase();
+					if (subscriptionType === "PREMIUM") {
+						setCurrentPlan("premium");
+					} else if (subscriptionType === "PLUS") {
+						setCurrentPlan("pro");
+					} else if (subscriptionType === "BASIC") {
+						setCurrentPlan("free");
+					} else {
+						setCurrentPlan("free");
+					}
+				} else {
+					setCurrentPlan("free");
+				}
 			}
 			catch {
 				if (mounted) setCurrentPlan("free");
@@ -39,7 +60,7 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction, userId }
 		return () => {
 			mounted = false;
 		};
-	}, [userId]);
+	}, [userId, activeSubscription]);
 	const [activeTab, setActiveTab] = useState("pro"); // "free" | "pro" | "premium"
 
 	const styles = {
@@ -196,7 +217,11 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction, userId }
 			fontSize: "16px",
 			cursor: "pointer",
 			boxShadow: "0 0.0625rem 0.125rem rgba(0,0,0,0.08)",
-			fontFamily: "Roboto, sans-serif"
+			fontFamily: "Roboto, sans-serif",
+			display: "flex",
+			alignItems: "center",
+			justifyContent: "center",
+			gap: "0.5rem"
 		},
 		currentPlanButton: {
 			all: "revert",
@@ -209,6 +234,19 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction, userId }
 			fontWeight: 500,
 			fontSize: "16px",
 			cursor: "default",
+			fontFamily: "Roboto, sans-serif"
+		},
+		downgradeButton: {
+			all: "revert",
+			flex: 1,
+			background: isDark ? "#4A4A4A" : "#9E9E9E",
+			color: "#FFFFFF",
+			border: "none",
+			borderRadius: "0.5rem",
+			padding: "0.75rem 1rem",
+			fontWeight: 500,
+			fontSize: "16px",
+			cursor: "pointer",
 			fontFamily: "Roboto, sans-serif"
 		},
 		secondaryButton: {
@@ -289,11 +327,66 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction, userId }
 		</div>
 	);
 
-	const getPrimaryText = () => {
-		if (currentPlan && activeTab === currentPlan) return "Current Plan";
+	// Helper function to determine button text based on current plan vs selected plan
+	const getButtonText = () => {
+		if (!currentPlan || activeTab === currentPlan) {
+			return "Current Plan";
+		}
+		
+		// Define plan hierarchy for comparison
+		const planHierarchy = { free: 0, pro: 1, premium: 2 };
+		const currentLevel = planHierarchy[currentPlan];
+		const selectedLevel = planHierarchy[activeTab];
+		
+		if (selectedLevel > currentLevel) {
+			// Upgrade
+			if (activeTab === "pro") return "Get Pro";
+			if (activeTab === "premium") return "Get Premium";
+		} else if (selectedLevel < currentLevel) {
+			// Downgrade
+			if (activeTab === "free") return "Downgrade to Free";
+			if (activeTab === "pro") return "Downgrade to Pro";
+		}
+		
+		// Fallback
 		if (activeTab === "free") return "Continue with Free";
 		if (activeTab === "pro") return "Get Pro";
 		return "Get Premium";
+	};
+
+	// Helper function to determine button style
+	const getButtonStyle = () => {
+		if (!currentPlan || activeTab === currentPlan) {
+			return styles.currentPlanButton;
+		}
+		
+		// Define plan hierarchy for comparison
+		const planHierarchy = { free: 0, pro: 1, premium: 2 };
+		const currentLevel = planHierarchy[currentPlan];
+		const selectedLevel = planHierarchy[activeTab];
+		
+		if (selectedLevel < currentLevel) {
+			// Downgrade - use gray button
+			return styles.downgradeButton;
+		}
+		
+		// Upgrade or same level - use primary button
+		return styles.primaryButton;
+	};
+
+	// Helper function to determine if button should show arrow
+	const shouldShowArrow = () => {
+		if (!currentPlan || activeTab === currentPlan) {
+			return false;
+		}
+		
+		// Define plan hierarchy for comparison
+		const planHierarchy = { free: 0, pro: 1, premium: 2 };
+		const currentLevel = planHierarchy[currentPlan];
+		const selectedLevel = planHierarchy[activeTab];
+		
+		// Only show arrow for upgrades (Get Pro, Get Premium)
+		return selectedLevel > currentLevel;
 	};
 
 	const handlePrimary = () => {
@@ -301,6 +394,34 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction, userId }
 			if (currentPlan && activeTab === currentPlan) {
 				return; // no-op for current plan
 			}
+			
+			// Check if this is a downgrade action
+			const planHierarchy = { free: 0, pro: 1, premium: 2 };
+			const currentLevel = planHierarchy[currentPlan];
+			const selectedLevel = planHierarchy[activeTab];
+			
+			if (selectedLevel < currentLevel) {
+				// Downgrade - redirect to manage subscription page
+				const manageUrl = `https://${DT_BASE_URL}/manage-subscription`;
+				try {
+					Zotero.launchURL(manageUrl);
+				} catch (error) {
+					Zotero.debug(`DeepTutor: Error opening manage subscription URL: ${error.message}`);
+					// Fallback to clipboard if URL opening fails
+					if (navigator.clipboard) {
+						navigator.clipboard.writeText(manageUrl).then(() => {
+							Zotero.alert(null, 'DeepTutor', 'Manage subscription URL copied to clipboard!');
+						});
+					} else {
+						Zotero.alert(null, 'DeepTutor', `Please manually visit this URL:\n${manageUrl}`);
+					}
+				}
+				// Close the popup after handling downgrade
+				onClose();
+				return;
+			}
+			
+			// Regular upgrade action
 			onAction(activeTab);
 		}
 		catch { }
@@ -324,10 +445,17 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction, userId }
 
 			<div style={styles.footer}>
 				<button
-					style={currentPlan && activeTab === currentPlan ? styles.currentPlanButton : styles.primaryButton}
+					style={getButtonStyle()}
 					onClick={handlePrimary}
 				>
-					{getPrimaryText()}
+					<span>{getButtonText()}</span>
+					{shouldShowArrow() && (
+						<img
+							src={isDark ? ArrowForwardDarkPath : ArrowForwardPath}
+							alt="Forward"
+							style={{ width: "1.25rem", height: "1.25rem" }}
+						/>
+					)}
 				</button>
 			</div>
 		</div>
@@ -344,7 +472,10 @@ DeepTutorSubscriptionPopup.propTypes = {
 	onAction: PropTypes.func,
 
 	/** User id for resolving current plan */
-	userId: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+	userId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+
+	/** Active subscription object for determining current plan */
+	activeSubscription: PropTypes.object
 };
 
 DeepTutorSubscriptionPopup.defaultProps = {

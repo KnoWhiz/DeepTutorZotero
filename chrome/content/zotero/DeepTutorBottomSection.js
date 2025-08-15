@@ -262,10 +262,26 @@ const DeepTutorBottomSection = (props) => {
 			background: isUpgradeHovered ? colors.button.primaryHover : colors.button.primary,
 		};
 
-        // Determine button text based on subscription status
+        // Determine button text based on subscription type
         let buttonText = "Upgrade";
-        if (props.userSubscribed) {
+        if (props.userSubscribed && props.activeSubscription) {
+            // User has an active subscription, show subscription type
+            const subscriptionType = props.activeSubscription.type;
+            if (subscriptionType === "BASIC") {
+                buttonText = "Upgrade";
+            } else if (subscriptionType === "PLUS") {
+                buttonText = "Pro";
+            } else if (subscriptionType === "PREMIUM") {
+                buttonText = "Premium";
+            } else {
+                buttonText = "Manage";
+            }
+        } else if (props.userSubscribed) {
+            // User is subscribed but no subscription data available
             buttonText = "Manage";
+        } else {
+            // User is not subscribed
+            buttonText = "Upgrade";
         }
 
 		return (
@@ -437,7 +453,8 @@ DeepTutorBottomSection.propTypes = {
 	onSwitchNoSession: PropTypes.func,
 	userData: PropTypes.object,
 	userSubscribed: PropTypes.bool,
-	isFreeTrial: PropTypes.bool
+	isFreeTrial: PropTypes.bool,
+	activeSubscription: PropTypes.object
 };
 
 DeepTutorBottomSection.defaultProps = {
