@@ -1,6 +1,7 @@
 /* eslint-disable no-loop-func */
 import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
+const ClaudeCliWrapper = require('./ClaudeCliWrapper.js');
 import {
 	createMessage,
 	getMessagesBySessionId,
@@ -109,6 +110,7 @@ const MessageRole = {
 const SendIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_SEND.svg';
 const StopIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_STOP.svg';
 const ArrowDownPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/CHAT_ARROWDOWN.svg';
+const MicrophoneIconPath = 'chrome://zotero/content/DeepTutorMaterials/History/SESHIS_SEARCH.svg';
 const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	const { colors, theme } = useDeepTutorTheme();
 	
@@ -423,6 +425,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	};
 	const [messages, setMessages] = useState([]);
 	const [inputValue, setInputValue] = useState('');
+	const [useClaude, setUseClaude] = useState(false);
 	const [sessionId, setSessionId] = useState(null);
 	const [userId, setUserId] = useState(null);
 	const [documentIds, setDocumentIds] = useState([]);
@@ -959,16 +962,53 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 
 	const handleSend = async () => {
 		setIsManuallyStopped(false);
-		const trimmedValue = inputValue.trim(); // Remove both leading and trailing spaces
-		if (trimmedValue) { // Only send if there's actual content after trimming
+		let composedText = inputValue;
+		if (useClaude) {
+			try {
+				// Resolve working directory: prefer user-configured dataDir, else default
+				let workingDir = null;
+				try {
+					const prefDir = Zotero.Prefs.get('dataDir') || Zotero.Prefs.get('lastDataDir');
+					if (prefDir && typeof prefDir === 'string') {
+						workingDir = prefDir;
+					}
+					else if (Zotero.DataDirectory && typeof Zotero.DataDirectory.dir === 'string') {
+						workingDir = Zotero.DataDirectory.dir;
+					}
+				} catch (e) { Zotero.debug(e); }
+				if (!workingDir) {
+					Zotero.debug(`DeepTutorChatBox: No working directory found, using default`);
+					workingDir = '/home/sherman01/Zotero';
+				}
+
+				Zotero.debug(`DeepTutorChatBox: Calling ClaudeCliWrapper.runClaude with cwd="${workingDir}"`);
+				const res = await ClaudeCliWrapper.runClaude([], workingDir, composedText);
+				Zotero.debug(`DeepTutorChatBox: Claude CLI result: ${JSON.stringify(res)}`);
+				if (!res) {
+					Zotero.debug(`DeepTutorChatBox: Claude CLI result is null`);
+				}
+				const resString = JSON.stringify(res);
+				if (resString && typeof resString === 'string' && resString.trim()) {
+					const prefix = '[Do not respond, test claude cli] ';
+					composedText = prefix + resString.trim();
+					setInputValue(composedText);
+				}
+				else if (res && res.error) {
+					Zotero.debug(`DeepTutorChatBox: Claude CLI error: ${res.error}`);
+				}
+			} catch (e) {
+				Zotero.debug(`DeepTutorChatBox: Exception calling Claude CLI: ${e}`);
+			}
+		}
+
+		const trimmedValue = (composedText || '').trim();
+		if (trimmedValue) {
 			setInputValue('');
-			// Reset textarea height after clearing
 			setTimeout(adjustTextareaHeight, 0);
 			await userSendMessage(trimmedValue);
 		}
 		else {
-			setInputValue(''); // Clear input even if empty
-			// Reset textarea height after clearing
+			setInputValue('');
 			setTimeout(adjustTextareaHeight, 0);
 		}
 	};
@@ -2371,6 +2411,22 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 					}
 					`}
 				</style>
+				<button
+					style={{
+						...styles.sendButton,
+						marginRight: '0.5rem',
+						background: useClaude ? '#ccc' : colors.background.quaternary
+					}}
+					onClick={() => setUseClaude(prev => !prev)}
+					title={useClaude ? 'Claude CLI: ON' : 'Claude CLI: OFF'}
+					disabled={iniWait}
+				>
+					<img
+						src={MicrophoneIconPath}
+						alt={useClaude ? "Claude On" : "Claude Off"}
+						style={styles.sendIcon}
+					/>
+				</button>
 				<button
 					style={{
 						...styles.sendButton,
