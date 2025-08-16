@@ -295,6 +295,8 @@ const DeepTutorBottomSection = (props) => {
 							{showUsagePopup && (
 								<DeepTutorUsagePopup
 									onClose={handleCloseUsage}
+									userId={props.userData?.id}
+									activeSubscription={props.activeSubscription}
 								/>
 							)}
 						</div>
