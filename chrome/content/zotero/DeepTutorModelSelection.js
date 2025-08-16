@@ -6,6 +6,7 @@ import {
 	createSession
 } from './api/libs/api';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
+import DeepTutorFileSizeWarning from './DeepTutorFileSizeWarning.js';
 
 const DeleteImg = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_DELETE.svg';
 const DeleteImgWhite = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_DELETE_WHITE.svg';
@@ -17,6 +18,9 @@ const AdvancedDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Registratio
 const RegisDragPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_DRAG.svg';
 const RegisSearchPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_SEARCH.svg';
 const RegisSearchDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_SEARCH_DARK.svg';
+// Popup close icons for modal overlays
+const PopupClosePath = 'chrome://zotero/content/DeepTutorMaterials/Main/MAIN_CLOSE.svg';
+const PopupCloseDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Main/CLOSE_DARK.svg';
 
 // Session Status Enum
 const SessionStatus = {
@@ -37,6 +41,8 @@ const SessionType = {
 
 const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, onShowNoPDFWarning, subscriptionType }, ref) => {
 	const { colors, theme, isDark } = useDeepTutorTheme();
+	// Dynamic close button path based on theme
+	const closeButtonPath = isDark ? PopupCloseDarkPath : PopupClosePath;
 	
 	// Theme-aware styles
 	const styles = {
@@ -485,6 +491,12 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 	const [filteredContainers, setFilteredContainers] = useState([]);
 	const [showSearchPopup, setShowSearchPopup] = useState(false);
 	const [errorMessage, setErrorMessage] = useState('');
+	const [showFileSizeWarning, setShowFileSizeWarning] = useState(false);
+	const [fileSizeWarningData, setFileSizeWarningData] = useState({
+		fileName: '',
+		fileSizeMB: 0,
+		sizeLimitMB: 0
+	});
 	const [buttonWidth, setButtonWidth] = useState(null);
 	const [buttonLayout, setButtonLayout] = useState('row');
 	const [isCreateHovered, setIsCreateHovered] = useState(false);
@@ -650,26 +662,7 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 		}
 	};
 
-	// Get file size limit in bytes
-	const getFileSizeLimitBytes = () => {
-		return getFileSizeLimitMB() * 1024 * 1024;
-	};
-
-	// Get file size limit message
-	const getFileSizeLimitMessage = () => {
-		const limitMB = getFileSizeLimitMB();
-		switch (subscriptionType) {
-			case "BASIC":
-				return `Basic subscription allows files up to ${limitMB}MB`;
-			case "PLUS":
-				return `Pro subscription allows files up to ${limitMB}MB`;
-			case "PREMIUM":
-				return `Premium subscription allows files up to ${limitMB}MB`;
-			default:
-				return `File size limit: ${limitMB}MB`;
-		}
-	};
-
+	// Note: getFileSizeLimitBytes helper removed (unused)
 	// Check if adding more files would exceed the limit
 	const canAddMoreFiles = () => {
 		const limit = getFileCountLimit();
@@ -688,6 +681,42 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 				return `Premium subscription allows up to ${limit} files`;
 			default:
 				return `File limit: ${limit}`;
+		}
+	};
+
+	// Reusable function to validate file size
+	const validateFileSize = async (pdf, fileName = null) => {
+		try {
+			const filePath = await pdf.getFilePathAsync();
+			if (filePath) {
+				const fileStats = await IOUtils.stat(filePath);
+				const fileSizeBytes = fileStats.size;
+				const fileSizeMB = fileSizeBytes / (1024 * 1024);
+				
+				// Check subscription-based file size limit
+				const sizeLimitMB = getFileSizeLimitMB();
+				if (fileSizeMB > sizeLimitMB) {
+					const displayName = fileName || pdf.name || 'PDF';
+					Zotero.debug(`ModelSelection: File ${displayName} exceeds size limit: ${fileSizeMB.toFixed(2)}MB > ${sizeLimitMB}MB`);
+					
+					// Show file size warning popup instead of setting error message
+					setFileSizeWarningData({
+						fileName: displayName,
+						fileSizeMB: fileSizeMB,
+						sizeLimitMB: sizeLimitMB
+					});
+					setShowFileSizeWarning(true);
+					
+					return false; // File size validation failed
+				}
+			}
+			return true; // File size validation passed
+		}
+		catch (sizeError) {
+			const displayName = fileName || pdf.name || 'PDF';
+			Zotero.debug(`ModelSelection: Could not check file size for ${displayName}: ${sizeError.message}`);
+			// Continue processing if we can't check size
+			return true;
 		}
 	};
 
@@ -801,28 +830,6 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 					return;
 				}
 
-				// Check file size before adding
-				try {
-					const filePath = await item.getFilePathAsync();
-					if (filePath) {
-						const fileStats = await IOUtils.stat(filePath);
-						const fileSizeBytes = fileStats.size;
-						const fileSizeMB = fileSizeBytes / (1024 * 1024);
-						
-						// Check subscription-based file size limit
-						const sizeLimitMB = getFileSizeLimitMB();
-						if (fileSizeMB > sizeLimitMB) {
-							Zotero.debug(`ModelSelection: Current PDF exceeds size limit: ${fileSizeMB.toFixed(2)}MB > ${sizeLimitMB}MB`);
-							setErrorMessage(`Current PDF is too large (${fileSizeMB.toFixed(2)}MB). ${getFileSizeLimitMessage()}. Please upgrade your subscription to process larger files.`);
-							return;
-						}
-					}
-				}
-				catch (sizeError) {
-					Zotero.debug(`ModelSelection: Could not check file size for current PDF: ${sizeError.message}`);
-					// Continue processing if we can't check size
-				}
-
 				// Safe filename resolution with error handling
 				let fileName = '';
 				try {
@@ -839,6 +846,12 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 				}
 
 				Zotero.debug(`ModelSelection: Found currently opened PDF: ${fileName} (ID: ${item.id})`);
+
+				// Check file size before adding (after resolving fileName)
+				const isFileSizeValid = await validateFileSize(item, fileName);
+				if (!isFileSizeValid) {
+					return;
+				}
 
 				// Check if this file is already in the fileList
 				if (fileList.some(existingFile => existingFile.id === item.id)) {
@@ -953,6 +966,7 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 		}, 150); // Debounce delay for user typing
     
 		// Cleanup timeouts on dependency change
+		// eslint-disable-next-line consistent-return
 		return () => {
 			clearTimeout(debounceTimeoutId);
 			if (processTimeoutId) {
@@ -967,7 +981,7 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 			
 			// Check file count limit before adding files
 			if (!canAddMoreFiles()) {
-				const limit = getFileCountLimit();
+				// const limit = getFileCountLimit();
 				setErrorMessage(`${getFileCountLimitMessage()}. Please upgrade your subscription to add more files.`);
 				setSearchValue('');
 				setShowSearchPopup(false);
@@ -1024,25 +1038,9 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 				}
 
 				// Check file size before adding
-				try {
-					const filePath = await pdf.getFilePathAsync();
-					if (filePath) {
-						const fileStats = await IOUtils.stat(filePath);
-						const fileSizeBytes = fileStats.size;
-						const fileSizeMB = fileSizeBytes / (1024 * 1024);
-						
-						// Check subscription-based file size limit
-						const sizeLimitMB = getFileSizeLimitMB();
-						if (fileSizeMB > sizeLimitMB) {
-							Zotero.debug(`BBBBB: File ${pdf.name} exceeds size limit: ${fileSizeMB.toFixed(2)}MB > ${sizeLimitMB}MB`);
-							setErrorMessage(`File "${pdf.name}" is too large (${fileSizeMB.toFixed(2)}MB). ${getFileSizeLimitMessage()}. Please upgrade your subscription to process larger files.`);
-							continue; // Skip this file and try the next one
-						}
-					}
-				}
-				catch (sizeError) {
-					Zotero.debug(`BBBBB: Could not check file size for ${pdf.name}: ${sizeError.message}`);
-					// Continue processing if we can't check size
+				const isFileSizeValid = await validateFileSize(pdf);
+				if (!isFileSizeValid) {
+					continue; // Skip this file and try the next one
 				}
 
 				// Safe filename resolution with error handling
@@ -1158,7 +1156,7 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 								throw new Error(`File not found on disk: ${filePath}`);
 							}
                 
-							// Check file size to avoid memory issues
+							// Get file statistics for logging
 							Zotero.debug(`ModelSelection: Getting file statistics...`);
 							const statStartTime = Date.now();
                 
@@ -1171,12 +1169,6 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 							Zotero.debug(`ModelSelection: File stats retrieved in ${statDuration}ms`);
 							Zotero.debug(`ModelSelection: File size: ${fileSizeBytes} bytes (${fileSizeMB.toFixed(2)} MB)`);
 							Zotero.debug(`ModelSelection: File modified: ${new Date(fileStats.lastModified).toISOString()}`);
-                
-							// Check subscription-based file size limit
-							const sizeLimitMB = getFileSizeLimitMB();
-							if (fileSizeMB > sizeLimitMB) {
-								throw new Error(`File too large: ${fileSizeMB.toFixed(2)}MB (${subscriptionType} subscription limit: ${sizeLimitMB}MB). Please upgrade your subscription to process larger files.`);
-							}
                 
 							// Read file data directly
 							Zotero.debug(`ModelSelection: Starting direct file read operation...`);
@@ -1403,25 +1395,9 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 						Zotero.debug(`BBBBB: Processing PDF: ${pdf.name}`);
 						
 						// Check file size before processing
-						try {
-							const filePath = await pdf.getFilePathAsync();
-							if (filePath) {
-								const fileStats = await IOUtils.stat(filePath);
-								const fileSizeBytes = fileStats.size;
-								const fileSizeMB = fileSizeBytes / (1024 * 1024);
-								
-								// Check subscription-based file size limit
-								const sizeLimitMB = getFileSizeLimitMB();
-								if (fileSizeMB > sizeLimitMB) {
-									Zotero.debug(`BBBBB: File ${pdf.name} exceeds size limit: ${fileSizeMB.toFixed(2)}MB > ${sizeLimitMB}MB`);
-									setErrorMessage(`File "${pdf.name}" is too large (${fileSizeMB.toFixed(2)}MB). ${getFileSizeLimitMessage()}. Please upgrade your subscription to process larger files.`);
-									return null;
-								}
-							}
-						}
-						catch (sizeError) {
-							Zotero.debug(`BBBBB: Could not check file size for ${pdf.name}: ${sizeError.message}`);
-							// Continue processing if we can't check size
+						const isFileSizeValid = await validateFileSize(pdf);
+						if (!isFileSizeValid) {
+							return null;
 						}
 						
 						const { text } = await Zotero.PDFWorker.getFullText(pdf.id);
@@ -1505,6 +1481,16 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 
 	const handleSearchItemMouseEnter = id => setHoveredSearchItem(id);
 	const handleSearchItemMouseLeave = () => setHoveredSearchItem(null);
+
+	// Handler to close file size warning popup
+	const handleCloseFileSizeWarning = () => {
+		setShowFileSizeWarning(false);
+		setFileSizeWarningData({
+			fileName: '',
+			fileSizeMB: 0,
+			sizeLimitMB: 0
+		});
+	};
 
 	// Public method to reset initializing state when component is about to close
 	const resetInitializingState = () => {
@@ -1733,6 +1719,24 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 				</div>
 			</div>
 
+			{/* Error Message Display for non-file-size errors */}
+			{errorMessage && (
+				<div style={{
+					width: '100%',
+					maxWidth: '26rem',
+					padding: '0.75rem',
+					marginBottom: '1rem',
+					backgroundColor: isDark ? colors.background.quaternary : '#FEF2F2',
+					border: isDark ? `1px solid ${colors.border.primary}` : '1px solid #FECACA',
+					borderRadius: '0.5rem',
+					color: isDark ? colors.error : '#DC2626',
+					fontSize: '0.875rem',
+					textAlign: 'center'
+				}}>
+					{errorMessage}
+				</div>
+			)}
+
 			<button
 				style={{
 					...createButtonDynamicStyle,
@@ -1748,20 +1752,56 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 				{isEffectivelyFrozen ? 'Initializing...' : 'Create'}
 			</button>
 
-			{errorMessage && (
+			{/* File Size Warning Popup (modal overlay) */}
+			{showFileSizeWarning && (
 				<div style={{
-					width: '100%',
-					maxWidth: '26rem',
-					padding: '0.75rem',
-					marginBottom: '1rem',
-					backgroundColor: '#FEF2F2',
-					border: '1px solid #FECACA',
-					borderRadius: '0.5rem',
-					color: '#DC2626',
-					fontSize: '0.875rem',
-					textAlign: 'center'
+					position: 'absolute',
+					top: 0,
+					left: 0,
+					right: 0,
+					bottom: 0,
+					background: 'rgba(0, 0, 0, 0.5)',
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+					zIndex: 2000,
 				}}>
-					{errorMessage}
+					<div style={{
+						background: colors.background.primary,
+						borderRadius: '0.5rem',
+						padding: '2rem',
+						maxWidth: '24rem',
+						width: '100%',
+						position: 'relative',
+						border: isDark ? `1px solid ${colors.popup.border}` : 'none',
+					}}>
+						<button
+							onClick={handleCloseFileSizeWarning}
+							style={{
+								all: 'revert',
+								background: 'none',
+								border: 'none',
+								cursor: 'pointer',
+								position: 'absolute',
+								right: '1rem',
+								top: '1rem',
+								width: '1rem',
+								height: '1rem',
+								display: 'flex',
+								alignItems: 'center',
+								justifyContent: 'center',
+							}}
+						>
+							<img src={closeButtonPath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
+						</button>
+						<DeepTutorFileSizeWarning
+							onClose={handleCloseFileSizeWarning}
+							fileName={fileSizeWarningData.fileName}
+							fileSizeMB={fileSizeWarningData.fileSizeMB}
+							sizeLimitMB={fileSizeWarningData.sizeLimitMB}
+							subscriptionType={subscriptionType}
+						/>
+					</div>
 				</div>
 			)}
 		</div>
