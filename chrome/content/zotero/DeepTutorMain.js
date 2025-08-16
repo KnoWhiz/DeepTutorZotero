@@ -305,6 +305,7 @@ const DeepTutorMain = (props) => {
 				userData={props.userData}
 				userSubscribed={props.userSubscribed}
 				isFreeTrial={props.isFreeTrial}
+				openClaudeSettingPopup={props.openClaudeSettingPopup}
 			/>
 
 			{/* Popups */}
@@ -717,6 +718,9 @@ DeepTutorMain.propTypes = {
 	toggleSubscriptionPopup: PropTypes.func.isRequired,
 	toggleManageSubscriptionPopup: PropTypes.func.isRequired,
 	toggleSubscriptionConfirmPopup: PropTypes.func.isRequired,
+	
+	// Claude integration
+	openClaudeSettingPopup: PropTypes.func,
 };
 
 export default DeepTutorMain;

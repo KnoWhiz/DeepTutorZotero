@@ -231,6 +231,17 @@ const DeepTutorBottomSection = (props) => {
 							<button
 								style={{
 									...styles.signOutButton,
+									background: '#87CEEB',
+									marginBottom: '0.5rem'
+								}}
+								onClick={props.openClaudeSettingPopup}
+								title="Claude CLI Settings"
+							>
+								Claude Settings
+							</button>
+							<button
+								style={{
+									...styles.signOutButton,
 									background: isSignOutHovered ? '#dc3545' : colors.error
 								}}
 								onClick={props.onSignOut}
@@ -440,7 +451,8 @@ DeepTutorBottomSection.propTypes = {
 	onSwitchNoSession: PropTypes.func,
 	userData: PropTypes.object,
 	userSubscribed: PropTypes.bool,
-	isFreeTrial: PropTypes.bool
+	isFreeTrial: PropTypes.bool,
+	openClaudeSettingPopup: PropTypes.func
 };
 
 DeepTutorBottomSection.defaultProps = {
@@ -449,7 +461,8 @@ DeepTutorBottomSection.defaultProps = {
 	onSignOut: () => {},
 	userData: null,
 	userSubscribed: false,
-	isFreeTrial: true
+	isFreeTrial: true,
+	openClaudeSettingPopup: () => {}
 };
 
 export default DeepTutorBottomSection;

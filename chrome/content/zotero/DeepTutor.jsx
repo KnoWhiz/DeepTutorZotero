@@ -27,6 +27,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
 import DeepTutorMain from './DeepTutorMain.js';
+import DeepTutorClaudeSetting from './DeepTutorClaudeSetting.js';
 import DeepTutorLocalhostServer from './localhostServer.js';
 import {
 	getMessagesBySessionId,
@@ -179,6 +180,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 			collapsed: false,
 			showSubscriptionConfirmPopup: false,
 			showManageSubscriptionPopup: false,
+			showClaudeSettingPopup: false,
 			showSearch: false,
 			showSubscriptionPopup: false,
 			// Auth state
@@ -592,6 +594,12 @@ var DeepTutor = class DeepTutor extends React.Component {
 	toggleManageSubscriptionPopup = () => {
 		this.setState(prevState => ({
 			showManageSubscriptionPopup: !prevState.showManageSubscriptionPopup
+		}));
+	};
+
+	toggleClaudeSettingPopup = () => {
+		this.setState(prevState => ({
+			showClaudeSettingPopup: !prevState.showClaudeSettingPopup
 		}));
 	};
 
@@ -1470,6 +1478,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 		Zotero.debug("DeepTutor: Render called");
 
 		return (
+			<>
 			<DeepTutorMain
 				// State props
 				currentPane={this.state.currentPane}
@@ -1562,7 +1571,55 @@ var DeepTutor = class DeepTutor extends React.Component {
 				toggleSubscriptionPopup={this.toggleSubscriptionPopup}
 				toggleManageSubscriptionPopup={this.toggleManageSubscriptionPopup}
 				toggleSubscriptionConfirmPopup={this.toggleSubscriptionConfirmPopup}
+				// Claude setting controls
+				openClaudeSettingPopup={this.toggleClaudeSettingPopup}
 			/>
+
+			{this.state.showClaudeSettingPopup && (
+				<DeepTutorClaudeSetting
+					onClose={this.toggleClaudeSettingPopup}
+					onSetSysPrompt={(text) => {
+						try {
+							// Store the system prompt in Zotero preferences
+							Zotero.debug(`DeepTutor: Storing system prompt: ${text || ''}`);
+							Zotero.Prefs.set('deeptutor.claude.systemPrompt', text || '');
+							Zotero.debug('DeepTutor: Claude system prompt updated in preferences');
+							
+							// Dispatch custom event to notify ChatBox immediately
+							Zotero.debug('DeepTutor: Dispatching deeptutor-claude-settings-changed event for system prompt');
+						}
+						catch (e) { Zotero.debug(e); }
+					}}
+					onSetAutoSaveNote={(val) => {
+						try {
+							// Store the setting in Zotero preferences
+							Zotero.Prefs.set('deeptutor.claude.autoSaveResponse', !!val);
+							Zotero.debug('DeepTutor: Claude autoSave setting updated');
+							
+							// Dispatch custom event to notify ChatBox immediately
+							Zotero.debug('DeepTutor: Dispatching deeptutor-claude-settings-changed event for autoSave');
+						}
+						catch (e) { Zotero.debug(e); }
+					}}
+					workingDirResolver={() => {
+						try {
+							const prefDir = Zotero.Prefs.get('dataDir') || Zotero.Prefs.get('lastDataDir');
+							if (prefDir && typeof prefDir === 'string') return prefDir;
+							if (Zotero.DataDirectory && typeof Zotero.DataDirectory.dir === 'string') return Zotero.DataDirectory.dir;
+						}
+						catch (e) { Zotero.debug(e); }
+						return '/home/sherman01/Zotero';
+					}}
+					noteContainer={null}
+					currentAutoSave={(() => {
+						try {
+							return Zotero.Prefs.get('deeptutor.claude.autoSaveResponse') === true;
+						}
+						catch (e) { Zotero.debug(e); return false; }
+					})()}
+				/>
+			)}
+			</>
 		);
 	}
 };

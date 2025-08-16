@@ -426,6 +426,57 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 	const [messages, setMessages] = useState([]);
 	const [inputValue, setInputValue] = useState('');
 	const [useClaude, setUseClaude] = useState(false);
+	const [ClaudeSysPrompt, setClaudeSysPrompt] = useState(() => {
+		try {
+			// Initialize from Zotero preferences
+			return Zotero.Prefs.get('deeptutor.claude.systemPrompt') || '';
+		}
+		catch (e) { 
+			Zotero.debug(e); 
+			return ''; 
+		}
+	});
+	const [SaveClaudeResponse, setSaveClaudeResponse] = useState(() => {
+		try {
+			// Initialize from Zotero preferences
+			return Zotero.Prefs.get('deeptutor.claude.autoSaveResponse') === true;
+		}
+		catch (e) { 
+			Zotero.debug(e); 
+			return false; 
+		}
+	});
+	
+	// Create a method to update Claude settings that can be called directly
+	const updateClaudeSettings = React.useCallback(() => {
+		try {
+			const autoSaveValue = Zotero.Prefs.get('deeptutor.claude.autoSaveResponse') === true;
+			setSaveClaudeResponse(autoSaveValue);
+			
+			const sysPromptValue = Zotero.Prefs.get('deeptutor.claude.systemPrompt') || '';
+			if (sysPromptValue !== ClaudeSysPrompt) {
+				Zotero.debug(`DeepTutorChatBox: System prompt updated to: ${sysPromptValue}`);
+				setClaudeSysPrompt(sysPromptValue);
+			}
+		}
+		catch (e) { Zotero.debug(e); }
+	}, [ClaudeSysPrompt]);
+
+	// Listen for custom events to update settings immediately
+	useEffect(() => {
+		const handleClaudeSettingsUpdate = () => {
+			Zotero.debug('DeepTutorChatBox: Received deeptutor-claude-settings-changed event');
+			updateClaudeSettings();
+		};
+		
+		// Listen for custom event
+		window.addEventListener('deeptutor-claude-settings-changed', handleClaudeSettingsUpdate);
+		
+		return () => {
+			window.removeEventListener('deeptutor-claude-settings-changed', handleClaudeSettingsUpdate);
+		};
+	}, [updateClaudeSettings]);
+
 	const [sessionId, setSessionId] = useState(null);
 	const [userId, setUserId] = useState(null);
 	const [documentIds, setDocumentIds] = useState([]);
@@ -464,6 +515,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			[messageId]: !prev[messageId]
 		}));
 	};
+
+
 
 	// Helper function to check if we should continue checking for responses (within 10 minutes)
 	const checkTime = React.useCallback((lastMessage) => {
@@ -982,7 +1035,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				}
 
 				Zotero.debug(`DeepTutorChatBox: Calling ClaudeCliWrapper.runClaude with cwd="${workingDir}"`);
-				const res = await ClaudeCliWrapper.runClaude([], workingDir, composedText);
+				const res = await ClaudeCliWrapper.runClaude([], workingDir, composedText, noteContainer, SaveClaudeResponse, ClaudeSysPrompt);
 				Zotero.debug(`DeepTutorChatBox: Claude CLI result: ${JSON.stringify(res)}`);
 				if (!res) {
 					Zotero.debug(`DeepTutorChatBox: Claude CLI result is null`);
