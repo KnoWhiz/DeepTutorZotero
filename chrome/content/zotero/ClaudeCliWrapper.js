@@ -27,22 +27,15 @@ const ClaudeCliWrapper = {
 			}
 		}
 
-		// Normalize args to strings and add system prompt if provided
+		// Normalize args to strings (preserving old working piping approach)
 		let safeArgs = Array.isArray(args) ? args.map(a => String(a)) : [];
 		Zotero.debug(`ClaudeCliWrapper.runClaude: safeArgs=${JSON.stringify(safeArgs)}`);
 		Zotero.debug(`ClaudeCliWrapper.runClaude: systemPrompt=${systemPrompt}`);
-		// Always use -p flag for input text (system prompt functionality disabled)
-		let usePFlag = false;
-		if (stdinText != null) {
-			safeArgs.unshift('-p', `"${stdinText}"`);
-			usePFlag = true; // Track that we're using -p flag
-			Zotero.debug(`ClaudeCliWrapper.runClaude: Using -p flag with input text`);
-		}
 		
-		// System prompt functionality is disabled (kept for reference)
-		if (false && systemPrompt && typeof systemPrompt === 'string' && systemPrompt.trim()) {
-			safeArgs.push('--append-system-prompt', `"${systemPrompt.trim()}"`);
-			Zotero.debug(`ClaudeCliWrapper.runClaude: Using system prompt: ${systemPrompt.trim()}`);
+		// Add system prompt if provided (while preserving old piping logic)
+		if (systemPrompt && typeof systemPrompt === 'string' && systemPrompt.trim()) {
+			safeArgs.push('--append-system-prompt', systemPrompt.trim());
+			Zotero.debug(`ClaudeCliWrapper.runClaude: Added system prompt: ${systemPrompt.trim()}`);
 		}
 
 		// Helper: build a space-joined args string without shell interpolation (best-effort quoting per shell below if needed)
@@ -70,11 +63,9 @@ const ClaudeCliWrapper = {
 				// Execute inside WSL bash, optionally cd to linuxDir
 				command = "C:\\Windows\\System32\\wsl.exe";
 				const joined = joinArgs(safeArgs);
-				const shBody = usePFlag
-					? `claude${joined}`  // Using -p flag, no piping needed
-					: (stdinText != null
-						? `printf "%s" "${escapeForBashDoubleQuoted(stdinText)}" | claude${joined}`
-						: `claude${joined}`);
+				const shBody = (stdinText != null)
+					? `printf "%s" "${escapeForBashDoubleQuoted(stdinText)}" | claude${joined}`
+					: `claude${joined}`;
 				const shLine = workingDirPath ? `cd "${wslInfo.linuxDir}" && ${shBody}` : shBody;
 				spArgs = ["-d", wslInfo.distro, "--", "bash", "-lc", shLine];
 			}
@@ -82,11 +73,9 @@ const ClaudeCliWrapper = {
 				// Native Windows CMD
 				command = "C:\\Windows\\System32\\cmd.exe";
 				const joined = joinArgs(safeArgs);
-				const body = usePFlag
-					? `claude${joined}`  // Using -p flag, no piping needed
-					: (stdinText != null
-						? `echo ${escapeForCmdEcho(stdinText)} | claude${joined}`
-						: `claude${joined}`);
+				const body = (stdinText != null)
+					? `echo ${escapeForCmdEcho(stdinText)} | claude${joined}`
+					: `claude${joined}`;
 				const line = workingDirPath ? `cd /d "${workingDirPath}" && ${body}` : body;
 				spArgs = ["/d", "/s", "/c", line];
 			}
@@ -95,16 +84,12 @@ const ClaudeCliWrapper = {
 				command = "/bin/sh";
 				const joined = joinArgs(safeArgs);
 				const line = workingDirPath
-					? (usePFlag
-						? `cd "${workingDirPath}" && claude${joined}`  // Using -p flag, no piping needed
-						: (stdinText != null
-							? `cd "${workingDirPath}" && printf "%s" "${escapeForBashDoubleQuoted(stdinText)}" | claude${joined}`
-							: `cd "${workingDirPath}" && claude${joined}`))
-					: (usePFlag
-						? `claude${joined}`  // Using -p flag, no piping needed
-						: (stdinText != null
-							? `printf "%s" "${escapeForBashDoubleQuoted(stdinText)}" | claude${joined}`
-							: `claude${joined}`));
+					? (stdinText != null
+						? `cd "${workingDirPath}" && printf "%s" "${escapeForBashDoubleQuoted(stdinText)}" | claude${joined}`
+						: `cd "${workingDirPath}" && claude${joined}`)
+					: (stdinText != null
+						? `printf "%s" "${escapeForBashDoubleQuoted(stdinText)}" | claude${joined}`
+						: `claude${joined}`);
 				spArgs = ["-lc", line];
 			}
 
