@@ -278,6 +278,7 @@ const DeepTutorMain = (props) => {
 							user={props.userData}
 							externallyFrozen={props.modelSelectionFrozen}
 							onShowNoPDFWarning={props.toggleNoPDFWarningPopup}
+							subscriptionType={props.activeSubscription?.type || "BASIC"}
 						/>
 					}
 					{props.currentPane === 'welcome'
@@ -717,6 +718,7 @@ const DeepTutorMain = (props) => {
 							user={props.userData}
 							externallyFrozen={props.modelSelectionFrozen}
 							onShowNoPDFWarning={props.toggleNoPDFWarningPopup}
+							subscriptionType={props.activeSubscription?.type || "BASIC"}
 						/>
 					</div>
 				</div>
