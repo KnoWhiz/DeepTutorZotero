@@ -104,7 +104,8 @@ function DeepTutorProfilePopup({
 			alignItems: "center",
 			padding: "0.125rem 0.5rem",
 			paddingTop: "0.375rem",
-			paddingBottom: "0.375rem"
+			paddingBottom: "0.375rem",
+			paddingLeft: "0.375rem"
 		},
 		personContent: {
 			display: "flex",
@@ -113,7 +114,7 @@ function DeepTutorProfilePopup({
 			justifyContent: "space-between"
 		},
 		personText: {
-			marginLeft: "0.5rem",
+			marginLeft: "0.75rem",
 			fontFamily: "Roboto, sans-serif",
 			fontSize: "1rem",
 			fontWeight: 400,
@@ -147,7 +148,7 @@ function DeepTutorProfilePopup({
 			background: isDark ? colors.background.tertiary : "#F3F4F6"
 		},
 		buttonText: {
-			marginLeft: "0.5rem"
+			marginLeft: "0.75rem"
 		},
 		// Spacing between buttons
 		buttonSpacing: {
