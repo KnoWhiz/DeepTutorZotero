@@ -32,15 +32,12 @@ const ICON_PATHS = {
  *
  * Supports both light and dark themes with reverse colors and SVG icons
  */
-export default function DeepTutorProfilePopup({
-	onClose,
+function DeepTutorProfilePopup({
 	onManageSubscription,
 	onShowUsage,
 	onSignOut,
 	userData,
-	currentUser,
-	isAuthenticated,
-	placement = "default"
+	currentUser
 }) {
 	const { colors, isDark } = useDeepTutorTheme();
 
@@ -50,17 +47,17 @@ export default function DeepTutorProfilePopup({
 	};
 
 	// Fixed column for leading icons to ensure alignment across rows
-	const leadingIconClasses = "h-5 w-5 shrink-0";
+	const leadingIconStyle = { height: "1.25rem", width: "1.25rem", flexShrink: 0 };
 
-	// Responsive positioning that shifts by 7rem on smaller screens
+	// Fixed positioning below the profile button
 	const getWrapperPositionClasses = () => {
-		if (placement === "belowRight") {
-			return "absolute top-full right-0 mt-2";
-		}
-		return "fixed bottom-20 left-8";
+		return {
+			position: "absolute",
+			top: "100%",
+			right: "0",
+			marginTop: "0.5rem"
+		};
 	};
-
-	const wrapperPositionClasses = getWrapperPositionClasses();
 
 	// Determine display name/email - prioritizing email first
 	const getDisplayName = () => {
@@ -163,26 +160,6 @@ export default function DeepTutorProfilePopup({
 		}
 	};
 
-	// If not authenticated, show sign in message
-	if (!isAuthenticated) {
-		return (
-			<div style={{ ...styles.wrapper, ...getWrapperPositionClasses() }}>
-				<div style={styles.content}>
-					<div style={styles.personRow}>
-						<img
-							src={getIconPath("person")}
-							alt="Person"
-							style={leadingIconClasses}
-						/>
-						<div style={styles.personContent}>
-							<span style={styles.personText}>Not logged in</span>
-						</div>
-					</div>
-				</div>
-			</div>
-		);
-	}
-
 	return (
 		<div
 			id="deeptutor-profile-popup"
@@ -194,7 +171,7 @@ export default function DeepTutorProfilePopup({
 					<img
 						src={getIconPath("person")}
 						alt="Person"
-						style={leadingIconClasses}
+						style={leadingIconStyle}
 					/>
 					<div style={styles.personContent}>
 						<span style={styles.personText}>
@@ -223,7 +200,7 @@ export default function DeepTutorProfilePopup({
 					<img
 						src={getIconPath("manage")}
 						alt="Manage"
-						style={leadingIconClasses}
+						style={leadingIconStyle}
 					/>
 					<span style={styles.buttonText}>
 						Manage Subscription
@@ -245,7 +222,7 @@ export default function DeepTutorProfilePopup({
 					<img
 						src={getIconPath("usage")}
 						alt="Usage"
-						style={leadingIconClasses}
+						style={leadingIconStyle}
 					/>
 					<span style={styles.buttonText}>
 						Usage
@@ -267,7 +244,7 @@ export default function DeepTutorProfilePopup({
 					<img
 						src={getIconPath("signout")}
 						alt="Sign Out"
-						style={leadingIconClasses}
+						style={leadingIconStyle}
 					/>
 					<span style={styles.buttonText}>
 						Sign Out
@@ -297,12 +274,9 @@ DeepTutorProfilePopup.propTypes = {
 	userData: PropTypes.object,
 
 	/** Current authenticated user object */
-	currentUser: PropTypes.object,
-
-	/** Whether the user is currently authenticated */
-	isAuthenticated: PropTypes.bool.isRequired,
-
-	/** Popup placement strategy */
-	placement: PropTypes.oneOf(["default", "belowRight"])
+	currentUser: PropTypes.object
 };
+
+export default DeepTutorProfilePopup;
+
 

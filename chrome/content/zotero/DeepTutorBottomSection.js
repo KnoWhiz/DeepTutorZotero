@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'; // eslint-disable-line no-unused-vars
 import PropTypes from 'prop-types';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 import DeepTutorProfilePopup from './DeepTutorProfilePopup.js';
@@ -290,8 +290,6 @@ const DeepTutorBottomSection = (props) => {
 									onSignOut={props.onSignOut}
 									userData={props.userData}
 									currentUser={props.currentUser}
-									isAuthenticated={props.isAuthenticated}
-									placement="belowRight"
 								/>
 							)}
 							{showUsagePopup && (
