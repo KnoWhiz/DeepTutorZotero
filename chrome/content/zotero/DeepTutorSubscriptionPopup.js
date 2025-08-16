@@ -42,14 +42,18 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction, userId, 
 					const subscriptionType = active.type.toUpperCase();
 					if (subscriptionType === "PREMIUM") {
 						setCurrentPlan("premium");
-					} else if (subscriptionType === "PLUS") {
+					}
+					else if (subscriptionType === "PLUS") {
 						setCurrentPlan("pro");
-					} else if (subscriptionType === "BASIC") {
-						setCurrentPlan("free");
-					} else {
+					}
+					else if (subscriptionType === "BASIC") {
 						setCurrentPlan("free");
 					}
-				} else {
+					else {
+						setCurrentPlan("free");
+					}
+				}
+				else {
 					setCurrentPlan("free");
 				}
 			}
@@ -342,7 +346,8 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction, userId, 
 			// Upgrade
 			if (activeTab === "pro") return "Get Pro";
 			if (activeTab === "premium") return "Get Premium";
-		} else if (selectedLevel < currentLevel) {
+		}
+		else if (selectedLevel < currentLevel) {
 			// Downgrade
 			if (activeTab === "free") return "Downgrade to Free";
 			if (activeTab === "pro") return "Downgrade to Pro";
@@ -405,14 +410,16 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction, userId, 
 				const manageUrl = `https://${DT_BASE_URL}/manage-subscription`;
 				try {
 					Zotero.launchURL(manageUrl);
-				} catch (error) {
+				}
+				catch (error) {
 					Zotero.debug(`DeepTutor: Error opening manage subscription URL: ${error.message}`);
 					// Fallback to clipboard if URL opening fails
 					if (navigator.clipboard) {
 						navigator.clipboard.writeText(manageUrl).then(() => {
 							Zotero.alert(null, 'DeepTutor', 'Manage subscription URL copied to clipboard!');
 						});
-					} else {
+					}
+					else {
 						Zotero.alert(null, 'DeepTutor', `Please manually visit this URL:\n${manageUrl}`);
 					}
 				}
