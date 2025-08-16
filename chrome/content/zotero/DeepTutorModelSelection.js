@@ -1,5 +1,5 @@
 /* eslint-disable react/display-name */
-import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react'; // eslint-disable-line no-unused-vars
 import PropTypes from 'prop-types';
 import {
 	getPreSignedUrl,
@@ -35,8 +35,7 @@ const SessionType = {
 };
 
 
-
-const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, onShowNoPDFWarning }, ref) => {
+const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, onShowNoPDFWarning, subscriptionType }, ref) => {
 	const { colors, theme, isDark } = useDeepTutorTheme();
 	
 	// Theme-aware styles
@@ -606,6 +605,92 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 		}
 	}, [fileList, errorMessage]);
 
+	// Check if Advanced mode should be disabled based on subscription
+	const isAdvancedDisabled = () => {
+		// Disable Advanced mode for Basic (free) subscription users
+		if (subscriptionType === "BASIC") {
+			return true;
+		}
+		// Also disable if multiple files are selected (existing logic)
+		if (fileList.length > 1) {
+			return true;
+		}
+		// Also disable if component is frozen
+		if (isEffectivelyFrozen) {
+			return true;
+		}
+		return false;
+	};
+
+	// Get file count limit based on subscription type
+	const getFileCountLimit = () => {
+		switch (subscriptionType) {
+			case "BASIC":
+				return 1;
+			case "PLUS":
+				return 10;
+			case "PREMIUM":
+				return 20;
+			default:
+				return 1; // Default to most restrictive
+		}
+	};
+
+	// Get file size limit in MB based on subscription type
+	const getFileSizeLimitMB = () => {
+		switch (subscriptionType) {
+			case "BASIC":
+				return 10;
+			case "PLUS":
+				return 50;
+			case "PREMIUM":
+				return 100;
+			default:
+				return 10; // Default to most restrictive
+		}
+	};
+
+	// Get file size limit in bytes
+	const getFileSizeLimitBytes = () => {
+		return getFileSizeLimitMB() * 1024 * 1024;
+	};
+
+	// Get file size limit message
+	const getFileSizeLimitMessage = () => {
+		const limitMB = getFileSizeLimitMB();
+		switch (subscriptionType) {
+			case "BASIC":
+				return `Basic subscription allows files up to ${limitMB}MB`;
+			case "PLUS":
+				return `Pro subscription allows files up to ${limitMB}MB`;
+			case "PREMIUM":
+				return `Premium subscription allows files up to ${limitMB}MB`;
+			default:
+				return `File size limit: ${limitMB}MB`;
+		}
+	};
+
+	// Check if adding more files would exceed the limit
+	const canAddMoreFiles = () => {
+		const limit = getFileCountLimit();
+		return fileList.length < limit;
+	};
+
+	// Get file count limit message
+	const getFileCountLimitMessage = () => {
+		const limit = getFileCountLimit();
+		switch (subscriptionType) {
+			case "BASIC":
+				return `Basic subscription allows only ${limit} file`;
+			case "PLUS":
+				return `Pro subscription allows up to ${limit} files`;
+			case "PREMIUM":
+				return `Premium subscription allows up to ${limit} files`;
+			default:
+				return `File limit: ${limit}`;
+		}
+	};
+
 	// Update model name based on first file in fileList and handle model type switching
 	useEffect(() => {
 		if (fileList.length > 0) {
@@ -614,101 +699,17 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 			setBackupModelName(firstName);
 			Zotero.debug(`ModelSelection: Updated model name to: ${firstName}`);
       
-			// Auto-switch to standard mode when 2 or more files are selected
-			if (fileList.length >= 2 && selectedType === 'normal') {
+			// Auto-switch to standard mode when Advanced mode becomes unavailable
+			if (selectedType === 'normal' && (fileList.length > 1 || subscriptionType === "BASIC")) {
 				setSelectedType('lite');
-				Zotero.debug('ModelSelection: Auto-switched to standard mode due to multiple files');
+				Zotero.debug('ModelSelection: Auto-switched to standard mode due to Advanced mode constraints');
 			}
 		}
 		else {
 			setBackupModelName('Default Session');
 			Zotero.debug('ModelSelection: Reset model name to Default Session');
 		}
-	}, [fileList, selectedType]);
-
-	// COMMENTED OUT: Load attachment names when component mounts
-	// This is now replaced by container-based search logic
-	/*
-	useEffect(() => {
-		const loadAttachmentNames = async () => {
-			try {
-				Zotero.debug("BBBBB: Loading attachment names");
-				const libraryID = Zotero.Libraries.userLibraryID;
-				Zotero.debug(`BBBBB: Using library ID: ${libraryID}`);
-        
-				const items = await Zotero.Items.getAll(libraryID);
-				Zotero.debug(`BBBBB: Found ${items.length} total items`);
-        
-				// Use a Set to track unique attachment IDs and prevent duplicates
-				const seenIds = new Set();
-				const attachments = items.reduce((arr, item) => {
-					if (item.isAttachment() && item.isPDFAttachment()) {
-						// Skip if we've already processed this attachment
-						if (seenIds.has(item.id)) {
-							return arr;
-						}
-						seenIds.add(item.id);
-            
-						// Safe filename resolution with error handling
-						let fileName = '';
-						try {
-							fileName = item.attachmentFilename || item.getField('title') || '';
-						}
-						catch (error) {
-							Zotero.debug(`BBBBB: Error getting filename for attachment ${item.id}: ${error.message}`);
-							fileName = '';
-						}
-            
-						// Ensure we have a valid string and fallback to "Untitled"
-						if (!fileName || typeof fileName !== 'string' || fileName.trim() === '') {
-							fileName = 'Untitled';
-						}
-            
-						Zotero.debug(`BBBBB: Found PDF attachment: ${fileName}`);
-						return arr.concat([{ id: item.id, name: fileName }]);
-					}
-					if (item.isRegularItem()) {
-						const childAttachments = item.getAttachments()
-              .map(x => Zotero.Items.get(x))
-              .filter(x => x && x.isPDFAttachment && x.isPDFAttachment())
-              .filter(x => !seenIds.has(x.id)) // Skip duplicates
-              .map((x) => {
-              	seenIds.add(x.id); // Mark as seen
-                
-              	// Safe filename resolution with error handling
-              	let fileName = '';
-              	try {
-              		fileName = x.attachmentFilename || x.getField('title') || '';
-              	}
-              	catch (error) {
-              		Zotero.debug(`BBBBB: Error getting filename for attachment ${x.id}: ${error.message}`);
-              		fileName = '';
-              	}
-                
-              	// Ensure we have a valid string and fallback to "Untitled"
-              	if (!fileName || typeof fileName !== 'string' || fileName.trim() === '') {
-              		fileName = 'Untitled';
-              	}
-                
-              	return { id: x.id, name: fileName };
-              });
-						return arr.concat(childAttachments);
-					}
-					return arr;
-				}, []);
-        
-				Zotero.debug(`BBBBB: Found ${attachments.length} PDF attachments`);
-				setAttachmentNames(attachments);
-			}
-			catch (error) {
-				Zotero.debug(`BBBBB: Error loading attachment names: ${error.message}`);
-				Zotero.debug(`BBBBB: Error stack: ${error.stack}`);
-			}
-		};
-
-		loadAttachmentNames();
-	}, []);
-	*/
+	}, [fileList, selectedType, subscriptionType]);
 
 	// Load container names when component mounts
 	useEffect(() => {
@@ -798,6 +799,28 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 				if (!item.isPDFAttachment()) {
 					Zotero.debug("ModelSelection: Current item is not a PDF attachment");
 					return;
+				}
+
+				// Check file size before adding
+				try {
+					const filePath = await item.getFilePathAsync();
+					if (filePath) {
+						const fileStats = await IOUtils.stat(filePath);
+						const fileSizeBytes = fileStats.size;
+						const fileSizeMB = fileSizeBytes / (1024 * 1024);
+						
+						// Check subscription-based file size limit
+						const sizeLimitMB = getFileSizeLimitMB();
+						if (fileSizeMB > sizeLimitMB) {
+							Zotero.debug(`ModelSelection: Current PDF exceeds size limit: ${fileSizeMB.toFixed(2)}MB > ${sizeLimitMB}MB`);
+							setErrorMessage(`Current PDF is too large (${fileSizeMB.toFixed(2)}MB). ${getFileSizeLimitMessage()}. Please upgrade your subscription to process larger files.`);
+							return;
+						}
+					}
+				}
+				catch (sizeError) {
+					Zotero.debug(`ModelSelection: Could not check file size for current PDF: ${sizeError.message}`);
+					// Continue processing if we can't check size
 				}
 
 				// Safe filename resolution with error handling
@@ -941,6 +964,16 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 	const handleSearchItemClick = async (container) => {
 		try {
 			Zotero.debug(`BBBBB: Selected container: ${container.name}`);
+			
+			// Check file count limit before adding files
+			if (!canAddMoreFiles()) {
+				const limit = getFileCountLimit();
+				setErrorMessage(`${getFileCountLimitMessage()}. Please upgrade your subscription to add more files.`);
+				setSearchValue('');
+				setShowSearchPopup(false);
+				return;
+			}
+			
 			const item = Zotero.Items.get(container.id);
       
 			if (!item.isRegularItem()) {
@@ -966,16 +999,50 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 
 			Zotero.debug(`BBBBB: Found ${pdfAttachments.length} PDF attachments in container: ${container.name}`);
 
-			// Process all PDF attachments and add them to the file list
+			// Check if adding all PDFs would exceed the limit
+			const limit = getFileCountLimit();
+			const availableSlots = limit - fileList.length;
+			const pdfsToAdd = Math.min(pdfAttachments.length, availableSlots);
+			
+			if (pdfsToAdd < pdfAttachments.length) {
+				Zotero.debug(`BBBBB: File limit reached, only adding ${pdfsToAdd} out of ${pdfAttachments.length} PDFs`);
+				setErrorMessage(`${getFileCountLimitMessage()}. Only ${pdfsToAdd} files were added.`);
+			}
+
+			// Process only the allowed number of PDFs
 			const newFileItems = [];
 			const newOriginalItems = [];
 
-			for (const pdf of pdfAttachments) {
+			for (let i = 0; i < pdfsToAdd; i++) {
+				const pdf = pdfAttachments[i];
+				
 				// Check if this PDF is already in the file list
 				const existsInFileList = fileList.some(existingFile => existingFile.id === pdf.id);
 				if (existsInFileList) {
 					Zotero.debug(`BBBBB: PDF ${pdf.id} already exists in fileList, skipping`);
 					continue;
+				}
+
+				// Check file size before adding
+				try {
+					const filePath = await pdf.getFilePathAsync();
+					if (filePath) {
+						const fileStats = await IOUtils.stat(filePath);
+						const fileSizeBytes = fileStats.size;
+						const fileSizeMB = fileSizeBytes / (1024 * 1024);
+						
+						// Check subscription-based file size limit
+						const sizeLimitMB = getFileSizeLimitMB();
+						if (fileSizeMB > sizeLimitMB) {
+							Zotero.debug(`BBBBB: File ${pdf.name} exceeds size limit: ${fileSizeMB.toFixed(2)}MB > ${sizeLimitMB}MB`);
+							setErrorMessage(`File "${pdf.name}" is too large (${fileSizeMB.toFixed(2)}MB). ${getFileSizeLimitMessage()}. Please upgrade your subscription to process larger files.`);
+							continue; // Skip this file and try the next one
+						}
+					}
+				}
+				catch (sizeError) {
+					Zotero.debug(`BBBBB: Could not check file size for ${pdf.name}: ${sizeError.message}`);
+					// Continue processing if we can't check size
 				}
 
 				// Safe filename resolution with error handling
@@ -1105,10 +1172,10 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 							Zotero.debug(`ModelSelection: File size: ${fileSizeBytes} bytes (${fileSizeMB.toFixed(2)} MB)`);
 							Zotero.debug(`ModelSelection: File modified: ${new Date(fileStats.lastModified).toISOString()}`);
                 
-							// Set reasonable size limit (100MB for now, can be adjusted)
-							const MAX_FILE_SIZE_MB = 100;
-							if (fileSizeMB > MAX_FILE_SIZE_MB) {
-								throw new Error(`File too large: ${fileSizeMB.toFixed(2)}MB (max: ${MAX_FILE_SIZE_MB}MB)`);
+							// Check subscription-based file size limit
+							const sizeLimitMB = getFileSizeLimitMB();
+							if (fileSizeMB > sizeLimitMB) {
+								throw new Error(`File too large: ${fileSizeMB.toFixed(2)}MB (${subscriptionType} subscription limit: ${sizeLimitMB}MB). Please upgrade your subscription to process larger files.`);
 							}
                 
 							// Read file data directly
@@ -1304,19 +1371,59 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 				Zotero.debug(`BBBBB: Found ${pdfAttachments.length} total PDF attachments from dropped items`);
 				Zotero.debug(`BBBBB: Current fileList length before update: ${fileList.length}`);
         
+				// Check file count limit before adding files
+				const limit = getFileCountLimit();
+				const availableSlots = limit - fileList.length;
+				
+				if (availableSlots <= 0) {
+					setErrorMessage(`${getFileCountLimitMessage()}. Please upgrade your subscription to add more files.`);
+					return;
+				}
+				
+				// Limit the number of PDFs that can be added
+				const pdfsToAdd = Math.min(pdfAttachments.length, availableSlots);
+				
+				if (pdfsToAdd < pdfAttachments.length) {
+					Zotero.debug(`BBBBB: File limit reached, only adding ${pdfsToAdd} out of ${pdfAttachments.length} PDFs`);
+					setErrorMessage(`${getFileCountLimitMessage()}. Only ${pdfsToAdd} files were added.`);
+				}
+        
 				// Store original PDF attachments (append to existing list)
 				setOriginalFileList((prev) => {
 					// Filter out PDFs that already exist in the current originalFileList
-					const newPdfs = pdfAttachments.filter(pdf => !prev.some(existingFile => existingFile.id === pdf.id)
+					const newPdfs = pdfAttachments.slice(0, pdfsToAdd).filter(pdf => !prev.some(existingFile => existingFile.id === pdf.id)
 					);
 					return [...prev, ...newPdfs];
 				});
 				Zotero.debug("BBBBB: Updated originalFileList with PDF attachments");
 
-				// Process all PDFs concurrently using Promise.all
-				const pdfProcessingPromises = pdfAttachments.map(async (pdf) => {
+				// Process only the allowed number of PDFs concurrently using Promise.all
+				const pdfProcessingPromises = pdfAttachments.slice(0, pdfsToAdd).map(async (pdf) => {
 					try {
 						Zotero.debug(`BBBBB: Processing PDF: ${pdf.name}`);
+						
+						// Check file size before processing
+						try {
+							const filePath = await pdf.getFilePathAsync();
+							if (filePath) {
+								const fileStats = await IOUtils.stat(filePath);
+								const fileSizeBytes = fileStats.size;
+								const fileSizeMB = fileSizeBytes / (1024 * 1024);
+								
+								// Check subscription-based file size limit
+								const sizeLimitMB = getFileSizeLimitMB();
+								if (fileSizeMB > sizeLimitMB) {
+									Zotero.debug(`BBBBB: File ${pdf.name} exceeds size limit: ${fileSizeMB.toFixed(2)}MB > ${sizeLimitMB}MB`);
+									setErrorMessage(`File "${pdf.name}" is too large (${fileSizeMB.toFixed(2)}MB). ${getFileSizeLimitMessage()}. Please upgrade your subscription to process larger files.`);
+									return null;
+								}
+							}
+						}
+						catch (sizeError) {
+							Zotero.debug(`BBBBB: Could not check file size for ${pdf.name}: ${sizeError.message}`);
+							// Continue processing if we can't check size
+						}
+						
 						const { text } = await Zotero.PDFWorker.getFullText(pdf.id);
 						if (text) {
 							// Safe filename resolution with error handling
@@ -1468,7 +1575,11 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 
 					<div style={styles.searchContainer}>
 						<div
-							style={styles.searchArea}
+							style={{
+								...styles.searchArea,
+								opacity: (isEffectivelyFrozen || !canAddMoreFiles()) ? 0.5 : 1,
+								cursor: (isEffectivelyFrozen || !canAddMoreFiles()) ? 'not-allowed' : 'text'
+							}}
 							onDragOver={e => e.preventDefault()}
 							onDrop={e => e.preventDefault()}
 						>
@@ -1476,15 +1587,15 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 							<input
 								style={{
 									...styles.searchInput,
-									opacity: isEffectivelyFrozen ? 0.5 : 1,
-									cursor: isEffectivelyFrozen ? 'not-allowed' : 'text'
+									opacity: (isEffectivelyFrozen || !canAddMoreFiles()) ? 0.5 : 1,
+									cursor: (isEffectivelyFrozen || !canAddMoreFiles()) ? 'not-allowed' : 'text'
 								}}
 								className="model-selection-input"
 								type="text"
 								value={searchValue}
-								onChange={e => !isEffectivelyFrozen && setSearchValue(e.target.value)}
-								placeholder="Search for a PDF file"
-								disabled={isEffectivelyFrozen}
+								onChange={e => (!isEffectivelyFrozen && canAddMoreFiles()) && setSearchValue(e.target.value)}
+								placeholder={!canAddMoreFiles() ? "File limit reached. Upgrade to add more files." : "Search for a PDF file"}
+								disabled={isEffectivelyFrozen || !canAddMoreFiles()}
 								onDragOver={e => e.preventDefault()}
 								onDrop={e => e.preventDefault()}
 							/>
@@ -1525,16 +1636,21 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 					<div
 						style={{
 							...styles.dragArea,
-							...(isDragging && !isEffectivelyFrozen ? styles.dragAreaActive : {}),
-							opacity: isEffectivelyFrozen ? 0.5 : 1,
-							cursor: isEffectivelyFrozen ? 'not-allowed' : 'default'
+							...(isDragging && !isEffectivelyFrozen && canAddMoreFiles() ? styles.dragAreaActive : {}),
+							opacity: (isEffectivelyFrozen || !canAddMoreFiles()) ? 0.5 : 1,
+							cursor: (isEffectivelyFrozen || !canAddMoreFiles()) ? 'not-allowed' : 'default'
 						}}
-						onDragOver={!isEffectivelyFrozen ? handleDragOver : e => e.preventDefault()}
-						onDragLeave={!isEffectivelyFrozen ? handleDragLeave : e => e.preventDefault()}
-						onDrop={!isEffectivelyFrozen ? handleDrop : e => e.preventDefault()}
+						onDragOver={(!isEffectivelyFrozen && canAddMoreFiles()) ? handleDragOver : e => e.preventDefault()}
+						onDragLeave={(!isEffectivelyFrozen && canAddMoreFiles()) ? handleDragLeave : e => e.preventDefault()}
+						onDrop={(!isEffectivelyFrozen && canAddMoreFiles()) ? handleDrop : e => e.preventDefault()}
 					>
 						<img src={RegisDragPath} alt="Drag" style={{ width: '2.125rem', height: '2.5rem' }} />
-						{isEffectivelyFrozen ? 'Initializing Session...' : 'Drag PDF File Here'}
+						{isEffectivelyFrozen
+							? 'Initializing Session...'
+							: !canAddMoreFiles()
+								? `${getFileCountLimitMessage()}. Upgrade to add more files.`
+								: 'Drag PDF File Here'
+						}
 					</div>
 				</div>
 
@@ -1560,12 +1676,18 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 							style={{
 								all: 'revert',
 								...getModelTypeButtonStyle(selectedType === 'normal'),
-								opacity: (isEffectivelyFrozen || fileList.length > 1) ? 0.5 : 1,
-								cursor: (isEffectivelyFrozen || fileList.length > 1) ? 'not-allowed' : 'pointer'
+								opacity: isAdvancedDisabled() ? 0.5 : 1,
+								cursor: isAdvancedDisabled() ? 'not-allowed' : 'pointer'
 							}}
-							onClick={() => !(isEffectivelyFrozen || fileList.length > 1) && handleTypeSelection('normal')}
-							disabled={isEffectivelyFrozen || fileList.length > 1}
-							title={fileList.length > 1 ? "Advanced mode is not available with multiple files" : ""}
+							onClick={() => !isAdvancedDisabled() && handleTypeSelection('normal')}
+							disabled={isAdvancedDisabled()}
+							title={
+								subscriptionType === "BASIC"
+									? "Advanced mode requires Pro or Premium subscription"
+									: fileList.length > 1
+										? "Advanced mode is not available with multiple files"
+										: ""
+							}
 						>
 							<img src={isDark ? AdvancedDarkPath : AdvancedPath} alt="Advanced" style={{ width: '1.5rem', height: '1.5rem' }} />
               ADVANCED
@@ -1637,3 +1759,29 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 });
 
 export default ModelSelection;
+
+ModelSelection.propTypes = {
+
+	/** Callback function when form is submitted */
+	onSubmit: PropTypes.func.isRequired,
+
+	/** User data object */
+	user: PropTypes.object,
+
+	/** Whether the component is externally frozen/disabled */
+	externallyFrozen: PropTypes.bool,
+
+	/** Callback function to show no PDF warning */
+	onShowNoPDFWarning: PropTypes.func,
+
+	/** User's subscription type (BASIC, PLUS, PREMIUM) */
+	subscriptionType: PropTypes.string
+};
+
+ModelSelection.defaultProps = {
+	externallyFrozen: false,
+	onShowNoPDFWarning: undefined,
+
+	// Default to BASIC (free) if not provided
+	subscriptionType: "BASIC"
+};
