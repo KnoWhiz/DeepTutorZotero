@@ -49,15 +49,7 @@ function DeepTutorProfilePopup({
 	// Fixed column for leading icons to ensure alignment across rows
 	const leadingIconStyle = { height: "1.25rem", width: "1.25rem", flexShrink: 0 };
 
-	// Fixed positioning below the profile button
-	const getWrapperPositionClasses = () => {
-		return {
-			position: "absolute",
-			top: "100%",
-			right: "0",
-			marginTop: "0.5rem"
-		};
-	};
+
 
 	// Determine display name/email - prioritizing email first
 	const getDisplayName = () => {
@@ -86,7 +78,10 @@ function DeepTutorProfilePopup({
 	// Theme-aware styles
 	const styles = {
 		wrapper: {
-			position: "relative",
+			position: "absolute",
+			bottom: "0",
+			left: "0",
+			marginTop: "0.5rem",
 			zIndex: 50,
 			width: "auto",
 			minWidth: "14rem",
@@ -163,7 +158,7 @@ function DeepTutorProfilePopup({
 	return (
 		<div
 			id="deeptutor-profile-popup"
-			style={{ ...styles.wrapper, ...getWrapperPositionClasses() }}
+			style={styles.wrapper}
 		>
 			<div style={styles.content}>
 				{/* Person row (non-clickable) */}
