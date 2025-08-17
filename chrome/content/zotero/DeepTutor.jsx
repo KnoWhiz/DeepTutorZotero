@@ -111,7 +111,6 @@ class DeepTutorSession {
 }
 
 var DeepTutor = class DeepTutor extends React.Component {
-
 	/**
 	 * Initialize the DeepTutor React component in the given DOM element.
 	 * @param {Element} domEl - The DOM element to render into
@@ -173,6 +172,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 			showDeletePopup: false,
 			showRenamePopup: false,
 			showNoPDFWarningPopup: false,
+			showFileSizeWarningPopup: false,
 			sessionToDelete: null,
 			sessionNameToDelete: '',
 			sessionToRename: null,
@@ -611,10 +611,33 @@ var DeepTutor = class DeepTutor extends React.Component {
 		}));
 	};
 
-	toggleNoPDFWarningPopup = () => {
-		this.setState(prevState => ({
-			showNoPDFWarningPopup: !prevState.showNoPDFWarningPopup
-		}));
+	openNoPDFWarningPopup = () => {
+		this.setState({
+			showNoPDFWarningPopup: true
+		});
+	};
+
+	closeNoPDFWarningPopup = () => {
+		this.setState({
+			showNoPDFWarningPopup: false
+		});
+	};
+
+	openFileSizeWarningPopup = () => {
+		try {
+			this.setState({
+				showFileSizeWarningPopup: true
+			});
+		}
+		catch (e) {
+			Zotero.debug(`DeepTutor: Error opening file size warning popup: ${e.message}`);
+		}
+	};
+
+	closeFileSizeWarningPopup = () => {
+		this.setState({
+			showFileSizeWarningPopup: false,
+		});
 	};
 
 	handleShowDeletePopup = (sessionId) => {
@@ -660,7 +683,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 		// Reload sessions to get updated session names
 		try {
 			await this.loadSession();
-		} catch (error) {
+		}
+		catch (error) {
 			Zotero.debug(`DeepTutor: Error reloading sessions after rename: ${error.message}`);
 		}
 	};
@@ -1588,10 +1612,16 @@ var DeepTutor = class DeepTutor extends React.Component {
 				toggleSignInPopup={this.toggleSignInPopup}
 
 				toggleProfilePopup={this.toggleProfilePopup}
-				toggleNoPDFWarningPopup={this.toggleNoPDFWarningPopup}
+				openNoPDFWarningPopup={this.openNoPDFWarningPopup}
+				closeNoPDFWarningPopup={this.closeNoPDFWarningPopup}
 				toggleSubscriptionPopup={this.toggleSubscriptionPopup}
 				toggleManageSubscriptionPopup={this.toggleManageSubscriptionPopup}
 				toggleSubscriptionConfirmPopup={this.toggleSubscriptionConfirmPopup}
+
+				// File size warning popup
+				showFileSizeWarningPopup={this.state.showFileSizeWarningPopup}
+				openFileSizeWarningPopup={this.openFileSizeWarningPopup}
+				closeFileSizeWarningPopup={this.closeFileSizeWarningPopup}
 			/>
 		);
 	}

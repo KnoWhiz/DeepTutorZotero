@@ -13,6 +13,7 @@ import DeepTutorNoSessionPane from './DeepTutorNoSessionPane.js';
 import DeepTutorSessionDelete from './DeepTutorSessionDelete.js';
 import DeepTutorRenameSession from './DeepTutorRenameSession.js';
 import DeepTutorNoPDFWarning from './DeepTutorNoPDFWarning.js';
+import DeepTutorFileSizeWarning from './DeepTutorFileSizeWarning.js';
 import DeepTutorSubscriptionPopup from './DeepTutorSubscriptionPopup.js';
 import { DT_BASE_URL } from './api/libs/api.js';
 
@@ -277,7 +278,8 @@ const DeepTutorMain = (props) => {
 							onSubmit={props.handleModelSelectionSubmit}
 							user={props.userData}
 							externallyFrozen={props.modelSelectionFrozen}
-							onShowNoPDFWarning={props.toggleNoPDFWarningPopup}
+							onShowNoPDFWarning={props.openNoPDFWarningPopup}
+							onShowFileSizeWarning={props.openFileSizeWarningPopup}
 							subscriptionType={props.activeSubscription?.type || "BASIC"}
 						/>
 					}
@@ -464,7 +466,7 @@ const DeepTutorMain = (props) => {
 						border: isDark ? `1px solid ${colors.popup.border}` : 'none',
 					}}>
 						<button
-							onClick={props.toggleNoPDFWarningPopup}
+							onClick={props.closeNoPDFWarningPopup}
 							style={{
 								all: 'revert',
 								background: 'none',
@@ -483,7 +485,55 @@ const DeepTutorMain = (props) => {
 							<img src={closeButtonPath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
 						</button>
 						<DeepTutorNoPDFWarning
-							onClose={props.toggleNoPDFWarningPopup}
+							onClose={props.closeNoPDFWarningPopup}
+						/>
+					</div>
+				</div>
+			)}
+
+			{props.showFileSizeWarningPopup && (
+				<div style={{
+					position: 'absolute',
+					top: 0,
+					left: 0,
+					right: 0,
+					bottom: 0,
+					background: 'rgba(0, 0, 0, 0.5)',
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+					zIndex: 2000,
+				}}>
+					<div style={{
+						background: colors.background.primary,
+						borderRadius: '0.5rem',
+						padding: '2rem',
+						maxWidth: '24rem',
+						width: '100%',
+						position: 'relative',
+						border: isDark ? `1px solid ${colors.popup.border}` : 'none',
+					}}>
+						<button
+							onClick={props.closeFileSizeWarningPopup}
+							style={{
+								all: "revert",
+								background: "none",
+								border: "none",
+								cursor: 'pointer',
+								position: 'absolute',
+								right: '1rem',
+								top: '1rem',
+								width: '1rem',
+								height: '1rem',
+								display: 'flex',
+								alignItems: 'center',
+								justifyContent: 'center',
+							}}
+						>
+							<img src={closeButtonPath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
+						</button>
+						<DeepTutorFileSizeWarning
+							onClose={props.closeFileSizeWarningPopup}
 						/>
 					</div>
 				</div>
@@ -717,7 +767,8 @@ const DeepTutorMain = (props) => {
 							onSubmit={props.handleModelSelectionSubmit}
 							user={props.userData}
 							externallyFrozen={props.modelSelectionFrozen}
-							onShowNoPDFWarning={props.toggleNoPDFWarningPopup}
+							onShowNoPDFWarning={props.openNoPDFWarningPopup}
+							onShowFileSizeWarning={props.openFileSizeWarningPopup}
 							subscriptionType={props.activeSubscription?.type || "BASIC"}
 						/>
 					</div>
@@ -753,6 +804,7 @@ DeepTutorMain.propTypes = {
 	showDeletePopup: PropTypes.bool.isRequired,
 	showRenamePopup: PropTypes.bool.isRequired,
 	showNoPDFWarningPopup: PropTypes.bool.isRequired,
+	showFileSizeWarningPopup: PropTypes.bool.isRequired,
 	showSubscriptionConfirmPopup: PropTypes.bool.isRequired,
 	showManageSubscriptionPopup: PropTypes.bool.isRequired,
 	showSubscriptionPopup: PropTypes.bool.isRequired,
@@ -796,7 +848,10 @@ DeepTutorMain.propTypes = {
 
 	toggleProfilePopup: PropTypes.func.isRequired,
 	toggleRenamePopup: PropTypes.func.isRequired,
-	toggleNoPDFWarningPopup: PropTypes.func.isRequired,
+	openNoPDFWarningPopup: PropTypes.func.isRequired,
+	closeNoPDFWarningPopup: PropTypes.func.isRequired,
+	openFileSizeWarningPopup: PropTypes.func.isRequired,
+	closeFileSizeWarningPopup: PropTypes.func.isRequired,
 	toggleSubscriptionPopup: PropTypes.func.isRequired,
 	toggleManageSubscriptionPopup: PropTypes.func.isRequired,
 	toggleSubscriptionConfirmPopup: PropTypes.func.isRequired,

@@ -6,7 +6,6 @@ import {
 	createSession
 } from './api/libs/api';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
-import DeepTutorFileSizeWarning from './DeepTutorFileSizeWarning.js';
 
 const DeleteImg = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_DELETE.svg';
 const DeleteImgWhite = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_DELETE_WHITE.svg';
@@ -18,9 +17,7 @@ const AdvancedDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Registratio
 const RegisDragPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_DRAG.svg';
 const RegisSearchPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_SEARCH.svg';
 const RegisSearchDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_SEARCH_DARK.svg';
-// Popup close icons for modal overlays
-const PopupClosePath = 'chrome://zotero/content/DeepTutorMaterials/Main/MAIN_CLOSE.svg';
-const PopupCloseDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Main/CLOSE_DARK.svg';
+
 
 // Session Status Enum
 const SessionStatus = {
@@ -39,10 +36,8 @@ const SessionType = {
 };
 
 
-const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, onShowNoPDFWarning, subscriptionType }, ref) => {
+const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, onShowNoPDFWarning, subscriptionType, onShowFileSizeWarning }, ref) => {
 	const { colors, theme, isDark } = useDeepTutorTheme();
-	// Dynamic close button path based on theme
-	const closeButtonPath = isDark ? PopupCloseDarkPath : PopupClosePath;
 	
 	// Theme-aware styles
 	const styles = {
@@ -491,12 +486,7 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 	const [filteredContainers, setFilteredContainers] = useState([]);
 	const [showSearchPopup, setShowSearchPopup] = useState(false);
 	const [errorMessage, setErrorMessage] = useState('');
-	const [showFileSizeWarning, setShowFileSizeWarning] = useState(false);
-	const [fileSizeWarningData, setFileSizeWarningData] = useState({
-		fileName: '',
-		fileSizeMB: 0,
-		sizeLimitMB: 0
-	});
+	// File size warning is handled by parent via onShowFileSizeWarning
 	const [buttonWidth, setButtonWidth] = useState(null);
 	const [buttonLayout, setButtonLayout] = useState('row');
 	const [isCreateHovered, setIsCreateHovered] = useState(false);
@@ -699,13 +689,11 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 					const displayName = fileName || pdf.name || 'PDF';
 					Zotero.debug(`ModelSelection: File ${displayName} exceeds size limit: ${fileSizeMB.toFixed(2)}MB > ${sizeLimitMB}MB`);
 					
-					// Show file size warning popup instead of setting error message
-					setFileSizeWarningData({
-						fileName: displayName,
-						fileSizeMB: fileSizeMB,
-						sizeLimitMB: sizeLimitMB
-					});
-					setShowFileSizeWarning(true);
+					// Delegate file size warning to parent popup
+					if (typeof onShowFileSizeWarning === 'function') {
+						Zotero.debug(`ModelSelection: Triggering onShowFileSizeWarning for ${displayName} (${fileSizeMB.toFixed(2)}MB > ${sizeLimitMB}MB)`);
+						onShowFileSizeWarning({ fileName: displayName, fileSizeMB, sizeLimitMB });
+					}
 					
 					return false; // File size validation failed
 				}
@@ -1482,15 +1470,7 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 	const handleSearchItemMouseEnter = id => setHoveredSearchItem(id);
 	const handleSearchItemMouseLeave = () => setHoveredSearchItem(null);
 
-	// Handler to close file size warning popup
-	const handleCloseFileSizeWarning = () => {
-		setShowFileSizeWarning(false);
-		setFileSizeWarningData({
-			fileName: '',
-			fileSizeMB: 0,
-			sizeLimitMB: 0
-		});
-	};
+	// File size warning close handled by parent
 
 	// Public method to reset initializing state when component is about to close
 	const resetInitializingState = () => {
@@ -1752,58 +1732,7 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 				{isEffectivelyFrozen ? 'Initializing...' : 'Create'}
 			</button>
 
-			{/* File Size Warning Popup (modal overlay) */}
-			{showFileSizeWarning && (
-				<div style={{
-					position: 'absolute',
-					top: 0,
-					left: 0,
-					right: 0,
-					bottom: 0,
-					background: 'rgba(0, 0, 0, 0.5)',
-					display: 'flex',
-					alignItems: 'center',
-					justifyContent: 'center',
-					zIndex: 2000,
-				}}>
-					<div style={{
-						background: colors.background.primary,
-						borderRadius: '0.5rem',
-						padding: '2rem',
-						maxWidth: '24rem',
-						width: '100%',
-						position: 'relative',
-						border: isDark ? `1px solid ${colors.popup.border}` : 'none',
-					}}>
-						<button
-							onClick={handleCloseFileSizeWarning}
-							style={{
-								all: 'revert',
-								background: 'none',
-								border: 'none',
-								cursor: 'pointer',
-								position: 'absolute',
-								right: '1rem',
-								top: '1rem',
-								width: '1rem',
-								height: '1rem',
-								display: 'flex',
-								alignItems: 'center',
-								justifyContent: 'center',
-							}}
-						>
-							<img src={closeButtonPath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
-						</button>
-						<DeepTutorFileSizeWarning
-							onClose={handleCloseFileSizeWarning}
-							fileName={fileSizeWarningData.fileName}
-							fileSizeMB={fileSizeWarningData.fileSizeMB}
-							sizeLimitMB={fileSizeWarningData.sizeLimitMB}
-							subscriptionType={subscriptionType}
-						/>
-					</div>
-				</div>
-			)}
+			{/* File size warning handled by DeepTutorMain overlay */}
 		</div>
 	);
 });
@@ -1824,6 +1753,9 @@ ModelSelection.propTypes = {
 	/** Callback function to show no PDF warning */
 	onShowNoPDFWarning: PropTypes.func,
 
+	/** Callback to show file size warning popup in parent */
+	onShowFileSizeWarning: PropTypes.func,
+
 	/** User's subscription type (BASIC, PLUS, PREMIUM) */
 	subscriptionType: PropTypes.string
 };
@@ -1831,6 +1763,7 @@ ModelSelection.propTypes = {
 ModelSelection.defaultProps = {
 	externallyFrozen: false,
 	onShowNoPDFWarning: undefined,
+	onShowFileSizeWarning: undefined,
 
 	// Default to BASIC (free) if not provided
 	subscriptionType: "BASIC"
