@@ -2,23 +2,9 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 
-export default function DeepTutorFileSizeWarning({ onClose, fileName, fileSizeMB, sizeLimitMB, subscriptionType }) {
+export default function DeepTutorFileSizeWarning({ onClose }) {
 	const { colors } = useDeepTutorTheme();
 	const [isButtonHovered, setIsButtonHovered] = React.useState(false);
-
-	// Get file size limit message based on subscription type
-	const getFileSizeLimitMessage = () => {
-		switch (subscriptionType) {
-			case "BASIC":
-				return `Basic subscription allows files up to ${sizeLimitMB}MB`;
-			case "PLUS":
-				return `Pro subscription allows files up to ${sizeLimitMB}MB`;
-			case "PREMIUM":
-				return `Premium subscription allows files up to ${sizeLimitMB}MB`;
-			default:
-				return `File size limit: ${sizeLimitMB}MB`;
-		}
-	};
 
 	const styles = {
 		container: {
@@ -60,31 +46,6 @@ export default function DeepTutorFileSizeWarning({ onClose, fileName, fileSizeMB
 			fontWeight: 400,
 			lineHeight: '135%',
 		},
-		fileName: {
-			fontSize: '1rem',
-			color: colors.text.allText,
-			textAlign: 'left',
-			marginBottom: '0.5rem',
-			fontWeight: 600,
-			lineHeight: '135%',
-		},
-		fileSizeInfo: {
-			fontSize: '0.9rem',
-			color: colors.text.tertiary,
-			textAlign: 'left',
-			marginBottom: '1rem',
-			fontWeight: 400,
-			lineHeight: '135%',
-		},
-		subscriptionInfo: {
-			fontSize: '0.9rem',
-			color: colors.text.tertiary,
-			textAlign: 'left',
-			marginBottom: '1.875rem',
-			fontWeight: 400,
-			lineHeight: '135%',
-			fontStyle: 'italic',
-		},
 		button: {
 			all: 'revert',
 			background: colors.button.primary,
@@ -123,23 +84,10 @@ export default function DeepTutorFileSizeWarning({ onClose, fileName, fileSizeMB
 		<div style={styles.container}>
 			<div style={styles.content}>
 				<div style={styles.title}>
-					File Too Large
+					File Size Exceeds Limit
 				</div>
 				<div style={styles.message}>
-					The selected file exceeds the size limit for your current subscription.
-				</div>
-				{fileName && (
-					<div style={styles.fileName}>
-						File: {fileName}
-					</div>
-				)}
-				{fileSizeMB && sizeLimitMB && (
-					<div style={styles.fileSizeInfo}>
-						File size: {fileSizeMB.toFixed(2)}MB (Limit: {sizeLimitMB}MB)
-					</div>
-				)}
-				<div style={styles.subscriptionInfo}>
-					{getFileSizeLimitMessage()}. Please upgrade your subscription to process larger files.
+					Upgrade to increase your file size limit. Pro plan is 50MB per file and Premium plan is 100MB per file.
 				</div>
 				<button
 					style={buttonDynamicStyle}
@@ -155,16 +103,5 @@ export default function DeepTutorFileSizeWarning({ onClose, fileName, fileSizeMB
 }
 
 DeepTutorFileSizeWarning.propTypes = {
-	onClose: PropTypes.func.isRequired,
-	fileName: PropTypes.string,
-	fileSizeMB: PropTypes.number,
-	sizeLimitMB: PropTypes.number,
-	subscriptionType: PropTypes.string
-};
-
-DeepTutorFileSizeWarning.defaultProps = {
-	fileName: '',
-	fileSizeMB: null,
-	sizeLimitMB: null,
-	subscriptionType: 'BASIC'
+	onClose: PropTypes.func.isRequired
 };
