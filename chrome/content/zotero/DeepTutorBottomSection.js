@@ -163,7 +163,7 @@ const DeepTutorBottomSection = (props) => {
 	};
 
 	const renderMain = () => {
-		const isPremiumLabel = (function() {
+		const isPremiumLabel = (function () {
 			// Determine anticipated label based on current props (mirror logic below)
 			if (props.userSubscribed && props.activeSubscription) {
 				const subscriptionType = props.activeSubscription.type;
@@ -294,11 +294,11 @@ const DeepTutorBottomSection = (props) => {
 										}
 									}
 								}
-						}}
-					>
-						<img src={feedIconPath} alt="Give Us Feedback" style={styles.buttonIcon} />
-						<span style={{ textDecoration: 'underline' }}>Give Us Feedback</span>
-					</button>
+							}}
+						>
+							<img src={feedIconPath} alt="Give Us Feedback" style={styles.buttonIcon} />
+							<span style={{ textDecoration: 'underline' }}>Give Us Feedback</span>
+						</button>
 					</div>
 					<div style={styles.buttonsBox}>
 						<div style={styles.profileButtonContainer}>
@@ -383,7 +383,9 @@ DeepTutorBottomSection.propTypes = {
 	onSignOut: PropTypes.func,
 	onSwitchNoSession: PropTypes.func,
 	userData: PropTypes.object,
-	activeSubscription: PropTypes.object
+	activeSubscription: PropTypes.object,
+	usageSummary: PropTypes.object,
+	onRefreshUsageSummary: PropTypes.func
 };
 
 DeepTutorBottomSection.defaultProps = {

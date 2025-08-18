@@ -282,6 +282,10 @@ const DeepTutorMain = (props) => {
 							onShowNoPDFWarning={props.openNoPDFWarningPopup}
 							onShowFileSizeWarning={props.openFileSizeWarningPopup}
 							subscriptionType={props.activeSubscription?.type || "BASIC"}
+							usageSummary={props.usageSummary}
+							hasActiveSubscription={Boolean(props.activeSubscription && props.activeSubscription.id)}
+							onShowSubscriptionPopup={props.toggleSubscriptionPopup}
+							refreshUsageSummary={props.refreshUsageSummary}
 						/>
 					}
 					{props.currentPane === 'welcome'
@@ -311,6 +315,8 @@ const DeepTutorMain = (props) => {
 				onSwitchNoSession={() => props.switchPane('noSession')}
 				userData={props.userData}
 				activeSubscription={props.activeSubscription}
+				usageSummary={props.usageSummary}
+				onRefreshUsageSummary={props.refreshUsageSummary}
 			/>
 
 			{/* Popups */}
@@ -783,6 +789,10 @@ const DeepTutorMain = (props) => {
 							onShowNoPDFWarning={props.openNoPDFWarningPopup}
 							onShowFileSizeWarning={props.openFileSizeWarningPopup}
 							subscriptionType={props.activeSubscription?.type || "BASIC"}
+							usageSummary={props.usageSummary}
+							hasActiveSubscription={Boolean(props.activeSubscription && props.activeSubscription.id)}
+							onShowSubscriptionPopup={props.toggleSubscriptionPopup}
+							refreshUsageSummary={props.refreshUsageSummary}
 						/>
 					</div>
 				</div>

@@ -37,6 +37,7 @@ import {
 	createBackendUser,
 	deleteSessionById,
 	getActiveUserSubscriptionByUserId,
+	getSessionUsageForUser,
 	DT_SIGN_UP_URL
 } from './api/libs/api.js';
 import {
@@ -189,6 +190,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 			// Store backend user data
 			userData: null,
 			activeSubscription: null,
+			// Usage summary cached and shared across components
+			usageSummary: null,
 			// Model selection freezing state
 			modelSelectionFrozen: false,
 			// Window dimensions for responsive layout
@@ -769,6 +772,26 @@ var DeepTutor = class DeepTutor extends React.Component {
 		}
 	};
 
+	/**
+	 * Refreshes usage summary from server and stores it in state.
+	 */
+	refreshUsageSummary = async () => {
+		try {
+			const userId = this.state.userData && this.state.userData.id;
+			if (!userId) {
+				Zotero.debug("DeepTutor: Cannot refresh usage summary - no user ID");
+				return null;
+			}
+			const summary = await getSessionUsageForUser(userId);
+			this.setState({ usageSummary: summary });
+			return summary;
+		}
+		catch (error) {
+			Zotero.debug(`DeepTutor: Error refreshing usage summary: ${error.message}`);
+			return null;
+		}
+	};
+
 	handleSignOut = async () => {
 		try {
 			Zotero.debug("DeepTutor: Signing out user");
@@ -1076,6 +1099,9 @@ var DeepTutor = class DeepTutor extends React.Component {
 				userData,
 				activeSubscription
 			});
+
+			// Fetch initial usage summary in background
+			this.refreshUsageSummary();
 
 			// Wait a moment for all setState operations to complete, then switch panes
 			// If no sessions, switch to model selection pane
@@ -1457,6 +1483,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 				currentUser={this.state.currentUser}
 				userData={this.state.userData}
 				activeSubscription={this.state.activeSubscription}
+				usageSummary={this.state.usageSummary}
 				
 				// Popup state props
 				showProfilePopup={this.state.showProfilePopup}
@@ -1545,6 +1572,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 				
 				// Centralized subscription refresh function
 				refreshActiveSubscription={this.refreshSubscriptionData}
+				// Usage summary accessors
+				refreshUsageSummary={this.refreshUsageSummary}
 			/>
 		);
 	}
