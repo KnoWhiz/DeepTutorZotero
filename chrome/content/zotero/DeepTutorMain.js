@@ -616,7 +616,7 @@ const DeepTutorMain = (props) => {
 					display: 'flex',
 					alignItems: 'center',
 					justifyContent: 'center',
-					zIndex: 1000,
+					zIndex: 3000,
 				}}>
 					<DeepTutorSubscriptionPopup
 						onClose={props.toggleSubscriptionPopup}
