@@ -16,7 +16,7 @@ import DeepTutorRenameSession from './DeepTutorRenameSession.js';
 import DeepTutorNoPDFWarning from './DeepTutorNoPDFWarning.js';
 import DeepTutorFileSizeWarning from './DeepTutorFileSizeWarning.js';
 import DeepTutorSubscriptionPopup from './DeepTutorSubscriptionPopup.js';
-import { DT_BASE_URL } from './api/libs/api.js';
+
 
 // Icon paths for popup close buttons
 const PopupClosePath = 'chrome://zotero/content/DeepTutorMaterials/Main/MAIN_CLOSE.svg';
@@ -310,8 +310,6 @@ const DeepTutorMain = (props) => {
 				onSignOut={props.handleSignOut}
 				onSwitchNoSession={() => props.switchPane('noSession')}
 				userData={props.userData}
-				userSubscribed={props.userSubscribed}
-				isFreeTrial={props.isFreeTrial}
 				activeSubscription={props.activeSubscription}
 			/>
 
@@ -661,6 +659,7 @@ const DeepTutorMain = (props) => {
 						}}
 						userId={props.userData && props.userData.id}
 						activeSubscription={props.activeSubscription}
+						onRefreshSubscription={props.refreshActiveSubscription}
 					/>
 				</div>
 			)}
@@ -806,8 +805,6 @@ DeepTutorMain.propTypes = {
 	// User props
 	currentUser: PropTypes.object,
 	userData: PropTypes.object,
-	userSubscribed: PropTypes.bool.isRequired,
-	isFreeTrial: PropTypes.bool.isRequired,
 	activeSubscription: PropTypes.object,
 
 	// Popup state props
@@ -855,6 +852,7 @@ DeepTutorMain.propTypes = {
 	handleRenameSuccess: PropTypes.func.isRequired,
 	handleCancelRename: PropTypes.func.isRequired,
 	handleSubscriptionStatusChange: PropTypes.func.isRequired,
+	refreshActiveSubscription: PropTypes.func.isRequired,
 
 	// Toggle handlers
 	switchPane: PropTypes.func.isRequired,

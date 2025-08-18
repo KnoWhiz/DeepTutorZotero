@@ -184,7 +184,7 @@ const DeepTutorBottomSection = (props) => {
 
 		// Determine button text based on subscription type
 		let buttonText = "Upgrade";
-		if (props.userSubscribed && props.activeSubscription) {
+		if (props.activeSubscription) {
 			// User has an active subscription, show subscription type
 			const subscriptionType = props.activeSubscription.type;
 			if (subscriptionType === "BASIC") {
@@ -199,10 +199,6 @@ const DeepTutorBottomSection = (props) => {
 			else {
 				buttonText = "Manage";
 			}
-		}
-		else if (props.userSubscribed) {
-			// User is subscribed but no subscription data available
-			buttonText = "Manage";
 		}
 		else {
 			// User is not subscribed
@@ -387,8 +383,6 @@ DeepTutorBottomSection.propTypes = {
 	onSignOut: PropTypes.func,
 	onSwitchNoSession: PropTypes.func,
 	userData: PropTypes.object,
-	userSubscribed: PropTypes.bool,
-	isFreeTrial: PropTypes.bool,
 	activeSubscription: PropTypes.object
 };
 
@@ -396,9 +390,7 @@ DeepTutorBottomSection.defaultProps = {
 	isAuthenticated: false,
 	currentUser: null,
 	onSignOut: () => {},
-	userData: null,
-	userSubscribed: false,
-	isFreeTrial: true
+	userData: null
 };
 
 export default DeepTutorBottomSection;

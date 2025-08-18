@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react"; // eslint-disable-line no-unused-vars
 import PropTypes from "prop-types";
 import { useDeepTutorTheme } from "./theme/useDeepTutorTheme.js";
-import { getActiveUserSubscriptionByUserId, DT_BASE_URL } from "./api/libs/api.js";
+import { getActiveUserSubscriptionByUserId } from "./api/libs/api.js";
 import DeepTutorProcessingSubscription from "./DeepTutorProcessingSubscription.js";
 import DeepTutorSubscriptionConfirm from "./DeepTutorSubscriptionConfirm.js";
 
@@ -18,7 +18,7 @@ const SubscriptionConfirmBookPath = "chrome://zotero/content/DeepTutorMaterials/
  * DeepTutorSubscriptionPopup
  * Popup to select plan: Free, Pro, Premium. Each tab shows different content and action.
  */
-export default function DeepTutorSubscriptionPopup({ onClose, onAction: _onAction, userId, activeSubscription }) {
+export default function DeepTutorSubscriptionPopup({ onClose, onAction: _onAction, userId, activeSubscription, onRefreshSubscription }) {
 	const { colors, isDark } = useDeepTutorTheme();
 	const closePath = isDark ? PopupCloseDarkPath : PopupClosePath;
 	const [currentPlan, setCurrentPlan] = useState(null); // 'free' | 'pro' | 'premium' | null
@@ -78,19 +78,15 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction: _onActio
 
 	const handleProcessingContinue = async () => {
 		try {
-			Zotero.debug("DeepTutorSubscriptionPopup: Checking user subscription status after processing");
-			const active = userId ? await getActiveUserSubscriptionByUserId(userId) : null;
-			const hasActiveSubscription = !!active;
-			Zotero.debug(`DeepTutorSubscriptionPopup: Active subscription check result: ${hasActiveSubscription}`);
-			if (hasActiveSubscription) {
-				setCurrentPanel("confirm");
+			Zotero.debug("DeepTutorSubscriptionPopup: Refreshing subscription status after processing via centralized function");
+			if (onRefreshSubscription) {
+				await onRefreshSubscription();
 			}
-			else {
-				setCurrentPanel("select");
-			}
+			// After refresh, proceed to confirmation view
+			setCurrentPanel("confirm");
 		}
 		catch (error) {
-			Zotero.debug(`DeepTutorSubscriptionPopup: Error checking subscription status: ${error.message}`);
+			Zotero.debug(`DeepTutorSubscriptionPopup: Error refreshing subscription status: ${error.message}`);
 			setCurrentPanel("select");
 		}
 	};
@@ -577,7 +573,10 @@ DeepTutorSubscriptionPopup.propTypes = {
 	userId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
 
 	/** Active subscription object for determining current plan */
-	activeSubscription: PropTypes.object
+	activeSubscription: PropTypes.object,
+
+	/** Centralized refresh function to reload the user's active subscription from the server */
+	onRefreshSubscription: PropTypes.func
 };
 
 DeepTutorSubscriptionPopup.defaultProps = {
