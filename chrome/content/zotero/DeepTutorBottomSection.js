@@ -120,6 +120,25 @@ const DeepTutorBottomSection = (props) => {
 			transition: 'background 0.2s',
 			fontFamily: 'Roboto, sans-serif',
 		},
+		secondaryButton: {
+			all: 'revert',
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'center',
+			width: '7rem',
+			height: '3rem',
+			padding: '0.625rem 1.25rem',
+			background: colors.button.secondary,
+			border: `1px solid ${colors.button.primary}`,
+			borderRadius: '0.625rem',
+			fontWeight: 600,
+			fontSize: '1rem',
+			color: colors.button.primary,
+			cursor: 'pointer',
+			boxShadow: '0 0.0625rem 0.125rem rgba(0,0,0,0.03)',
+			transition: 'background 0.2s',
+			fontFamily: 'Roboto, sans-serif',
+		},
 		profileButtonContainer: {
 			position: 'relative',
 		},
@@ -144,10 +163,24 @@ const DeepTutorBottomSection = (props) => {
 	};
 
 	const renderMain = () => {
-		const upgradeButtonDynamicStyle = {
-			...styles.upgradeButton,
-			background: isUpgradeHovered ? colors.button.primaryHover : colors.button.primary,
-		};
+		const isPremiumLabel = (function() {
+			// Determine anticipated label based on current props (mirror logic below)
+			if (props.userSubscribed && props.activeSubscription) {
+				const subscriptionType = props.activeSubscription.type;
+				return subscriptionType === 'PREMIUM';
+			}
+			return false;
+		})();
+
+		const upgradeButtonDynamicStyle = isPremiumLabel
+			? {
+				...styles.secondaryButton,
+				background: isUpgradeHovered ? colors.background.quaternary : colors.button.secondary,
+			}
+			: {
+				...styles.upgradeButton,
+				background: isUpgradeHovered ? colors.button.primaryHover : colors.button.primary,
+			};
 
 		// Determine button text based on subscription type
 		let buttonText = "Upgrade";
