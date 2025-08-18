@@ -2,7 +2,7 @@ import React, { useState } from 'react'; // eslint-disable-line no-unused-vars
 import PropTypes from 'prop-types';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 import DeepTutorProfilePopup from './DeepTutorProfilePopup.js';
-import DeepTutorUsagePopup from './DeepTutorUsagePopup.js';
+// Usage popup is rendered at panel level in parent
 
 // Icon path definitions
 const FEED_ICON_PATH = 'chrome://zotero/content/DeepTutorMaterials/Bot/BOT_FEEDBACK.svg';
@@ -13,7 +13,6 @@ const PERSON_ICON_DARK_PATH = 'chrome://zotero/content/DeepTutorMaterials/Bot/BO
 const DeepTutorBottomSection = (props) => {
 	const { colors, isDark } = useDeepTutorTheme();
 	const [isUpgradeHovered, setIsUpgradeHovered] = useState(false);
-	const [showUsagePopup, setShowUsagePopup] = useState(false);
 
 	// Choose icons based on theme
 	const feedIconPath = isDark ? FEED_ICON_DARK_PATH : FEED_ICON_PATH;
@@ -137,13 +136,11 @@ const DeepTutorBottomSection = (props) => {
 		setIsUpgradeHovered(false);
 	};
 
-	// Handle usage popup
+	// Handle usage popup via parent
 	const handleShowUsage = () => {
-		setShowUsagePopup(true);
-	};
-
-	const handleCloseUsage = () => {
-		setShowUsagePopup(false);
+		if (props.onToggleUsagePopup) {
+			props.onToggleUsagePopup();
+		}
 	};
 
 	const renderMain = () => {
@@ -190,7 +187,7 @@ const DeepTutorBottomSection = (props) => {
 								Zotero.debug("DeepTutor: Feedback button clicked");
 								const url = 'https://docs.google.com/forms/d/e/1FAIpQLSfgLdhUz79oBsNTIF_rD3hEw5pCTbXOOGfi1UBKViiVgFjI-A/viewform?usp=dialog';
 								Zotero.debug(`DeepTutor: Attempting to open feedback URL: ${url}`);
-                                 
+								 
 								try {
 									// Primary: Use Zotero's proper API for opening external URLs
 									Zotero.debug("DeepTutor: Trying primary method - Zotero.launchURL");
@@ -199,7 +196,7 @@ const DeepTutorBottomSection = (props) => {
 								}
 								catch (error) {
 									Zotero.debug(`DeepTutor: Primary method failed - Zotero.launchURL: ${error.message}`);
-                                     
+									 
 									// Fallback 1: Try Zotero.Utilities.Internal.launchURL
 									try {
 										if (Zotero.Utilities && Zotero.Utilities.Internal && Zotero.Utilities.Internal.launchURL) {
@@ -213,7 +210,7 @@ const DeepTutorBottomSection = (props) => {
 									}
 									catch (fallback1Error) {
 										Zotero.debug(`DeepTutor: Fallback 1 failed - Zotero.Utilities.Internal.launchURL: ${fallback1Error.message}`);
-                                         
+										 
 										// Fallback 2: Try Zotero.HTTP.loadDocuments
 										try {
 											if (Zotero.HTTP && Zotero.HTTP.loadDocuments) {
@@ -227,16 +224,16 @@ const DeepTutorBottomSection = (props) => {
 										}
 										catch (fallback2Error) {
 											Zotero.debug(`DeepTutor: Fallback 2 failed - Zotero.HTTP.loadDocuments: ${fallback2Error.message}`);
-                                             
+											 
 											// Fallback 3: Try XPCOM nsIExternalProtocolService
 											try {
 												if (typeof Cc !== 'undefined' && typeof Ci !== 'undefined') {
 													Zotero.debug("DeepTutor: Trying Fallback 3 - XPCOM nsIExternalProtocolService (using Cc/Ci shortcuts)");
 													const extps = Cc["@mozilla.org/uriloader/external-protocol-service;1"]
-                                                         .getService(Ci.nsIExternalProtocolService);
+														.getService(Ci.nsIExternalProtocolService);
 													const uri = Cc["@mozilla.org/network/io-service;1"]
-                                                         .getService(Ci.nsIIOService)
-                                                         .newURI(url, null, null);
+														.getService(Ci.nsIIOService)
+														.newURI(url, null, null);
 													extps.loadURI(uri);
 													Zotero.debug("DeepTutor: Successfully opened URL via XPCOM nsIExternalProtocolService");
 												}
@@ -246,19 +243,19 @@ const DeepTutorBottomSection = (props) => {
 											}
 											catch (fallback3Error) {
 												Zotero.debug(`DeepTutor: Fallback 3 failed - XPCOM nsIExternalProtocolService: ${fallback3Error.message}`);
-                                                 
+												 
 												// Final fallback: Copy URL to clipboard
 												if (navigator.clipboard) {
 													Zotero.debug("DeepTutor: Trying final fallback - copy URL to clipboard");
 													navigator.clipboard.writeText(url)
-                                                         .then(() => {
-                                                         	Zotero.debug("DeepTutor: Successfully copied feedback URL to clipboard");
-                                                         	Zotero.alert(null, "DeepTutor", 'Feedback form URL copied to clipboard!\nPlease paste it in your browser to access the form.');
-                                                         })
-                                                         .catch((clipboardError) => {
-                                                         	Zotero.debug(`DeepTutor: Failed to copy to clipboard: ${clipboardError.message}`);
-                                                         	Zotero.alert(null, "DeepTutor", `Please manually visit this URL:\n${url}`);
-                                                         });
+														.then(() => {
+															Zotero.debug("DeepTutor: Successfully copied feedback URL to clipboard");
+															Zotero.alert(null, "DeepTutor", 'Feedback form URL copied to clipboard!\nPlease paste it in your browser to access the form.');
+														})
+														.catch((clipboardError) => {
+															Zotero.debug(`DeepTutor: Failed to copy to clipboard: ${clipboardError.message}`);
+															Zotero.alert(null, "DeepTutor", `Please manually visit this URL:\n${url}`);
+														});
 												}
 												else {
 													Zotero.debug("DeepTutor: Clipboard API not available, showing alert with URL");
@@ -268,11 +265,11 @@ const DeepTutorBottomSection = (props) => {
 										}
 									}
 								}
-							}}
-						>
-							<img src={feedIconPath} alt="Give Us Feedback" style={styles.buttonIcon} />
-							<span style={{ textDecoration: 'underline' }}>Give Us Feedback</span>
-						</button>
+						}}
+					>
+						<img src={feedIconPath} alt="Give Us Feedback" style={styles.buttonIcon} />
+						<span style={{ textDecoration: 'underline' }}>Give Us Feedback</span>
+					</button>
 					</div>
 					<div style={styles.buttonsBox}>
 						<div style={styles.profileButtonContainer}>
@@ -292,13 +289,7 @@ const DeepTutorBottomSection = (props) => {
 									currentUser={props.currentUser}
 								/>
 							)}
-							{showUsagePopup && (
-								<DeepTutorUsagePopup
-									onClose={handleCloseUsage}
-									userId={props.userData?.id}
-									activeSubscription={props.activeSubscription}
-								/>
-							)}
+							{/* Usage popup is rendered at the parent level */}
 						</div>
 						{/* Subscription button */}
 						{showSubscriptionButton && (
@@ -356,6 +347,7 @@ DeepTutorBottomSection.propTypes = {
 	onToggleSignUpPopup: PropTypes.func.isRequired,
 
 	onToggleSubscriptionPopup: PropTypes.func.isRequired,
+	onToggleUsagePopup: PropTypes.func,
 	showProfilePopup: PropTypes.bool.isRequired,
 	isAuthenticated: PropTypes.bool,
 	currentUser: PropTypes.object,
