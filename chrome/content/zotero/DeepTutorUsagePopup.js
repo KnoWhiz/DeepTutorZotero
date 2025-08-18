@@ -12,7 +12,7 @@ const PopupCloseDarkPath = "chrome://zotero/content/DeepTutorMaterials/Main/CLOS
  * Fetches session usage upon open and displays usage statistics.
  * Mirrors logic from documents/libs/usage/usagePopup.tsx in a JS style.
  */
-export default function DeepTutorUsagePopup({ onClose, onUpgrade, userId: _userId, activeSubscription, usageSummary, onRefreshUsageSummary: _onRefreshUsageSummary }) {
+export default function DeepTutorUsagePopup({ onClose, onUpgrade, userId: _userId, activeSubscription, usageSummary, onRefreshUsageSummary }) {
 	const { colors, isDark } = useDeepTutorTheme();
 	const closePath = isDark ? PopupCloseDarkPath : PopupClosePath;
 
@@ -26,7 +26,12 @@ export default function DeepTutorUsagePopup({ onClose, onUpgrade, userId: _userI
 		setUsageData(usageSummary || null);
 	}, [usageSummary]);
 
-	// No manual refresh function needed here; parent may refresh and pass new props
+	// Refresh usage data when popup opens
+	useEffect(() => {
+		if (onRefreshUsageSummary && typeof onRefreshUsageSummary === "function") {
+			onRefreshUsageSummary();
+		}
+	}, []); // Empty dependency array means this runs once when component mounts
 
 	const styles = {
 		overlay: {

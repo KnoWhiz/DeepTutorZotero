@@ -397,6 +397,9 @@ const DeepTutorMain = (props) => {
 					onClose={props.toggleUsagePopup}
 					userId={props.userData && props.userData.id}
 					activeSubscription={props.activeSubscription}
+					usageSummary={props.usageSummary}
+					onUpgrade={props.toggleSubscriptionPopup}
+					onRefreshUsageSummary={props.refreshUsageSummary}
 				/>
 			)}
 
@@ -817,6 +820,7 @@ DeepTutorMain.propTypes = {
 	currentUser: PropTypes.object,
 	userData: PropTypes.object,
 	activeSubscription: PropTypes.object,
+	usageSummary: PropTypes.object,
 
 	// Popup state props
 	showProfilePopup: PropTypes.bool.isRequired,
@@ -864,6 +868,7 @@ DeepTutorMain.propTypes = {
 	handleCancelRename: PropTypes.func.isRequired,
 	handleSubscriptionStatusChange: PropTypes.func.isRequired,
 	refreshActiveSubscription: PropTypes.func.isRequired,
+	refreshUsageSummary: PropTypes.func,
 
 	// Toggle handlers
 	switchPane: PropTypes.func.isRequired,
