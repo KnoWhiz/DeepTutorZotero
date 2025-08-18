@@ -239,11 +239,12 @@ export default function DeepTutorUsagePopup({ onClose, onUpgrade, userId, active
 		}
 
 		const barStyle = { ...styles.progressBar };
+		const useGradient = gradient || showUnlimited;
 		if (disabled) {
 			barStyle.background = isDark ? "#6B7280" : "#9CA3AF"; // gray
 		}
-		else if (gradient) {
-			barStyle.backgroundImage = "linear-gradient(90deg, #3B82F6 0%, #22D3EE 100%)"; // blue->cyan
+		else if (useGradient) {
+			barStyle.backgroundImage = "linear-gradient(90deg, #0AE2FF 0%, #0687E5 100%)"; // aqua -> blue
 		}
 		else if (percentage >= 100) {
 			barStyle.background = "#10B981"; // green
