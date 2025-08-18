@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react"; // eslint-disable-line no-unused-vars
 import PropTypes from "prop-types";
 import { useDeepTutorTheme } from "./theme/useDeepTutorTheme.js";
-import { getActiveUserSubscriptionByUserId } from "./api/libs/api.js";
+import { getActiveUserSubscriptionByUserId, DT_BASE_URL } from "./api/libs/api.js";
 import DeepTutorProcessingSubscription from "./DeepTutorProcessingSubscription.js";
 import DeepTutorSubscriptionConfirm from "./DeepTutorSubscriptionConfirm.js";
 
@@ -462,8 +462,8 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction: _onActio
 			
 			if (selectedLevel < currentLevel) {
 				// Downgrade - redirect to manage subscription page
-				const manageUrl = `http://localhost:3000/dzSubscription?manage=true`;
-				//const manageUrl = `https://${DT_BASE_URL}/manage-subscription`;
+				//const manageUrl = `http://localhost:3000/dzSubscription?manage=true`;
+				const manageUrl = `https://${DT_BASE_URL}/manage-subscription`;
 				try {
 					Zotero.launchURL(manageUrl);
 				}
@@ -485,11 +485,11 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction: _onActio
 			}
 			
 			// Regular upgrade action: open URL and show processing panel (do not delegate to parent)
-			let url = `http://localhost:3000/dzSubscription?plan=premium`;
-			//let url = `https://${DT_BASE_URL}/dzSubscription?plan=premium`;
+			//let url = `http://localhost:3000/dzSubscription?plan=premium`;
+			let url = `https://${DT_BASE_URL}/dzSubscription?plan=premium`;
 			if (activeTab === "pro") {
-				url = `http://localhost:3000/dzSubscription?plan=pro`;
-				//url = `https://${DT_BASE_URL}/dzSubscription?plan=pro`;
+				//url = `http://localhost:3000/dzSubscription?plan=pro`;
+				url = `https://${DT_BASE_URL}/dzSubscription?plan=pro`;
 			}
 			openSubscriptionUrl(url);
 			setCurrentPanel("processing");

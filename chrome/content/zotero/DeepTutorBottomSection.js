@@ -311,7 +311,6 @@ const DeepTutorBottomSection = (props) => {
 							</button>
 							{props.showProfilePopup && (
 								<DeepTutorProfilePopup
-									onManageSubscription={props.onToggleSubscriptionPopup}
 									onShowUsage={handleShowUsage}
 									onSignOut={props.onSignOut}
 									userData={props.userData}

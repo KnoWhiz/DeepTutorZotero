@@ -16,6 +16,7 @@ import DeepTutorRenameSession from './DeepTutorRenameSession.js';
 import DeepTutorNoPDFWarning from './DeepTutorNoPDFWarning.js';
 import DeepTutorFileSizeWarning from './DeepTutorFileSizeWarning.js';
 import DeepTutorSubscriptionPopup from './DeepTutorSubscriptionPopup.js';
+import { DT_BASE_URL } from './api/libs/api.js';
 
 
 // Icon paths for popup close buttons
@@ -622,11 +623,11 @@ const DeepTutorMain = (props) => {
 						onClose={props.toggleSubscriptionPopup}
 						onAction={(plan) => {
 							// Open different URLs based on selected plan
-							let url = `http://localhost:3000/dzSubscription?plan=premium`;
-							//let url = `https://${DT_BASE_URL}/dzSubscription?plan=premium`;
+							//let url = `http://localhost:3000/dzSubscription?plan=premium`;
+							let url = `https://${DT_BASE_URL}/dzSubscription?plan=premium`;
 							if (plan === 'pro') {
-								url = `http://localhost:3000/dzSubscription?plan=pro`;
-								//url = `https://${DT_BASE_URL}/dzSubscription?plan=pro`;
+								//url = `http://localhost:3000/dzSubscription?plan=pro`;
+								url = `https://${DT_BASE_URL}/dzSubscription?plan=pro`;
 							}
 							else if (plan === 'free') {
 								// No external action for free; simply close
