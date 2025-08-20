@@ -185,12 +185,23 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
         const originalDir = getOriginalDataDirFromAdvanced();
         try {
             const parent = PathUtils.parent(originalDir);
-            const dst = OS.Path.join(parent, "DeepTutor");
+            const dst = PathUtils.join(parent, "DeepTutor");
             console.log("[DeepTutor Setup] Computed DeepTutor dir:", dst, "from original:", originalDir);
             return dst;
         } catch (e) {
             console.log("[DeepTutor Setup] Failed computing DeepTutor dir, falling back to home/DeepTutor:", e);
-            return OS.Path.join(OS.Constants.Path.homeDir, "DeepTutor");
+            try {
+                return PathUtils.join(OS.Constants.Path.homeDir, "DeepTutor");
+            } catch (e2) {
+                // If OS is not available, make a simple fallback under the original parent
+                try {
+                    const parent2 = PathUtils.parent(originalDir);
+                    return PathUtils.join(parent2, "DeepTutor");
+                } catch (e3) {
+                    console.log("[DeepTutor Setup] Final fallback for DeepTutor dir failed:", e3);
+                    return originalDir;
+                }
+            }
         }
     };
 
