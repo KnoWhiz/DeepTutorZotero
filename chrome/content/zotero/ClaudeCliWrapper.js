@@ -59,6 +59,10 @@ const ClaudeCliWrapper = {
 			let spArgs;
 			let options = { timeout };
 
+			// Get API key from Zotero preferences for immediate use (one-click solution)
+			const storedApiKey = Zotero.Prefs.get('deeptutor.claude.apiKey');
+			Zotero.debug(`ClaudeCliWrapper.runClaude: Using stored API key: ${storedApiKey ? 'yes' : 'no'}`);
+
 			if (wslInfo) {
 				// Execute inside WSL bash, optionally cd to linuxDir
 				command = "C:\\Windows\\System32\\wsl.exe";
@@ -66,7 +70,9 @@ const ClaudeCliWrapper = {
 				const shBody = (stdinText != null)
 					? `printf "%s" "${escapeForBashDoubleQuoted(stdinText)}" | claude${joined}`
 					: `claude${joined}`;
-				const shLine = workingDirPath ? `cd "${wslInfo.linuxDir}" && ${shBody}` : shBody;
+				// Inject API key for immediate use (one-time command approach)
+				const envClaudeCmd = storedApiKey ? `ANTHROPIC_API_KEY="${storedApiKey}" ${shBody}` : shBody;
+				const shLine = workingDirPath ? `cd "${wslInfo.linuxDir}" && ${envClaudeCmd}` : envClaudeCmd;
 				spArgs = ["-d", wslInfo.distro, "--", "bash", "-lc", shLine];
 			}
 			else if (Zotero.isWin) {
@@ -76,20 +82,24 @@ const ClaudeCliWrapper = {
 				const body = (stdinText != null)
 					? `echo ${escapeForCmdEcho(stdinText)} | claude${joined}`
 					: `claude${joined}`;
-				const line = workingDirPath ? `cd /d "${workingDirPath}" && ${body}` : body;
+				// Inject API key for immediate use (set for command session)
+				const envBody = storedApiKey ? `set ANTHROPIC_API_KEY=${storedApiKey} && ${body}` : body;
+				const line = workingDirPath ? `cd /d "${workingDirPath}" && ${envBody}` : envBody;
 				spArgs = ["/d", "/s", "/c", line];
 			}
 			else {
 				// Unix-like shells
 				command = "/bin/sh";
 				const joined = joinArgs(safeArgs);
-				const line = workingDirPath
+				const baseCmd = workingDirPath
 					? (stdinText != null
 						? `cd "${workingDirPath}" && printf "%s" "${escapeForBashDoubleQuoted(stdinText)}" | claude${joined}`
 						: `cd "${workingDirPath}" && claude${joined}`)
 					: (stdinText != null
 						? `printf "%s" "${escapeForBashDoubleQuoted(stdinText)}" | claude${joined}`
 						: `claude${joined}`);
+				// Inject API key for immediate use (one-time command approach)
+				const line = storedApiKey ? `ANTHROPIC_API_KEY="${storedApiKey}" ${baseCmd}` : baseCmd;
 				spArgs = ["-lc", line];
 			}
 
@@ -177,7 +187,8 @@ const ClaudeCliWrapper = {
 	// Install Claude CLI and set API key
 	installClaude: async function(apiKey, workingDirOverride = null) {
 		Zotero.debug("ClaudeCliWrapper.installClaude: start");
-		const timeout = 120000; // allow time for npm install
+		Zotero.debug(`ClaudeCliWrapper.installClaude: apiKey length=${apiKey ? apiKey.length : 0}`);
+		const timeout = 180000; // 3 minutes for npm install
 		const workingDirPath = (workingDirOverride && typeof workingDirOverride === 'string') ? workingDirOverride : null;
 
 		let wslInfo = null;
@@ -193,36 +204,168 @@ const ClaudeCliWrapper = {
 				return { ok: false, error: new Error('Subprocess API not available') };
 			}
 
+					if (!apiKey || typeof apiKey !== 'string' || !apiKey.trim()) {
+			return { ok: false, error: new Error('Valid API key is required') };
+		}
+
+		const cleanApiKey = String(apiKey).trim();
+
+		// Store API key in Zotero preferences for immediate use (one-click solution)
+		try {
+			Zotero.Prefs.set('deeptutor.claude.apiKey', cleanApiKey);
+			Zotero.debug("ClaudeCliWrapper.installClaude: API key stored in Zotero preferences for immediate use");
+		} catch (prefError) {
+			Zotero.debug("ClaudeCliWrapper.installClaude: Error storing API key in preferences:", prefError);
+		}
+
+		// Step 1: Install Claude CLI
+			Zotero.debug("ClaudeCliWrapper.installClaude: Installing Claude CLI...");
+			let installResult;
+			
 			let command;
 			let spArgs;
 			let options = { timeout };
 
 			if (wslInfo) {
 				command = "C:\\Windows\\System32\\wsl.exe";
-				const shLine = workingDirPath
-					? `cd "${wslInfo.linuxDir}" && npm install -g @anthropic-ai/claude-code && export ANTHROPIC_API_KEY="${String(apiKey || '')}"`
-					: `npm install -g @anthropic-ai/claude-code && export ANTHROPIC_API_KEY="${String(apiKey || '')}"`;
-				spArgs = ["-d", wslInfo.distro, "--", "bash", "-lc", shLine];
+				const installLine = workingDirPath
+					? `cd "${wslInfo.linuxDir}" && npm install -g @anthropic-ai/claude-code`
+					: `npm install -g @anthropic-ai/claude-code`;
+				spArgs = ["-d", wslInfo.distro, "--", "bash", "-lc", installLine];
 			}
 			else if (Zotero.isWin) {
 				command = "C:\\Windows\\System32\\cmd.exe";
-				// setx persists user-level env var
-				const line = workingDirPath
-					? `cd /d "${workingDirPath}" && npm install -g @anthropic-ai/claude-code && setx ANTHROPIC_API_KEY "${String(apiKey || '')}"`
-					: `npm install -g @anthropic-ai/claude-code && setx ANTHROPIC_API_KEY "${String(apiKey || '')}"`;
-				spArgs = ["/d", "/s", "/c", line];
+				const installLine = workingDirPath
+					? `cd /d "${workingDirPath}" && npm install -g @anthropic-ai/claude-code`
+					: `npm install -g @anthropic-ai/claude-code`;
+				spArgs = ["/d", "/s", "/c", installLine];
 			}
 			else {
 				command = "/bin/sh";
-				const line = workingDirPath
-					? `cd "${workingDirPath}" && npm install -g @anthropic-ai/claude-code && export ANTHROPIC_API_KEY="${String(apiKey || '')}"`
-					: `npm install -g @anthropic-ai/claude-code && export ANTHROPIC_API_KEY="${String(apiKey || '')}"`;
-				spArgs = ["-lc", line];
+				const installLine = workingDirPath
+					? `cd "${workingDirPath}" && npm install -g @anthropic-ai/claude-code`
+					: `npm install -g @anthropic-ai/claude-code`;
+				spArgs = ["-lc", installLine];
 			}
 
-			const res = await Zotero.Utilities.Internal.subprocess(command, spArgs, options);
-			Zotero.debug("ClaudeCliWrapper.installClaude: result:", JSON.stringify(res));
-			return { ok: true, result: res };
+			installResult = await Zotero.Utilities.Internal.subprocess(command, spArgs, options);
+			Zotero.debug("ClaudeCliWrapper.installClaude: npm install result:", JSON.stringify(installResult));
+			
+			// Check if installation was successful
+			if (installResult && (installResult.includes('error') || installResult.includes('failed'))) {
+				return { ok: false, error: new Error(`npm install failed: ${installResult}`) };
+			}
+
+					// Step 2: Set API key with multiple persistent approaches for one-click solution
+		Zotero.debug("ClaudeCliWrapper.installClaude: Setting API key with multiple approaches...");
+		let envResult = {};
+
+		if (wslInfo) {
+			// For WSL: Multiple approaches for maximum reliability
+			try {
+				// 1. Add to .bashrc for shell persistence
+				const bashrcLine = `echo 'export ANTHROPIC_API_KEY="${cleanApiKey}"' >> ~/.bashrc`;
+				const bashrcSpArgs = ["-d", wslInfo.distro, "--", "bash", "-lc", bashrcLine];
+				envResult.bashrc = await Zotero.Utilities.Internal.subprocess(command, bashrcSpArgs, options);
+				
+				// 2. Add to .profile for login shell persistence
+				const profileLine = `echo 'export ANTHROPIC_API_KEY="${cleanApiKey}"' >> ~/.profile`;
+				const profileSpArgs = ["-d", wslInfo.distro, "--", "bash", "-lc", profileLine];
+				envResult.profile = await Zotero.Utilities.Internal.subprocess(command, profileSpArgs, options);
+			} catch (e) {
+				Zotero.debug("ClaudeCliWrapper.installClaude: WSL env setting error:", e);
+			}
+		}
+		else if (Zotero.isWin) {
+			// For Windows: User and system level approaches
+			try {
+				// 1. Set user-level persistent environment variable
+				const userEnvLine = `setx ANTHROPIC_API_KEY "${cleanApiKey}"`;
+				const userEnvSpArgs = ["/d", "/s", "/c", userEnvLine];
+				envResult.userLevel = await Zotero.Utilities.Internal.subprocess(command, userEnvSpArgs, options);
+				
+				// 2. Try system-level if user has admin rights (may fail, that's ok)
+				try {
+					const systemEnvLine = `setx ANTHROPIC_API_KEY "${cleanApiKey}" /M`;
+					const systemEnvSpArgs = ["/d", "/s", "/c", systemEnvLine];
+					envResult.systemLevel = await Zotero.Utilities.Internal.subprocess(command, systemEnvSpArgs, options);
+				} catch (adminError) {
+					Zotero.debug("ClaudeCliWrapper.installClaude: System-level setx failed (expected if not admin):", adminError);
+				}
+			} catch (e) {
+				Zotero.debug("ClaudeCliWrapper.installClaude: Windows env setting error:", e);
+			}
+		}
+		else {
+			// For Unix-like systems: Multiple shell profiles for maximum coverage
+			try {
+				// 1. Add to .bashrc
+				const bashrcLine = `echo 'export ANTHROPIC_API_KEY="${cleanApiKey}"' >> ~/.bashrc`;
+				const bashrcSpArgs = ["-lc", bashrcLine];
+				envResult.bashrc = await Zotero.Utilities.Internal.subprocess("/bin/sh", bashrcSpArgs, options);
+				
+				// 2. Add to .profile
+				const profileLine = `echo 'export ANTHROPIC_API_KEY="${cleanApiKey}"' >> ~/.profile`;
+				const profileSpArgs = ["-lc", profileLine];
+				envResult.profile = await Zotero.Utilities.Internal.subprocess("/bin/sh", profileSpArgs, options);
+				
+				// 3. Add to .zshrc if it exists (for zsh users)
+				const zshrcLine = `[ -f ~/.zshrc ] && echo 'export ANTHROPIC_API_KEY="${cleanApiKey}"' >> ~/.zshrc || true`;
+				const zshrcSpArgs = ["-lc", zshrcLine];
+				envResult.zshrc = await Zotero.Utilities.Internal.subprocess("/bin/sh", zshrcSpArgs, options);
+			} catch (e) {
+				Zotero.debug("ClaudeCliWrapper.installClaude: Unix env setting error:", e);
+			}
+		}
+
+			Zotero.debug("ClaudeCliWrapper.installClaude: env variable result:", JSON.stringify(envResult));
+
+					// Step 3: Verify installation
+		Zotero.debug("ClaudeCliWrapper.installClaude: Verifying installation...");
+		const verifyResult = await this.checkClaude(workingDirOverride);
+		Zotero.debug("ClaudeCliWrapper.installClaude: verification result:", JSON.stringify(verifyResult));
+
+		// Step 4: Test immediate API key functionality (one-click verification)
+		let apiTestResult = null;
+		if (verifyResult.exists) {
+			try {
+				Zotero.debug("ClaudeCliWrapper.installClaude: Testing immediate API key functionality...");
+				apiTestResult = await this.runClaude([], workingDirOverride, "test", null, false, null);
+				Zotero.debug("ClaudeCliWrapper.installClaude: API test result:", JSON.stringify(apiTestResult));
+			} catch (testError) {
+				Zotero.debug("ClaudeCliWrapper.installClaude: API test error:", testError);
+				apiTestResult = { error: testError };
+			}
+		}
+
+		if (verifyResult.exists) {
+			const isApiWorking = apiTestResult && !apiTestResult.error && 
+				!String(apiTestResult).includes('API key') && 
+				!String(apiTestResult).includes('authentication');
+			
+			return { 
+				ok: true, 
+				result: {
+					install: installResult,
+					env: envResult,
+					verification: verifyResult,
+					apiTest: apiTestResult
+				},
+				message: isApiWorking 
+					? "🎉 Claude CLI installed and API key working immediately! One-click setup complete."
+					: "✅ Claude CLI installed and API key set. API may need a moment to activate or you may need to restart your terminal for some features."
+			};
+		} else {
+			return { 
+				ok: false, 
+				error: new Error("Installation completed but claude command not found. Please check your PATH."),
+				partialResult: {
+					install: installResult,
+					env: envResult,
+					verification: verifyResult
+				}
+			};
+		}
 		}
 		catch (e) {
 			Zotero.debug("ClaudeCliWrapper.installClaude: error:", e);
