@@ -289,12 +289,12 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 		try {
 			const base = Zotero.DataDirectory.defaultDir;
 			const parent = PathUtils.parent(base);
-			return PathUtils.join(parent, "DeepTutor");
+			return PathUtils.join(parent, "DeepTutorData");
 		}
 		catch (e) {
 			console.log("[DeepTutor Setup] computeDeepTutorDir failed:", e);
 			// Last resort: use a simple string path
-			return "~/DeepTutor";
+			return "~/DeepTutorData";
 		}
 	};
 
@@ -333,9 +333,18 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 				await IOUtils.makeDirectory(deepTutorDir, { ignoreExisting: true, permissions: 0o755 });
 				// Use deeptutor.sqlite in a new DeepTutor data folder (do not interfere with Zotero dataDir)
 				Zotero.Prefs.set("deeptutor.dataDir", deepTutorDir);
+				console.log("[DeepTutor Setup] Start New Workspace - Data directory preference set to:", deepTutorDir);
+				console.log("[DeepTutor Setup] Verifying preference was set:", Zotero.Prefs.get("deeptutor.dataDir"));
+				
 				markCompleted();
 				setIsWorking(false);
-				if (onComplete) onComplete();
+				
+				// Show restart prompt since data directory change requires restart
+				if (confirm("DeepTutor data directory has been set to: " + deepTutorDir + "\n\nA restart is required for this change to take effect.\n\nWould you like to restart Zotero now?")) {
+					restartNow();
+				} else {
+					if (onComplete) onComplete();
+				}
 				return;
 			}
 
@@ -354,10 +363,20 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 					if (choice === "copy") {
 						await handleCopyFromZotero(defaultZoteroPath);
 					} else {
-						// Share with Zotero - keep current data dir
+						// Share with Zotero - use the Zotero path directly
+						Zotero.Prefs.set("deeptutor.dataDir", defaultZoteroPath);
+						console.log("[DeepTutor Setup] Share with Zotero - Data directory preference set to:", defaultZoteroPath);
+						console.log("[DeepTutor Setup] Verifying preference was set:", Zotero.Prefs.get("deeptutor.dataDir"));
+						
 						markCompleted();
 						setIsWorking(false);
-						if (onComplete) onComplete();
+						
+						// Show restart prompt since data directory change requires restart
+						if (confirm("DeepTutor data directory has been set to: " + defaultZoteroPath + "\n\nA restart is required for this change to take effect.\n\nWould you like to restart Zotero now?")) {
+							restartNow();
+						} else {
+							if (onComplete) onComplete();
+						}
 					}
 					return;
 				} catch (_e) {
@@ -393,7 +412,7 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 		// If target non-empty, abort to avoid unsafe merge
 		const targetEmpty = await Zotero.File.directoryIsEmpty(deepTutorDir);
 		if (!targetEmpty) {
-			throw new Error("Target DeepTutor directory is not empty. Choose 'Start New Workspace' or clear the folder.");
+			throw new Error(`Target DeepTutor directory is not empty: ${deepTutorDir}. Choose 'Start New Workspace' or clear the folder.`);
 		}
 		
 		console.log("[DeepTutor Setup] Copying directory...", { from: sourcePath, to: deepTutorDir });
@@ -403,16 +422,25 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 		try {
 			const dbFrom = PathUtils.join(deepTutorDir, "zotero.sqlite");
 			await IOUtils.stat(dbFrom);
-			await OS.File.move(dbFrom, PathUtils.join(deepTutorDir, "deeptutor.sqlite"));
+			await IOUtils.move(dbFrom, PathUtils.join(deepTutorDir, "deeptutor.sqlite"));
 		}
 		catch (e) {
 			console.log("[DeepTutor Setup] Database rename step (zotero.sqlite -> deeptutor.sqlite) skipped or failed:", e);
 		}
 		
 		Zotero.Prefs.set("deeptutor.dataDir", deepTutorDir);
+		console.log("[DeepTutor Setup] Data directory preference set to:", deepTutorDir);
+		console.log("[DeepTutor Setup] Verifying preference was set:", Zotero.Prefs.get("deeptutor.dataDir"));
+		
 		markCompleted();
 		setIsWorking(false);
-		if (onComplete) onComplete();
+		
+		// Show restart prompt since data directory change requires restart
+		if (confirm("DeepTutor data directory has been changed to: " + deepTutorDir + "\n\nA restart is required for this change to take effect.\n\nWould you like to restart Zotero now?")) {
+			restartNow();
+		} else {
+			if (onComplete) onComplete();
+		}
 	};
 
 	/**
