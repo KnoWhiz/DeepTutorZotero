@@ -21,10 +21,15 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
     const { colors, isDark } = useDeepTutorTheme();
     const closeIcon = isDark ? PopupCloseDarkPath : PopupClosePath;
 
-    const [choice, setChoice] = useState("share");
+    const [choice, setChoice] = useState("start");
     const [isWorking, setIsWorking] = useState(false);
     const [error, setError] = useState("");
     const [portalEl, setPortalEl] = useState(null);
+    const [page, setPage] = useState("main"); // 'main' | 'pathEntry'
+    const [pathPurpose, setPathPurpose] = useState("copy"); // 'copy' | 'share'
+    const [customZoteroPath, setCustomZoteroPath] = useState("");
+    const [showHelpPopup, setShowHelpPopup] = useState(false);
+    const [bgSize, setBgSize] = useState({ width: 0, height: 0 });
 
     // Create a portal container in the top-level Zotero window so we can block the whole UI
     useEffect(() => {
@@ -58,6 +63,26 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
         }
     }, []);
 
+    // Load background image dimensions to size container to image
+    useEffect(() => {
+        try {
+            const img = new Image();
+            img.onload = () => {
+                // Scale down to fit viewport while preserving aspect ratio
+                const maxW = Math.floor(window.innerWidth * 0.95);
+                const maxH = Math.floor(window.innerHeight * 0.92);
+                const scale = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight, 1);
+                const w = Math.max(320, Math.round(img.naturalWidth * scale));
+                const h = Math.max(240, Math.round(img.naturalHeight * scale));
+                setBgSize({ width: w, height: h });
+            };
+            img.src = isDark
+                ? "chrome://zotero/content/DeepTutorMaterials/WorkspaceSettings/dark_mode_background.png"
+                : "chrome://zotero/content/DeepTutorMaterials/WorkspaceSettings/light_mode_background.png";
+        }
+        catch (e) {}
+    }, [isDark]);
+
     const styles = {
         overlay: {
             position: "fixed",
@@ -73,39 +98,63 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
         },
         container: {
             position: "relative",
-            width: "min(56rem, 92vw)",
-            maxHeight: "92vh",
-            background: colors.background.primary,
+            width: bgSize.width ? `${bgSize.width}px` : "min(70rem, 95vw)",
+            height: bgSize.height ? `${bgSize.height}px` : "auto",
+            background: `url(${isDark ? "chrome://zotero/content/DeepTutorMaterials/WorkspaceSettings/dark_mode_background.png" : "chrome://zotero/content/DeepTutorMaterials/WorkspaceSettings/light_mode_background.png"}) center/contain no-repeat, ${colors.background.primary}`,
             borderRadius: "0.75rem",
             border: isDark ? `1px solid ${colors.popup.border}` : "none",
-            padding: "2.5rem 3rem",
+            padding: "2rem 2.5rem",
             boxShadow: "0 0.75rem 2rem rgba(0,0,0,0.25)",
             fontFamily: "Roboto, Inter, Arial, sans-serif"
+        },
+        content: {
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.75rem",
         },
         title: {
             width: "100%",
             textAlign: "center",
             margin: 0,
-            marginBottom: "2rem",
+            marginBottom: "0.5rem",
             fontWeight: 800,
             fontSize: "2rem",
             lineHeight: 1.15,
-            background: "linear-gradient(90deg, #0AE2FF 0%, #0687E5 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
-            color: "#0687E5"
+            color: isDark ? "#FFFFFF" : "#000000"
+        },
+        subtitle: {
+            width: "100%",
+            color: isDark ? "#FFFFFF" : "#000000",
+            fontSize: "32px",
+            fontWeight: 600,
+            textAlign: "left",
+            margin: 0,
+        },
+        subtitleRow: {
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            width: "100%",
+        },
+        topLogo: {
+            width: "9rem",
+            height: "auto",
+            display: "block",
+            margin: "0 auto 0.5rem auto",
         },
         optionRow: {
             display: "flex",
             alignItems: "center",
             gap: "0.75rem",
-            padding: "0.75rem 1rem",
+            padding: "0.5rem 0",
             borderRadius: "0.5rem",
-            border: `1px solid ${colors.border.primary}`,
-            marginBottom: "0.75rem",
+            border: "1px solid transparent",
+            marginBottom: "0.5rem",
             cursor: "pointer",
-            background: colors.background.quaternary
+            background: "transparent"
         },
         optionLabel: {
             color: colors.text.primary,
@@ -121,9 +170,9 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
         },
         actions: {
             display: "flex",
-            justifyContent: "flex-end",
+            justifyContent: "space-between",
             gap: "0.75rem",
-            marginTop: "1.5rem"
+            marginTop: "1rem"
         },
         primary: {
             all: "revert",
@@ -163,7 +212,60 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
             color: "#ef4444",
             fontSize: "0.95rem",
             marginTop: "0.75rem"
-        }
+        },
+        backButton: {
+            all: "revert",
+            position: "absolute",
+            left: "1rem",
+            top: "1rem",
+            background: colors.background.quaternary,
+            border: `1px solid ${colors.border.primary}`,
+            color: colors.text.primary,
+            borderRadius: "0.5rem",
+            padding: "0.25rem 0.75rem",
+            cursor: "pointer",
+            fontWeight: 600,
+        },
+        input: {
+            width: "100%",
+            padding: "0.75rem",
+            borderRadius: "0.5rem",
+            border: `1px solid ${colors.border.primary}`,
+            color: colors.text.primary,
+            background: colors.background.primary,
+            fontFamily: "Roboto, sans-serif",
+        },
+        textButton: {
+            all: "revert",
+            background: "transparent",
+            border: "none",
+            color: "#0687E5",
+            cursor: "pointer",
+            textDecoration: "underline",
+            fontFamily: "Roboto, sans-serif",
+            fontSize: "1rem",
+            marginTop: "0.75rem",
+        },
+        helpOverlay: {
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 2100,
+        },
+        helpContent: {
+            background: colors.background.primary,
+            border: isDark ? `1px solid ${colors.popup.border}` : "none",
+            borderRadius: "0.5rem",
+            padding: "1.5rem",
+            maxWidth: "32rem",
+            width: "90%",
+        },
     };
 
     const getOriginalDataDirFromAdvanced = () => {
@@ -182,26 +284,20 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
     };
 
     const computeDeepTutorDir = () => {
-        const originalDir = getOriginalDataDirFromAdvanced();
+        // Default DeepTutor location under home directory
         try {
-            const parent = PathUtils.parent(originalDir);
-            const dst = PathUtils.join(parent, "DeepTutor");
-            console.log("[DeepTutor Setup] Computed DeepTutor dir:", dst, "from original:", originalDir);
-            return dst;
-        } catch (e) {
-            console.log("[DeepTutor Setup] Failed computing DeepTutor dir, falling back to home/DeepTutor:", e);
-            try {
+            if (typeof OS !== "undefined" && OS.Constants && OS.Constants.Path && OS.Constants.Path.homeDir) {
                 return PathUtils.join(OS.Constants.Path.homeDir, "DeepTutor");
-            } catch (e2) {
-                // If OS is not available, make a simple fallback under the original parent
-                try {
-                    const parent2 = PathUtils.parent(originalDir);
-                    return PathUtils.join(parent2, "DeepTutor");
-                } catch (e3) {
-                    console.log("[DeepTutor Setup] Final fallback for DeepTutor dir failed:", e3);
-                    return originalDir;
-                }
             }
+        } catch (e) {}
+        // Fallback: base on Zotero default dir parent
+        try {
+            const base = Zotero.DataDirectory.defaultDir;
+            const parent = PathUtils.parent(base);
+            return PathUtils.join(parent, "DeepTutor");
+        } catch (e) {
+            console.log("[DeepTutor Setup] computeDeepTutorDir fallback failed:", e);
+            return PathUtils.join("~", "DeepTutor");
         }
     };
 
@@ -245,11 +341,12 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
             console.log("[DeepTutor Setup] Choice:", choice, "originalDir:", originalDir, "deepTutorDir:", deepTutorDir);
 
             if (choice === "start") {
-                // Ensure directory exists, do not copy anything
                 await IOUtils.makeDirectory(deepTutorDir, { ignoreExisting: true, permissions: 0o755 });
-                Zotero.DataDirectory.set(deepTutorDir);
+                // Use deeptutor.sqlite in a new DeepTutor data folder (do not interfere with Zotero dataDir)
+                Zotero.Prefs.set("deeptutor.dataDir", deepTutorDir);
                 markCompleted();
-                restartNow();
+                setIsWorking(false);
+                if (onComplete) onComplete();
                 return;
             }
 
@@ -266,9 +363,19 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
                 }
                 console.log("[DeepTutor Setup] Copying directory...", { from: originalDir, to: deepTutorDir });
                 await Zotero.File.copyDirectory(originalDir, deepTutorDir);
-                Zotero.DataDirectory.set(deepTutorDir);
+                // Rename zotero.sqlite to deeptutor.sqlite if present
+                try {
+                    const dbFrom = PathUtils.join(deepTutorDir, "zotero.sqlite");
+                    await IOUtils.stat(dbFrom);
+                    await OS.File.move(dbFrom, PathUtils.join(deepTutorDir, "deeptutor.sqlite"));
+                }
+                catch (e) {
+                    console.log("[DeepTutor Setup] Database rename step (zotero.sqlite -> deeptutor.sqlite) skipped or failed:", e);
+                }
+                Zotero.Prefs.set("deeptutor.dataDir", deepTutorDir);
                 markCompleted();
-                restartNow();
+                setIsWorking(false);
+                if (onComplete) onComplete();
                 return;
             }
         }
@@ -288,34 +395,79 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
                     <img src={closeIcon} alt="Close" style={{ width: "1.25rem", height: "1.25rem" }} />
                 </button>
 
-                <h2 style={styles.title}>Welcome to DeepTutor</h2>
-                <div style={{ textAlign: "center", color: colors.text.primary, marginBottom: "0.5rem", fontSize: "1.125rem", fontWeight: 600 }}>How would you like to set up your DeepTutor workspace?</div>
-                <div style={{ textAlign: "center", color: colors.text.tertiary, marginBottom: "1.25rem" }}>First-time setup: {isFirstRun ? "Yes" : "No (showing for testing)"}</div>
+                {page === "main" && (
+                    <>
+                        <img src="chrome://zotero/content/DeepTutorMaterials/WorkspaceSettings/deeptutor_main.svg" alt="DeepTutor" style={styles.topLogo} />
+                        <h2 style={styles.title}>Welcome to DeepTutor</h2>
+                        <div style={styles.subtitleRow}>
+                            <div style={styles.subtitle}>How would you like to set up your DeepTutor workspace?</div>
+                            <div style={{ width: "10rem" }} />
+                        </div>
+                        <div style={{ textAlign: "center", color: colors.text.tertiary, marginBottom: "1.25rem" }}>First-time setup: {isFirstRun ? "Yes" : "No (showing for testing)"}</div>
 
-                <div role="radiogroup" aria-label="Workspace setup options" style={{ marginTop: "1rem" }}>
-                    <label style={styles.optionRow} onClick={() => setChoice("start")}> 
-                        <input type="radio" name="dt-setup" checked={choice === "start"} onChange={() => setChoice("start")} />
-                        <span style={styles.optionLabel}>Start New Workspace</span>
-                    </label>
+                        <div role="radiogroup" aria-label="Workspace setup options" style={{ marginTop: "0.5rem" }}>
+                            <label style={styles.optionRow} onClick={() => setChoice("start")}>
+                                <input type="radio" name="dt-setup" checked={choice === "start"} onChange={() => setChoice("start")} />
+                                <span style={styles.optionLabel}>Start New Workspace</span>
+                            </label>
 
-                    <label style={styles.optionRow} onClick={() => setChoice("copy")}> 
-                        <input type="radio" name="dt-setup" checked={choice === "copy"} onChange={() => setChoice("copy")} />
-                        <span style={styles.optionLabel}>Copy from Zotero</span>
-                    </label>
+                            <label style={styles.optionRow} onClick={() => setChoice("copy")}>
+                                <input type="radio" name="dt-setup" checked={choice === "copy"} onChange={() => setChoice("copy")} />
+                                <span style={styles.optionLabel}>Copy from Zotero</span>
+                            </label>
 
-                    <label style={styles.optionRow} onClick={() => setChoice("share")}> 
-                        <input type="radio" name="dt-setup" checked={choice === "share"} onChange={() => setChoice("share")} />
-                        <span style={styles.optionLabel}>Share with Zotero</span>
-                    </label>
-                    <div style={styles.hint}>Note: Sharing database with Zotero means you cant run both apps at the same time.</div>
-                </div>
+                            <label style={styles.optionRow} onClick={() => setChoice("share")}>
+                                <input type="radio" name="dt-setup" checked={choice === "share"} onChange={() => setChoice("share")} />
+                                <span style={styles.optionLabel}>Share with Zotero</span>
+                            </label>
+                            <div style={styles.hint}>Note: Sharing database with Zotero means you cant run both apps at the same time.</div>
+                        </div>
 
-                {error ? <div style={styles.error}>{error}</div> : null}
+                        {error ? <div style={styles.error}>{error}</div> : null}
 
-                <div style={styles.actions}>
-                    <button style={styles.secondary} onClick={onClose} disabled={isWorking}>Cancel</button>
-                    <button style={styles.primary} onClick={handleContinue} disabled={isWorking}>{isWorking ? "Working..." : "Continue"}</button>
-                </div>
+                        <div style={styles.actions}>
+                            <div />
+                            <button style={styles.primary} onClick={handleContinue} disabled={isWorking}>{isWorking ? "Working..." : "Continue"}</button>
+                        </div>
+                    </>
+                )}
+
+                {page === "pathEntry" && (
+                    <>
+                        <button style={styles.backButton} onClick={() => { setPage("main"); setError(""); }}>Back</button>
+                        <h2 style={styles.title}>Find Zotero Data Directory</h2>
+                        <div style={{ color: colors.text.primary, fontWeight: 600, marginBottom: "0.75rem" }}>
+                            To {pathPurpose === "copy" ? "copy Zotero's workspace with DeepTutor" : "share Zotero's workspace with DeepTutor"}, please copy your Zotero Data Directory path here:
+                        </div>
+                        <input
+                            style={styles.input}
+                            placeholder="Your Zotero Data Directory"
+                            value={customZoteroPath}
+                            onChange={(e) => setCustomZoteroPath(e.target.value)}
+                        />
+                        <button style={styles.textButton} onClick={() => setShowHelpPopup(true)}>How to find my Zotero file path?</button>
+                        {error ? <div style={styles.error}>{error}</div> : null}
+                        <div style={styles.actions}>
+                            <button style={styles.secondary} onClick={() => { setPage("main"); setError(""); }} disabled={isWorking}>Back</button>
+                            <button style={styles.primary} onClick={handlePathEntryContinue} disabled={isWorking}>{isWorking ? "Working..." : "Continue"}</button>
+                        </div>
+                        {showHelpPopup && (
+                            <div style={styles.helpOverlay}>
+                                <div style={styles.helpContent}>
+                                    <div style={{ fontWeight: 800, fontSize: "1.25rem", marginBottom: "0.5rem", color: colors.text.primary }}>Find My Zotero Data Directory</div>
+                                    <div style={{ color: colors.text.primary, marginBottom: "1rem" }}>
+                                        {Zotero.isWin
+                                            ? "Please navigate to Edit > Settings > Data Directory Location. Please copy the path into the input box"
+                                            : "Please navigate to Zotero > Settings > Data Directory Location. Please copy the path into the input box"}
+                                    </div>
+                                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                                        <button style={styles.primary} onClick={() => setShowHelpPopup(false)}>OK</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
             </div>
         </div>
     );
