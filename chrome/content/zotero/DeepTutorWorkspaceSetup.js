@@ -29,7 +29,7 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 	const [pathPurpose, setPathPurpose] = useState("copy"); // 'copy' | 'share'
 	const [customZoteroPath, setCustomZoteroPath] = useState("");
 	const [showHelpPopup, setShowHelpPopup] = useState(false);
-	const [bgSize, setBgSize] = useState({ width: 1512, height: 945 });
+
 
 	// Create a portal container in the top-level Zotero window so we can block the whole UI
 	useEffect(() => {
@@ -63,25 +63,7 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 		}
 	}, []);
 
-	// Load background image dimensions to size container to image
-	useEffect(() => {
-		try {
-			const img = new Image();
-			img.onload = () => {
-				// Scale down to fit viewport while preserving aspect ratio
-				const maxW = Math.floor(window.innerWidth * 0.95);
-				const maxH = Math.floor(window.innerHeight * 0.92);
-				const scale = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight, 1);
-				const w = Math.max(320, Math.round(img.naturalWidth * scale));
-				const h = Math.max(240, Math.round(img.naturalHeight * scale));
-				setBgSize({ width: w, height: h });
-			};
-			img.src = isDark
-				? "chrome://zotero/content/DeepTutorMaterials/WorkspaceSettings/dark_mode_background.png"
-				: "chrome://zotero/content/DeepTutorMaterials/WorkspaceSettings/light_mode_background.png";
-		}
-		catch (e) {}
-	}, [isDark]);
+
 
 	// Styles for the popup container and elements
 	const styles = {
@@ -309,15 +291,35 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 
 	const restartNow = () => {
 		try {
-			if (typeof Services !== 'undefined' && Services.startup && Components && Components.interfaces) {
-				Services.startup.quit(Components.interfaces.nsIAppStartup.eAttemptQuit);
-			}
-			else {
-				console.log('[DeepTutor Setup] Restart requested; Services not available. Please restart Zotero manually.');
+			Zotero.Utilities.Internal.quitZotero(true);
+		}
+		catch (e) {
+			Zotero.debug(`DeepTutor: Failed to trigger restart via quitZotero: ${e}`);
+		}
+	};
+
+	// Show the native-style restart-required dialog used by Zotero when changing data dir
+	const promptRestartAndMaybeQuit = () => {
+		try {
+			const app = Zotero.appName;
+			const index = Zotero.Prompt.confirm({
+				window: null,
+				title: Zotero.getString("general.restartRequired"),
+				text: `${Zotero.getString("general.restartRequiredForChange", app)}\n\n${Zotero.getString("dataDir.moveFilesToNewLocation", app)}`,
+				button0: Zotero.getString("general.quitApp", app),
+				button1: Zotero.getString("general.restartLater")
+			});
+			if (index === 0) {
+				restartNow();
 			}
 		}
 		catch (e) {
-			Zotero.debug(`DeepTutor: Failed to trigger restart: ${e}`);
+			// Fallback: simple alert + immediate restart
+			Zotero.alert(null,
+				Zotero.getString("general.restartRequired"),
+				`${Zotero.getString("general.restartRequiredForChange", Zotero.appName)}\n\n${Zotero.getString("dataDir.moveFilesToNewLocation", Zotero.appName)}`
+			);
+			restartNow();
 		}
 	};
 
@@ -339,12 +341,8 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 				markCompleted();
 				setIsWorking(false);
 				
-				// Show restart prompt since data directory change requires restart
-				if (confirm("DeepTutor data directory has been set to: " + deepTutorDir + "\n\nA restart is required for this change to take effect.\n\nWould you like to restart Zotero now?")) {
-					restartNow();
-				} else {
-					if (onComplete) onComplete();
-				}
+				// Show native-style restart prompt
+				promptRestartAndMaybeQuit();
 				return;
 			}
 
@@ -371,12 +369,8 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 						markCompleted();
 						setIsWorking(false);
 						
-						// Show restart prompt since data directory change requires restart
-						if (confirm("DeepTutor data directory has been set to: " + defaultZoteroPath + "\n\nA restart is required for this change to take effect.\n\nWould you like to restart Zotero now?")) {
-							restartNow();
-						} else {
-							if (onComplete) onComplete();
-						}
+						// Show native-style restart prompt
+						promptRestartAndMaybeQuit();
 					}
 					return;
 				} catch (_e) {
@@ -435,12 +429,8 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 		markCompleted();
 		setIsWorking(false);
 		
-		// Show restart prompt since data directory change requires restart
-		if (confirm("DeepTutor data directory has been changed to: " + deepTutorDir + "\n\nA restart is required for this change to take effect.\n\nWould you like to restart Zotero now?")) {
-			restartNow();
-		} else {
-			if (onComplete) onComplete();
-		}
+		// Show native-style restart prompt
+		promptRestartAndMaybeQuit();
 	};
 
 	/**
