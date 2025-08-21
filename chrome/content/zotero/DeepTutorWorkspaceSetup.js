@@ -3,9 +3,7 @@ import ReactDOM from "react-dom";
 import PropTypes from "prop-types";
 import { useDeepTutorTheme } from "./theme/useDeepTutorTheme.js";
 
-// Close icon paths
-const PopupClosePath = "chrome://zotero/content/DeepTutorMaterials/Main/MAIN_CLOSE.svg";
-const PopupCloseDarkPath = "chrome://zotero/content/DeepTutorMaterials/Main/CLOSE_DARK.svg";
+
 
 /**
  * Full-screen first-run workspace setup popup for DeepTutor.
@@ -17,9 +15,8 @@ const PopupCloseDarkPath = "chrome://zotero/content/DeepTutorMaterials/Main/CLOS
  *
  * On success this sets the prefs flag `deeptutor.workspaceSetupCompleted` and calls onComplete().
  */
-export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
+export default function DeepTutorWorkspaceSetup({ onComplete }) {
 	const { colors, isDark } = useDeepTutorTheme();
-	const closeIcon = isDark ? PopupCloseDarkPath : PopupClosePath;
 
 	const [choice, setChoice] = useState("start");
 	const [isWorking, setIsWorking] = useState(false);
@@ -88,7 +85,7 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 			height: "472px", // Exactly half of 945px background height
 			background: "transparent",
 			borderRadius: "0.75rem",
-			border: `1px solid ${colors.border.primary}`, // Added border to container
+			border: "none", // Removed border
 			padding: "2.5rem 3rem",
 			boxShadow: "none",
 			fontFamily: "Roboto, Inter, Arial, sans-serif",
@@ -121,12 +118,13 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 			fontWeight: 800,
 			fontSize: "3rem", // 48px
 			lineHeight: 1.15,
-			color: isDark ? "#FFFFFF" : "#1C1B1F",
+			color: isDark ? "#E1E0E4" : "#1C1B1F",
 		},
 		subtitle: {
 			fontSize: "2rem", // 32px
 			fontWeight: 600,
 			color: colors.text.primary,
+			marginTop: "1rem", // Added padding above subtitle
 			marginBottom: "1.5rem",
 			textAlign: 'left', // Changed back to left alignment
 			width: '100%',
@@ -144,8 +142,8 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 		},
 		optionLabel: {
 			color: colors.text.primary,
-			fontSize: "1rem",
-			fontWeight: 600,
+			fontSize: "1.5rem", // Changed from 1rem to 1.5rem (24px)
+			fontWeight: 400,
 			flexGrow: 1,
 			textAlign: 'left',
 		},
@@ -181,8 +179,8 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 			cursor: "pointer"
 		},
 		hint: {
-			fontSize: "0.875rem",
-			color: colors.text.secondary,
+			fontSize: "1.25rem",
+			color: isDark ? "#CDCDCD" : "#757575",
 			marginLeft: "2.5rem",
 			marginBottom: "1rem",
 			fontStyle: "italic",
@@ -280,7 +278,7 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 			fontFamily: "Roboto, sans-serif",
 		},
 		helpMessage: {
-			fontSize: "1rem",
+			fontSize: "1.25rem",
 			color: colors.text.allText || colors.text.primary,
 			textAlign: "left",
 			marginBottom: "1.875rem",
@@ -523,21 +521,17 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 		}
 	};
 
-	const isFirstRun = !Zotero.Prefs.get("deeptutor.workspaceSetupCompleted");
+
 
 	const overlay = (
 		<div style={styles.overlay}>
 			<div style={styles.container}>
-				<button style={styles.close} onClick={onClose} aria-label="Close">
-					<img src={closeIcon} alt="Close" style={{ width: "1.25rem", height: "1.25rem" }} />
-				</button>
 
 				{page === "main" && (
 					<>
 						<img src="chrome://zotero/content/DeepTutorMaterials/WorkspaceSettings/deeptutor_main.svg" alt="DeepTutor" style={styles.logo} />
 						<h2 style={styles.title}>Welcome to DeepTutor</h2>
 						<div style={styles.subtitle}>How would you like to set up your DeepTutor workspace?</div>
-						<div style={{ textAlign: "center", color: colors.text.tertiary, marginBottom: "1.25rem" }}>First-time setup: {isFirstRun ? "Yes" : "No (showing for testing)"}</div>
 
 						<div role="radiogroup" aria-label="Workspace setup options" style={{ width: '100%', marginTop: "1rem" }}>
 							<label style={styles.optionRow} onClick={() => setChoice("start")}>
@@ -554,7 +548,7 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 								<input type="radio" name="dt-setup" checked={choice === "share"} onChange={() => setChoice("share")} />
 								<span style={styles.optionLabel}>Share with Zotero</span>
 							</label>
-							<div style={{ ...styles.hint, textAlign: 'center', width: '100%' }}>Use your existing Zotero data directly. Note: You can&apos;t run both apps at the same time.</div>
+							<div style={{ ...styles.hint, textAlign: 'center', width: '100%' }}>Note: Sharing database with Zotero means you can’t run both apps at the same time.</div>
 						</div>
 
 						{error ? <div style={styles.error}>{error}</div> : null}
@@ -614,7 +608,6 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 }
 
 DeepTutorWorkspaceSetup.propTypes = {
-	onClose: PropTypes.func,
 	onComplete: PropTypes.func
 };
 
