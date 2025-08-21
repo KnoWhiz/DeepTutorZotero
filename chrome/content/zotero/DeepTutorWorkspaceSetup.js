@@ -333,10 +333,9 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 				const deepTutorDir = computeDeepTutorDir();
 				console.log("[DeepTutor Setup] Creating new workspace at:", deepTutorDir);
 				await IOUtils.makeDirectory(deepTutorDir, { ignoreExisting: true, permissions: 0o755 });
-				// Use deeptutor.sqlite in a new DeepTutor data folder (do not interfere with Zotero dataDir)
-				Zotero.Prefs.set("deeptutor.dataDir", deepTutorDir);
-				console.log("[DeepTutor Setup] Start New Workspace - Data directory preference set to:", deepTutorDir);
-				console.log("[DeepTutor Setup] Verifying preference was set:", Zotero.Prefs.get("deeptutor.dataDir"));
+				// Point Zotero to the new DeepTutor data directory
+				const startChanged = Zotero.DataDirectory.set(deepTutorDir);
+				console.log("[DeepTutor Setup] Start New Workspace - Data directory set via Zotero.DataDirectory.set:", { path: deepTutorDir, changed: startChanged });
 				
 				markCompleted();
 				setIsWorking(false);
@@ -361,10 +360,9 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 					if (choice === "copy") {
 						await handleCopyFromZotero(defaultZoteroPath);
 					} else {
-						// Share with Zotero - use the Zotero path directly
-						Zotero.Prefs.set("deeptutor.dataDir", defaultZoteroPath);
-						console.log("[DeepTutor Setup] Share with Zotero - Data directory preference set to:", defaultZoteroPath);
-						console.log("[DeepTutor Setup] Verifying preference was set:", Zotero.Prefs.get("deeptutor.dataDir"));
+						// Share with Zotero - set the actual data directory to Zotero path
+						const changed = Zotero.DataDirectory.set(defaultZoteroPath);
+						console.log("[DeepTutor Setup] Share with Zotero - Data directory set via Zotero.DataDirectory.set:", { path: defaultZoteroPath, changed });
 						
 						markCompleted();
 						setIsWorking(false);
@@ -422,9 +420,9 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 			console.log("[DeepTutor Setup] Database rename step (zotero.sqlite -> deeptutor.sqlite) skipped or failed:", e);
 		}
 		
-		Zotero.Prefs.set("deeptutor.dataDir", deepTutorDir);
-		console.log("[DeepTutor Setup] Data directory preference set to:", deepTutorDir);
-		console.log("[DeepTutor Setup] Verifying preference was set:", Zotero.Prefs.get("deeptutor.dataDir"));
+		// Point Zotero to the newly copied DeepTutor data directory
+		const copyChanged = Zotero.DataDirectory.set(deepTutorDir);
+		console.log("[DeepTutor Setup] Data directory set via Zotero.DataDirectory.set:", { path: deepTutorDir, changed: copyChanged });
 		
 		markCompleted();
 		setIsWorking(false);
