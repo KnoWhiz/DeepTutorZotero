@@ -85,28 +85,28 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 		},
 		container: {
 			position: "relative",
-			width: "1512px",
-			height: "945px",
+			width: "756px", // Exactly half of 1512px background width
+			height: "472px", // Exactly half of 945px background height
 			background: "transparent",
 			borderRadius: "0.75rem",
-			border: "none",
-			padding: "0",
+			border: `1px solid ${colors.border.primary}`, // Added border to container
+			padding: "2.5rem 3rem",
 			boxShadow: "none",
 			fontFamily: "Roboto, Inter, Arial, sans-serif",
 			display: 'flex',
 			flexDirection: 'column',
-			alignItems: 'center',
+			alignItems: 'flex-start', // Changed from 'center' to 'flex-start' for left alignment
 			justifyContent: 'center',
-			textAlign: 'center',
+			textAlign: 'left', // Changed from 'center' to 'left'
 		},
 		contentArea: {
-			width: "821px",
-			height: "609px",
+			width: "100%", // Use full width of container
+			height: "100%", // Use full height of container
 			display: 'flex',
 			flexDirection: 'column',
-			alignItems: 'center',
+			alignItems: 'flex-start', // Left align all content
 			justifyContent: 'center',
-			padding: "2.5rem 3rem",
+			padding: "0", // Remove padding since container already has it
 		},
 		logo: {
 			width: '10rem',
@@ -128,7 +128,7 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 			fontWeight: 600,
 			color: colors.text.primary,
 			marginBottom: "1.5rem",
-			textAlign: 'left',
+			textAlign: 'left', // Changed back to left alignment
 			width: '100%',
 		},
 		optionRow: {
@@ -137,7 +137,7 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 			gap: "0.75rem",
 			padding: "0.75rem 1rem",
 			borderRadius: "0.5rem",
-			border: `1px solid ${colors.border.primary}`,
+			border: "none", // Removed border
 			marginBottom: "0.5rem",
 			cursor: "pointer",
 			background: "transparent",
@@ -496,13 +496,11 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 								<input type="radio" name="dt-setup" checked={choice === "start"} onChange={() => setChoice("start")} />
 								<span style={styles.optionLabel}>Start New Workspace</span>
 							</label>
-							<div style={styles.hint}>Create a new, empty DeepTutor folder for your data.</div>
 
 							<label style={styles.optionRow} onClick={() => setChoice("copy")}>
 								<input type="radio" name="dt-setup" checked={choice === "copy"} onChange={() => setChoice("copy")} />
 								<span style={styles.optionLabel}>Copy from Zotero</span>
 							</label>
-							<div style={styles.hint}>Copy your existing Zotero data into a new DeepTutor folder.</div>
 
 							<label style={styles.optionRow} onClick={() => setChoice("share")}>
 								<input type="radio" name="dt-setup" checked={choice === "share"} onChange={() => setChoice("share")} />
@@ -513,9 +511,7 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 
 						{error ? <div style={styles.error}>{error}</div> : null}
 
-						<div style={styles.actions}>
-							<div style={styles.spacer}></div>
-							<button style={styles.secondary} onClick={onClose} disabled={isWorking}>Cancel</button>
+						<div style={{ width: '100%', display: 'flex', justifyContent: 'flex-start', marginTop: '1.5rem' }}>
 							<button style={styles.primary} onClick={handleContinue} disabled={isWorking}>{isWorking ? "Working..." : "Continue"}</button>
 						</div>
 					</>
