@@ -259,9 +259,52 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 			background: colors.background.primary,
 			border: isDark ? `1px solid ${colors.popup.border}` : "none",
 			borderRadius: "0.5rem",
-			padding: "1.5rem",
-			maxWidth: "32rem",
+			padding: "2rem",
+			maxWidth: "24rem",
 			width: "90%",
+			position: "relative",
+		},
+		helpTitle: {
+			width: "100%",
+			textAlign: "center",
+			background: "linear-gradient(90deg, #0AE2FF 0%, #0687E5 100%)",
+			WebkitBackgroundClip: "text",
+			WebkitTextFillColor: "transparent",
+			backgroundClip: "text",
+			color: "#0687E5",
+			fontWeight: 700,
+			fontSize: "1.5rem",
+			lineHeight: "1.2",
+			letterSpacing: "0%",
+			marginBottom: "1.5rem",
+			fontFamily: "Roboto, sans-serif",
+		},
+		helpMessage: {
+			fontSize: "1rem",
+			color: colors.text.allText || colors.text.primary,
+			textAlign: "left",
+			marginBottom: "1.875rem",
+			fontWeight: 400,
+			lineHeight: "135%",
+			fontFamily: "Roboto, sans-serif",
+		},
+		helpButton: {
+			all: "revert",
+			background: colors.button.primary,
+			color: colors.button.primaryText,
+			border: "none",
+			borderRadius: "0.625rem",
+			padding: "0.75rem 1.5rem",
+			minHeight: "3rem",
+			fontWeight: 600,
+			fontSize: "1rem",
+			cursor: "pointer",
+			boxShadow: "0 0.0625rem 0.125rem rgba(0,0,0,0.08)",
+			fontFamily: "Roboto, sans-serif",
+			letterSpacing: 0.2,
+			transition: "background 0.2s",
+			display: "block",
+			width: "100%",
 		},
 	};
 
@@ -547,15 +590,13 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 						{showHelpPopup && (
 							<div style={styles.helpOverlay}>
 								<div style={styles.helpContent}>
-									<div style={{ fontWeight: 800, fontSize: "1.25rem", marginBottom: "0.5rem", color: colors.text.primary }}>Find My Zotero Data Directory</div>
-									<div style={{ color: colors.text.primary, marginBottom: "1rem" }}>
+									<div style={styles.helpTitle}>Find My Zotero Data Directory</div>
+									<div style={styles.helpMessage}>
 										{Zotero.isWin
-											? "Please navigate to Edit > Settings > Data Directory Location. Please copy the path into the input box"
-											: "Please navigate to Zotero > Settings > Data Directory Location. Please copy the path into the input box"}
+											? "On Zotero, on the top left menus, please navigate to Edit > Settings > Data Directory Location. Please copy the path into the input box"
+											: "On Zotero, on the top left menus, please navigate to Zotero > Settings > Data Directory Location. Please copy the path into the input box"}
 									</div>
-									<div style={{ display: "flex", justifyContent: "flex-end" }}>
-										<button style={styles.primary} onClick={() => setShowHelpPopup(false)}>OK</button>
-									</div>
+									<button style={styles.helpButton} onClick={() => setShowHelpPopup(false)}>Got It</button>
 								</div>
 							</div>
 						)}
