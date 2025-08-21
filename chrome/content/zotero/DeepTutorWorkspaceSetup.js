@@ -410,14 +410,14 @@ export default function DeepTutorWorkspaceSetup({ onClose, onComplete }) {
 		console.log("[DeepTutor Setup] Copying directory...", { from: sourcePath, to: deepTutorDir });
 		await Zotero.File.copyDirectory(sourcePath, deepTutorDir);
 		
-		// Rename zotero.sqlite to deeptutor.sqlite if present
+		// Rename zotero.sqlite to zotero.sqlite if present
 		try {
 			const dbFrom = PathUtils.join(deepTutorDir, "zotero.sqlite");
 			await IOUtils.stat(dbFrom);
-			await IOUtils.move(dbFrom, PathUtils.join(deepTutorDir, "deeptutor.sqlite"));
+			await IOUtils.move(dbFrom, PathUtils.join(deepTutorDir, "zotero.sqlite"));
 		}
 		catch (e) {
-			console.log("[DeepTutor Setup] Database rename step (zotero.sqlite -> deeptutor.sqlite) skipped or failed:", e);
+			console.log("[DeepTutor Setup] Database rename step (zotero.sqlite -> zotero.sqlite) skipped or failed:", e);
 		}
 		
 		// Point Zotero to the newly copied DeepTutor data directory

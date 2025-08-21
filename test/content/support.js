@@ -707,7 +707,7 @@ async function resetDB(options = {}) {
 				let zipReader = Components.classes['@mozilla.org/libjar/zip-reader;1']
 					.createInstance(Components.interfaces.nsIZipReader);
 				zipReader.open(Zotero.File.pathToFile(options.dbFile));
-				zipReader.extract('deeptutor.sqlite', Zotero.File.pathToFile(db));
+				zipReader.extract('zotero.sqlite', Zotero.File.pathToFile(db));
 				zipReader.close();
 			}
 			// Otherwise swap in the initial copy we made of the DB, or an alternative non-zip file
