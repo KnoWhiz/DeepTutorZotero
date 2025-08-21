@@ -3,8 +3,6 @@ import ReactDOM from "react-dom";
 import PropTypes from "prop-types";
 import { useDeepTutorTheme } from "./theme/useDeepTutorTheme.js";
 
-
-
 /**
  * Full-screen first-run workspace setup popup for DeepTutor.
  *
@@ -44,19 +42,9 @@ export default function DeepTutorWorkspaceSetup({ onComplete }) {
 				(doc.documentElement || doc.body).appendChild(container);
 			}
 			setPortalEl(container);
-			return () => {
-				try {
-					if (container && container.parentNode) {
-						container.parentNode.removeChild(container);
-					}
-				}
-				catch (e) {
-					// ignore cleanup errors
-				}
-			};
 		}
-		catch (e) {
-			console.log('[DeepTutor Setup] Failed to create portal container:', e);
+		catch (_err) {
+			console.log('[DeepTutor Setup] Failed to create portal container:', _err);
 		}
 	}, []);
 
@@ -314,8 +302,8 @@ export default function DeepTutorWorkspaceSetup({ onComplete }) {
 			const parent = PathUtils.parent(base);
 			return PathUtils.join(parent, "DeepTutorData");
 		}
-		catch (e) {
-			console.log("[DeepTutor Setup] computeDeepTutorDir failed:", e);
+		catch (err) {
+			console.log("[DeepTutor Setup] computeDeepTutorDir failed:", err);
 			// Last resort: use a simple string path
 			return "~/DeepTutorData";
 		}
@@ -325,42 +313,8 @@ export default function DeepTutorWorkspaceSetup({ onComplete }) {
 		try {
 			Zotero.Prefs.set("deeptutor.workspaceSetupCompleted", true);
 		}
-		catch (e) {
+		catch {
 			// ignore
-		}
-	};
-
-	const restartNow = () => {
-		try {
-			Zotero.Utilities.Internal.quitZotero(true);
-		}
-		catch (e) {
-			Zotero.debug(`DeepTutor: Failed to trigger restart via quitZotero: ${e}`);
-		}
-	};
-
-	// Show the native-style restart-required dialog used by Zotero when changing data dir
-	const promptRestartAndMaybeQuit = () => {
-		try {
-			const app = Zotero.appName;
-			const index = Zotero.Prompt.confirm({
-				window: null,
-				title: Zotero.getString("general.restartRequired"),
-				text: `${Zotero.getString("general.restartRequiredForChange", app)}\n\n${Zotero.getString("dataDir.moveFilesToNewLocation", app)}`,
-				button0: Zotero.getString("general.quitApp", app),
-				button1: Zotero.getString("general.restartLater")
-			});
-			if (index === 0) {
-				restartNow();
-			}
-		}
-		catch (e) {
-			// Fallback: simple alert + immediate restart
-			Zotero.alert(null,
-				Zotero.getString("general.restartRequired"),
-				`${Zotero.getString("general.restartRequiredForChange", Zotero.appName)}\n\n${Zotero.getString("dataDir.moveFilesToNewLocation", Zotero.appName)}`
-			);
-			restartNow();
 		}
 	};
 
@@ -378,11 +332,13 @@ export default function DeepTutorWorkspaceSetup({ onComplete }) {
 				const startChanged = Zotero.DataDirectory.set(deepTutorDir);
 				console.log("[DeepTutor Setup] Start New Workspace - Data directory set via Zotero.DataDirectory.set:", { path: deepTutorDir, changed: startChanged });
 				
+				// Mark setup as completed and finish without forcing a restart
+				// This allows users to continue in-app after creating a new workspace
 				markCompleted();
 				setIsWorking(false);
-				
-				// Show native-style restart prompt
-				promptRestartAndMaybeQuit();
+				if (onComplete) {
+					onComplete();
+				}
 				return;
 			}
 
@@ -406,25 +362,26 @@ export default function DeepTutorWorkspaceSetup({ onComplete }) {
 						const changed = Zotero.DataDirectory.set(defaultZoteroPath);
 						console.log("[DeepTutor Setup] Share with Zotero - Data directory set via Zotero.DataDirectory.set:", { path: defaultZoteroPath, changed });
 						
+						// Mark setup as completed and finish without forcing a restart
 						markCompleted();
 						setIsWorking(false);
-						
-						// Show native-style restart prompt
-						promptRestartAndMaybeQuit();
+						if (onComplete) {
+							onComplete();
+						}
 					}
 				}
-				catch (_e) {
+				catch (_err) {
 					// Default folder doesn't exist or path construction failed, show path entry page
-					console.log("[DeepTutor Setup] Default Zotero path not accessible, showing path entry page:", _e);
+					console.log("[DeepTutor Setup] Default Zotero path not accessible, showing path entry page:", _err);
 					setPathPurpose(choice === "copy" ? "copy" : "share");
 					setPage("pathEntry");
 					setIsWorking(false);
 				}
 			}
 		}
-		catch (e) {
-			setError(e && e.message ? e.message : String(e));
-			console.log("[DeepTutor Setup] Error during workspace operation:", e);
+		catch (_err) {
+			setError(_err && _err.message ? _err.message : String(_err));
+			console.log("[DeepTutor Setup] Error during workspace operation:", _err);
 			setIsWorking(false);
 		}
 	};
@@ -458,8 +415,8 @@ export default function DeepTutorWorkspaceSetup({ onComplete }) {
 			await IOUtils.stat(dbFrom);
 			await IOUtils.move(dbFrom, PathUtils.join(deepTutorDir, "zotero.sqlite"));
 		}
-		catch (e) {
-			console.log("[DeepTutor Setup] Database rename step (zotero.sqlite -> zotero.sqlite) skipped or failed:", e);
+		catch (_err) {
+			console.log("[DeepTutor Setup] Database rename step (zotero.sqlite -> zotero.sqlite) skipped or failed:", _err);
 		}
 		
 		// Point Zotero to the newly copied DeepTutor data directory
@@ -469,8 +426,10 @@ export default function DeepTutorWorkspaceSetup({ onComplete }) {
 		markCompleted();
 		setIsWorking(false);
 		
-		// Show native-style restart prompt
-		promptRestartAndMaybeQuit();
+		// Finish without forcing a restart; allow app to keep running
+		if (onComplete) {
+			onComplete();
+		}
 	};
 
 	/**
@@ -514,14 +473,12 @@ export default function DeepTutorWorkspaceSetup({ onComplete }) {
 				if (onComplete) onComplete();
 			}
 		}
-		catch (e) {
-			setError(e && e.message ? e.message : String(e));
-			console.log("[DeepTutor Setup] Error during path entry operation:", e);
+		catch (_err) {
+			setError(_err && _err.message ? _err.message : String(_err));
+			console.log("[DeepTutor Setup] Error during path entry operation:", _err);
 			setIsWorking(false);
 		}
 	};
-
-
 
 	const overlay = (
 		<div style={styles.overlay}>

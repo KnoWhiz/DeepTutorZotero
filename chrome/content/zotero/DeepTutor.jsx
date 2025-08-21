@@ -241,11 +241,11 @@ var DeepTutor = class DeepTutor extends React.Component {
 		this._loadingPromiseResolve();
 		Zotero.debug("DeepTutor: Component mounted");
 
-		// Show workspace setup every time for testing; also report first-run status in the popup
+		// Show workspace setup only on first run
 		try {
 			const completed = Zotero.Prefs.get('deeptutor.workspaceSetupCompleted');
 			Zotero.debug(`DeepTutor: workspace setup completed flag: ${String(completed)}`);
-			this.setState({ showWorkspaceSetupPopup: true });
+			this.setState({ showWorkspaceSetupPopup: !completed });
 		}
 		catch (e) {
 			Zotero.debug(`DeepTutor: error reading workspaceSetupCompleted pref: ${e}`);
