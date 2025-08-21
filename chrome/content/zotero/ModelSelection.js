@@ -193,8 +193,8 @@ const styles = {
 		width: '100%',
 		background: '#F8F6F7',
 		marginBottom: '1.25rem',
-		justifyContent: 'space-between',
-		gap: '0.5rem',
+		justifyContent: 'space-evenly',
+		gap: '0.25rem',
 		borderRadius: '0.625rem',
 		boxSizing: 'border-box',
 		padding: '0.25rem',
@@ -203,10 +203,10 @@ const styles = {
 		flex: '1 1 0',
 		minHeight: '3rem',
 		borderRadius: '0.5rem',
-		padding: '0.75rem 0.9375rem',
+		padding: '0.5rem 0.5rem',
 		border: 'none',
 		fontWeight: 400,
-		fontSize: '1rem',
+		fontSize: '0.875rem',
 		lineHeight: '180%',
 		letterSpacing: '0%',
 		verticalAlign: 'middle',
@@ -221,14 +221,13 @@ const styles = {
 		minWidth: 0,
 		width: 'auto',
 		maxWidth: 'none',
-		minPadding: '0.75rem 0.9375rem',
-		gap: '0.5rem',
+		gap: '0.375rem',
 	},
 	modelTypeButtonSelected: {
 		background: '#D9D9D9',
 		color: '#292929',
 		fontWeight: 400,
-		fontSize: '1rem',
+		fontSize: '0.875rem',
 		lineHeight: '180%',
 		letterSpacing: '0%',
 		minHeight: '3rem',
@@ -546,8 +545,9 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 				const width = buttonRef.current.getBoundingClientRect().width;
 				if (width !== buttonWidth) {
 					setButtonWidth(width);
-					Zotero.debug(`ModelSelection: Button width: ${width}`);
-					setButtonLayout(width < 107 ? 'column' : 'row');
+					Zotero.debug(`ModelSelection: Container width: ${width}`);
+					// Adjusted threshold for 3 buttons - each button needs ~120px minimum
+					setButtonLayout(width < 360 ? 'column' : 'row');
 				}
 			}
 			animationFrameId = requestAnimationFrame(checkWidth);
@@ -1022,7 +1022,10 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 		setIsInitializing(true);
 
 		// Determine the final session name
-		const finalSessionName = modelName.trim() || backupModelName || "Default Session";
+		let finalSessionName = modelName.trim() || backupModelName || "Default Session";
+		if (selectedType === 'agentic') {
+			finalSessionName = "_AGENTIC_" + finalSessionName;
+		}
 		Zotero.debug(`ModelSelection: Using session name: ${finalSessionName}`);
 
 		try {
@@ -1164,7 +1167,7 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 			const sessionData = {
 				userId: user.id,
 				sessionName: finalSessionName,
-        		type: selectedType === 'lite' ? SessionType.LITE : SessionType.BASIC,
+        		type: selectedType === 'normal' ? SessionType.BASIC : SessionType.LITE,
 				status: SessionStatus.CREATED,
 				documentIds: uploadedDocumentIds,
 				creationTime: new Date().toISOString(),
@@ -1517,9 +1520,8 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 
 				<div style={styles.modelSection}>
 					<label style={styles.label}>Select Your Model</label>
-					<div style={styles.modelTypeRow}>
+					<div ref={buttonRef} style={styles.modelTypeRow}>
 						<button
-							ref={buttonRef}
 							style={{
 								all: 'revert',
 								...getModelTypeButtonStyle(selectedType === 'lite'),
@@ -1533,7 +1535,6 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
               STANDARD
 						</button>
 						<button
-							ref={buttonRef}
 							style={{
 								all: 'revert',
 								...getModelTypeButtonStyle(selectedType === 'normal'),
@@ -1546,6 +1547,19 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 						>
 							<img src={AdvancedPath} alt="Advanced" style={{ width: '1.5rem', height: '1.5rem' }} />
               ADVANCED
+						</button>
+						<button
+							style={{
+								all: 'revert',
+								...getModelTypeButtonStyle(selectedType === 'agentic'),
+								opacity: isEffectivelyFrozen ? 0.5 : 1,
+								cursor: isEffectivelyFrozen ? 'not-allowed' : 'pointer'
+							}}
+							onClick={() => !isEffectivelyFrozen && handleTypeSelection('agentic')}
+							disabled={isEffectivelyFrozen}
+						>
+							<img src={AdvancedPath} alt="Agentic" style={{ width: '1.5rem', height: '1.5rem' }} />
+              AGENTIC
 						</button>
 					</div>
 					{selectedType === 'lite' && (
@@ -1574,6 +1588,20 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 								<span>✅ Higher quality summary</span>
 								<span>✅ Markdown based RAG model</span>
 								<span>✅ Available with Premium Subscription</span>
+							</div>
+						</div>
+					)}
+					{selectedType === 'agentic' && (
+						<div style={styles.modelDescription}>
+							<div style={styles.modelFeature}>
+								<span style={styles.modelIcon}>🙌</span>
+								<span>Utilize Claude CLI - for holistic, agile understanding of your documents.</span>
+							</div>
+							<div style={styles.modelLimitations}>
+								<span>✅ Free for all users</span>
+								<span>✅ In testing stage</span>
+								<span>✅ More flexible and powerful</span>
+								<span>✅ File base understanding</span>
 							</div>
 						</div>
 					)}
