@@ -358,15 +358,17 @@ export default function DeepTutorWorkspaceSetup({ onComplete }) {
 						await handleCopyFromZotero(defaultZoteroPath);
 					}
 					else {
-						// Share with Zotero - set the actual data directory to Zotero path
+						// Share with Zotero - set the actual data directory to Zotero path and restart
 						const changed = Zotero.DataDirectory.set(defaultZoteroPath);
 						console.log("[DeepTutor Setup] Share with Zotero - Data directory set via Zotero.DataDirectory.set:", { path: defaultZoteroPath, changed });
 						
-						// Mark setup as completed and finish without forcing a restart
+						// Mark setup as completed and restart to apply the change
 						markCompleted();
-						setIsWorking(false);
-						if (onComplete) {
-							onComplete();
+						try {
+							Zotero.Utilities.Internal.quit(true);
+						}
+						catch (_e) {
+							console.log("[DeepTutor Setup] Failed to initiate restart after sharing with Zotero:", _e);
 						}
 					}
 				}
@@ -424,11 +426,15 @@ export default function DeepTutorWorkspaceSetup({ onComplete }) {
 		console.log("[DeepTutor Setup] Data directory set via Zotero.DataDirectory.set:", { path: deepTutorDir, changed: copyChanged });
 		
 		markCompleted();
-		setIsWorking(false);
-		
-		// Finish without forcing a restart; allow app to keep running
-		if (onComplete) {
-			onComplete();
+		try {
+			Zotero.Utilities.Internal.quit(true);
+		}
+		catch (_e) {
+			console.log("[DeepTutor Setup] Failed to initiate restart after copying from Zotero:", _e);
+			setIsWorking(false);
+			if (onComplete) {
+				onComplete();
+			}
 		}
 	};
 
@@ -466,11 +472,18 @@ export default function DeepTutorWorkspaceSetup({ onComplete }) {
 				await handleCopyFromZotero(customZoteroPath.trim());
 			}
 			else {
-				// Share with Zotero - use the custom path directly
-				Zotero.Prefs.set("deeptutor.dataDir", customZoteroPath.trim());
+				// Share with Zotero - set the actual data directory and restart
+				const changed = Zotero.DataDirectory.set(customZoteroPath.trim());
+				console.log("[DeepTutor Setup] Share with Zotero (custom) - Data directory set via Zotero.DataDirectory.set:", { path: customZoteroPath.trim(), changed });
 				markCompleted();
-				setIsWorking(false);
-				if (onComplete) onComplete();
+				try {
+					Zotero.Utilities.Internal.quit(true);
+				}
+				catch (_e) {
+					console.log("[DeepTutor Setup] Failed to initiate restart after custom share path:", _e);
+					setIsWorking(false);
+					if (onComplete) onComplete();
+				}
 			}
 		}
 		catch (_err) {
