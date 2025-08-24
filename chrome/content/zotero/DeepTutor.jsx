@@ -167,7 +167,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 			showSignInPopup: false,
 
 			// First-run workspace setup
-			showWorkspaceSetupPopup: false,
+			showWorkspaceSetupPopup: true, // Force show for testing
 
 			showModelSelectionPopup: false,
 			showDeletePopup: false,
@@ -246,11 +246,12 @@ var DeepTutor = class DeepTutor extends React.Component {
 		this._loadingPromiseResolve();
 		Zotero.debug("DeepTutor: Component mounted");
 
-		// Show workspace setup only on first run
+		// Show workspace setup for testing - force show regardless of completion status
 		try {
 			const completed = Zotero.Prefs.get('deeptutor.workspaceSetupCompleted');
 			Zotero.debug(`DeepTutor: workspace setup completed flag: ${String(completed)}`);
-			this.setState({ showWorkspaceSetupPopup: !completed });
+			// Force show workspace setup for testing purposes
+			this.setState({ showWorkspaceSetupPopup: true });
 		}
 		catch (e) {
 			Zotero.debug(`DeepTutor: error reading workspaceSetupCompleted pref: ${e}`);
@@ -261,6 +262,15 @@ var DeepTutor = class DeepTutor extends React.Component {
 		if (typeof window !== "undefined") {
 			window.deepTutorInstance = this;
 			console.log("🌐 DeepTutor: Instance made available globally as window.deepTutorInstance");
+			
+			// Add workspace setup testing methods to global instance
+			window.deepTutorInstance.showWorkspaceSetup = () => this.setState({ showWorkspaceSetupPopup: true });
+			window.deepTutorInstance.hideWorkspaceSetup = () => this.setState({ showWorkspaceSetupPopup: false });
+			window.deepTutorInstance.resetWorkspaceSetup = () => {
+				Zotero.Prefs.set('deeptutor.workspaceSetupCompleted', false);
+				Zotero.debug('DeepTutor: Reset workspace setup completion flag');
+			};
+			console.log("🔧 DeepTutor: Workspace setup testing methods added to global instance");
 		}
 
 		// Add window resize listener for responsive layout
@@ -1601,6 +1611,13 @@ var DeepTutor = class DeepTutor extends React.Component {
 				toggleSignInPopup={this.toggleSignInPopup}
 				toggleUsagePopup={this.toggleUsagePopup}
 				toggleWorkspaceSetupPopup={() => this.setState({ showWorkspaceSetupPopup: !this.state.showWorkspaceSetupPopup })}
+				// Method to force show workspace setup for testing
+				forceShowWorkspaceSetup={() => this.setState({ showWorkspaceSetupPopup: true })}
+				// Method to reset workspace setup completion flag for testing
+				resetWorkspaceSetupFlag={() => {
+					Zotero.Prefs.set('deeptutor.workspaceSetupCompleted', false);
+					Zotero.debug('DeepTutor: Reset workspace setup completion flag');
+				}}
 
 				toggleProfilePopup={this.toggleProfilePopup}
 				openNoPDFWarningPopup={this.openNoPDFWarningPopup}
