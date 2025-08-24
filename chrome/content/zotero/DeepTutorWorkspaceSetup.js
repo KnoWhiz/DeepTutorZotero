@@ -24,6 +24,26 @@ export default function DeepTutorWorkspaceSetup({ onComplete }) {
 	const [pathPurpose, setPathPurpose] = useState("copy"); // 'copy' | 'share'
 	const [customZoteroPath, setCustomZoteroPath] = useState("");
 	const [showHelpPopup, setShowHelpPopup] = useState(false);
+	
+	// Hover state management
+	const [hoveredButton, setHoveredButton] = useState(null);
+	
+	// Helper function to get button style with hover effect
+	const getButtonStyle = (buttonType, isHovered, isDisabled = false) => {
+		if (buttonType === 'primary') {
+			return {
+				...styles.primary,
+				background: isDisabled 
+					? colors.button.disabled || '#cccccc'
+					: isHovered 
+						? colors.button.primaryHover || '#0575CC'
+						: colors.button.primary,
+				transition: 'background 0.2s ease',
+				opacity: isDisabled ? 0.6 : 1,
+			};
+		}
+		return styles[buttonType];
+	};
 
 
 	useEffect(() => {
@@ -500,7 +520,15 @@ export default function DeepTutorWorkspaceSetup({ onComplete }) {
 						{error ? <div style={styles.error}>{error}</div> : null}
 
 						<div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
-							<button style={styles.primary} onClick={handleContinue} disabled={isWorking}>{isWorking ? "Working..." : "Continue"}</button>
+							<button 
+								style={getButtonStyle('primary', hoveredButton === 'continue-main', isWorking)}
+								onClick={handleContinue} 
+								disabled={isWorking}
+								onMouseEnter={() => setHoveredButton('continue-main')}
+								onMouseLeave={() => setHoveredButton(null)}
+							>
+								{isWorking ? "Working..." : "Continue"}
+							</button>
 						</div>
 					</>
 				)}
@@ -526,9 +554,11 @@ export default function DeepTutorWorkspaceSetup({ onComplete }) {
 						{error ? <div style={styles.error}>{error}</div> : null}
 						<div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
 							<button
-								style={styles.primary}
+								style={getButtonStyle('primary', hoveredButton === 'continue-path', isWorking || !customZoteroPath.trim())}
 								onClick={handlePathEntryContinue}
 								disabled={isWorking || !customZoteroPath.trim()}
+								onMouseEnter={() => setHoveredButton('continue-path')}
+								onMouseLeave={() => setHoveredButton(null)}
 							>
 								{isWorking ? "Working..." : "Continue"}
 							</button>
