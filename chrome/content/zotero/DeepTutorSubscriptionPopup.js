@@ -13,6 +13,7 @@ const PopupCloseDarkPath = "chrome://zotero/content/DeepTutorMaterials/Main/CLOS
 const ArrowForwardPath = "chrome://zotero/content/DeepTutorMaterials/Subscription/arrow_forward.svg";
 const ArrowForwardDarkPath = "chrome://zotero/content/DeepTutorMaterials/Subscription/arrow_forward_dark.svg";
 const SubscriptionConfirmBookPath = "chrome://zotero/content/DeepTutorMaterials/Subscription/SUB_SUCCESS.svg";
+const SubscriptionConfirmBookDarkPath = "chrome://zotero/content/DeepTutorMaterials/Subscription/SUB_SUCCESS.svg"; // Same icon but will be filtered in dark mode
 
 /**
  * DeepTutorSubscriptionPopup
@@ -81,11 +82,36 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction: _onActio
 	const handleProcessingContinue = async () => {
 		try {
 			Zotero.debug("DeepTutorSubscriptionPopup: Refreshing subscription status after processing via centralized function");
+			
+			// Store the current subscription type before refresh
+			const previousSubscriptionType = activeSubscription?.type?.toUpperCase() || "BASIC";
+			
 			if (onRefreshSubscription) {
 				await onRefreshSubscription();
 			}
-			// After refresh, proceed to confirmation view
-			setCurrentPanel("confirm");
+			
+			// Check if there was a subscription type change (upgrade)
+			// We need to get the fresh subscription data to compare
+			let freshSubscription = null;
+			if (userId) {
+				try {
+					freshSubscription = await getActiveUserSubscriptionByUserId(userId);
+				} catch (error) {
+					Zotero.debug(`DeepTutorSubscriptionPopup: Error fetching fresh subscription: ${error.message}`);
+				}
+			}
+			
+			const currentSubscriptionType = freshSubscription?.type?.toUpperCase() || "BASIC";
+			
+			// Only show confirmation if there's a subscription type change (upgrade)
+			if (currentSubscriptionType !== previousSubscriptionType && 
+				(currentSubscriptionType === "PLUS" || currentSubscriptionType === "PREMIUM")) {
+				Zotero.debug(`DeepTutorSubscriptionPopup: Subscription upgraded from ${previousSubscriptionType} to ${currentSubscriptionType}, showing confirmation`);
+				setCurrentPanel("confirm");
+			} else {
+				Zotero.debug(`DeepTutorSubscriptionPopup: No subscription upgrade detected (${previousSubscriptionType} -> ${currentSubscriptionType}), returning to select panel`);
+				setCurrentPanel("select");
+			}
 		}
 		catch (error) {
 			Zotero.debug(`DeepTutorSubscriptionPopup: Error refreshing subscription status: ${error.message}`);
@@ -580,7 +606,7 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction: _onActio
 					</button>
 					<DeepTutorSubscriptionConfirm
 						onClose={onClose}
-						imagePath={SubscriptionConfirmBookPath}
+						imagePath={isDark ? SubscriptionConfirmBookDarkPath : SubscriptionConfirmBookPath}
 					/>
 				</>
 			)}

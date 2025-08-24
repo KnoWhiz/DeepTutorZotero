@@ -33,6 +33,7 @@ import { getActiveUserSubscriptionByUserId, DT_BASE_URL } from "./api/libs/api.j
 
 const PopupClosePath = "chrome://zotero/content/DeepTutorMaterials/Cross.png";
 const SubscriptionConfirmBookPath = 'chrome://zotero/content/DeepTutorMaterials/Subscription/SUB_SUCCESS.svg';
+const SubscriptionConfirmBookDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Subscription/SUB_SUCCESS.svg'; // Same icon but will be filtered in dark mode
 const SubscriptionManageMarkPath = 'chrome://zotero/content/DeepTutorMaterials/Subscription/SUB_MANAGEMENT.svg';
 
 /**
