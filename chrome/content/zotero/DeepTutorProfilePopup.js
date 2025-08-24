@@ -132,7 +132,7 @@ function DeepTutorProfilePopup({
 			zIndex: 50,
 			width: "auto",
 			minWidth: "14rem",
-			maxWidth: "24rem",
+			maxWidth: "32rem",
 			overflow: "visible",
 			borderRadius: "0.5rem",
 			border: `1px solid ${isDark ? colors.border.primary : "#BDBDBD"}`,
@@ -190,7 +190,8 @@ function DeepTutorProfilePopup({
 			background: isDark ? colors.background.tertiary : "#F3F4F6"
 		},
 		buttonText: {
-			marginLeft: "0.75rem"
+			marginLeft: "0.75rem",
+			whiteSpace: "nowrap"
 		},
 		// Spacing between buttons
 		buttonSpacing: {
