@@ -27,7 +27,7 @@ const ICON_PATHS = {
  * DeepTutorProfilePopup Component
  * Profile popup with 4 vertically stacked sections following AccountPopup.tsx pattern:
  * 1) Person row (person icon, email text, check icon) — gray and not clickable
- * 2) Manage Subscription — button row
+ * 2) Manage Subscription/Upgrade — button row (shows "Upgrade" for non-subscribed users)
  * 3) Usage — button row
  * 4) Sign Out — button row
  *
@@ -36,8 +36,10 @@ const ICON_PATHS = {
 function DeepTutorProfilePopup({
 	onShowUsage,
 	onSignOut,
+	onShowUpgrade,
 	userData,
-	currentUser
+	currentUser,
+	activeSubscription
 }) {
 	const { colors, isDark } = useDeepTutorTheme();
 
@@ -74,6 +76,26 @@ function DeepTutorProfilePopup({
 	};
 
 	/**
+	 * Determines if user has an active subscription
+	 */
+	const hasActiveSubscription = () => {
+		return activeSubscription && activeSubscription.id && activeSubscription.type;
+	};
+
+	/**
+	 * Handles subscription action based on user's subscription status
+	 */
+	const handleSubscriptionAction = () => {
+		if (hasActiveSubscription()) {
+			// User has subscription - manage it
+			handleManageSubscription();
+		} else if (onShowUpgrade) {
+			// User doesn't have subscription - show upgrade popup
+			onShowUpgrade();
+		}
+	};
+
+	/**
 	 * Handles manage subscription action by launching the dzSubscription manage page
 	 * Similar to how downgrade buttons work in the subscription popup
 	 */
@@ -94,6 +116,11 @@ function DeepTutorProfilePopup({
 				Zotero.alert(null, "DeepTutor", `Please manually visit this URL:\n${manageUrl}`);
 			}
 		}
+	};
+
+	// Get button text based on subscription status
+	const getSubscriptionButtonText = () => {
+		return hasActiveSubscription() ? "Manage Subscription" : "Upgrade";
 	};
 
 	// Theme-aware styles
@@ -191,11 +218,11 @@ function DeepTutorProfilePopup({
 					</div>
 				</div>
 
-				{/* Manage Subscription */}
+				{/* Manage Subscription / Upgrade */}
 				<button
 					type="button"
 					style={styles.button}
-					onClick={handleManageSubscription}
+					onClick={handleSubscriptionAction}
 					onMouseEnter={(e) => {
 						e.currentTarget.style.background = styles.buttonHover.background;
 					}}
@@ -209,7 +236,7 @@ function DeepTutorProfilePopup({
 						style={leadingIconStyle}
 					/>
 					<span style={styles.buttonText}>
-						Manage Subscription
+						{getSubscriptionButtonText()}
 					</span>
 				</button>
 
@@ -273,11 +300,17 @@ DeepTutorProfilePopup.propTypes = {
 	/** Callback to sign out the current user */
 	onSignOut: PropTypes.func.isRequired,
 
+	/** Callback to show upgrade popup */
+	onShowUpgrade: PropTypes.func,
+
 	/** User data object containing name, email, etc. */
 	userData: PropTypes.object,
 
 	/** Current authenticated user object */
-	currentUser: PropTypes.object
+	currentUser: PropTypes.object,
+
+	/** Active subscription object to determine subscription status */
+	activeSubscription: PropTypes.object
 };
 
 export default DeepTutorProfilePopup;
