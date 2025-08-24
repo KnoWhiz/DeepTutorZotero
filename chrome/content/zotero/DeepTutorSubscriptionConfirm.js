@@ -5,7 +5,7 @@ import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 const SKY = '#0687E5';
 
 export default function DeepTutorSubscriptionConfirm({ onClose, imagePath }) {
-	const { colors, isDark } = useDeepTutorTheme();
+	const { colors } = useDeepTutorTheme();
 
 	const styles = {
 		container: {
@@ -39,8 +39,6 @@ export default function DeepTutorSubscriptionConfirm({ onClose, imagePath }) {
 			objectFit: 'contain',
 			margin: '0 auto 20px auto',
 			display: 'block',
-			// Apply dark mode filter to make white areas transparent/dark
-			filter: isDark ? 'brightness(0) saturate(100%) invert(100%)' : 'none',
 		},
 		text: {
 			fontSize: '1rem',

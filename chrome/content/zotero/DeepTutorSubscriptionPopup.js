@@ -13,7 +13,6 @@ const PopupCloseDarkPath = "chrome://zotero/content/DeepTutorMaterials/Main/CLOS
 const ArrowForwardPath = "chrome://zotero/content/DeepTutorMaterials/Subscription/arrow_forward.svg";
 const ArrowForwardDarkPath = "chrome://zotero/content/DeepTutorMaterials/Subscription/arrow_forward_dark.svg";
 const SubscriptionConfirmBookPath = "chrome://zotero/content/DeepTutorMaterials/Subscription/SUB_SUCCESS.svg";
-const SubscriptionConfirmBookDarkPath = "chrome://zotero/content/DeepTutorMaterials/Subscription/SUB_SUCCESS.svg"; // Same icon but will be filtered in dark mode
 
 /**
  * DeepTutorSubscriptionPopup
@@ -104,8 +103,8 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction: _onActio
 			const currentSubscriptionType = freshSubscription?.type?.toUpperCase() || "BASIC";
 			
 			// Only show confirmation if there's a subscription type change (upgrade)
-			if (currentSubscriptionType !== previousSubscriptionType && 
-				(currentSubscriptionType === "PLUS" || currentSubscriptionType === "PREMIUM")) {
+			if (currentSubscriptionType !== previousSubscriptionType
+				&& (currentSubscriptionType === "PLUS" || currentSubscriptionType === "PREMIUM")) {
 				Zotero.debug(`DeepTutorSubscriptionPopup: Subscription upgraded from ${previousSubscriptionType} to ${currentSubscriptionType}, showing confirmation`);
 				setCurrentPanel("confirm");
 			} else {
@@ -359,8 +358,8 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction: _onActio
 		if (isActive) {
 			tabStyle = { ...tabStyle, ...styles.tabActive };
 		} else if (isHovered) {
-			tabStyle = { 
-				...tabStyle, 
+			tabStyle = {
+				...tabStyle,
 				background: isDark ? "#333333" : "#EEEEEE",
 				color: isDark ? "#DDDDDD" : "#333333"
 			};
@@ -606,7 +605,7 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction: _onActio
 					</button>
 					<DeepTutorSubscriptionConfirm
 						onClose={onClose}
-						imagePath={isDark ? SubscriptionConfirmBookDarkPath : SubscriptionConfirmBookPath}
+						imagePath={SubscriptionConfirmBookPath}
 					/>
 				</>
 			)}
