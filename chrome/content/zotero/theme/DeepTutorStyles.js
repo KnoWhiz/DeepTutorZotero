@@ -27,7 +27,7 @@ export function generateDeepTutorStyles(theme = "light") {
 			fontFamily: "Roboto, sans-serif",
 			position: "relative",
 			overflow: "hidden",
-			padding: "1.875rem 0.75rem 0 0.75rem",
+			padding: "1.875rem 1.25rem 0 1.25rem",
 			boxSizing: "border-box",
 			userSelect: "text",
 			WebkitUserSelect: "text",

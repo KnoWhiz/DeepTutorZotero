@@ -109,7 +109,9 @@ const MessageRole = {
 const SendIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_SEND.svg';
 const StopIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_STOP.svg';
 const ArrowDownPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/CHAT_ARROWDOWN.svg';
-const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSavePopup }) => {
+const RenameIconPath = 'chrome://zotero/content/DeepTutorMaterials/History/RENAME_SESSION.svg';
+const RenameIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/History/RENAME_SESSION_DARK.svg';
+const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSavePopup, onShowRenamePopup }) => {
 	const { colors, theme, isDark } = useDeepTutorTheme();
 	
 	// Theme-aware styles
@@ -125,7 +127,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			fontFamily: 'Roboto, sans-serif',
 			position: 'relative',
 			overflow: 'hidden',
-			padding: '1.875rem 0.75rem 0 0.75rem',
+			padding: '1.875rem 1.25rem 0 1.25rem',
 			boxSizing: 'border-box',
 			userSelect: 'text', // Ensure text is selectable
 			WebkitUserSelect: 'text',
@@ -135,6 +137,12 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		sessionNameDiv: {
 			width: '100%',
 			marginBottom: '1.25rem',
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'flex-start',
+			gap: '10px',
+		},
+		sessionNameText: {
 			color: colors.text.allText,
 			fontWeight: 500,
 			fontSize: '1.25rem',
@@ -145,6 +153,25 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			overflow: 'hidden',
 			textOverflow: 'ellipsis',
 			whiteSpace: 'nowrap',
+			flex: 1,
+		},
+		renameIconButton: {
+			width: '1rem',
+			height: '1rem',
+			background: 'transparent',
+			border: 'none',
+			cursor: 'pointer',
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'center',
+			padding: 0,
+			flexShrink: 0,
+			marginRight: '0.75rem',
+		},
+		renameIcon: {
+			width: '1rem',
+			height: '1rem',
+			objectFit: 'contain',
 		},
 		sessionInfo: {
 			width: '90%',
@@ -419,7 +446,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			lineHeight: '1.35',
 			cursor: 'pointer',
 			marginRight: '1rem',
-		}
+		},
 	};
 	const [messages, setMessages] = useState([]);
 	const [inputValue, setInputValue] = useState('');
@@ -453,6 +480,10 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 
 	// Add state to track streaming component visibility for each message
 	const [streamingComponentVisibility, setStreamingComponentVisibility] = useState({});
+	// Rename popup is handled by the parent overlay in DeepTutorMain
+	
+	// Choose rename icon based on theme
+	const renameIconPath = isDark ? RenameIconDarkPath : RenameIconPath;
 
 	// Toggle streaming component visibility for a specific message
 	const toggleStreamingComponent = (messageId) => {
@@ -577,10 +608,10 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			// Get the reader instance for the current tab
 			const reader = Zotero.Reader.getByTabID(Zotero.getMainWindow().Zotero_Tabs.selectedID);
 			if (!reader) {
-				return;
+				return; // Early exit if reader is not available
 			}
-			
-			/* 
+
+			/*
 			Search functionality commented out - preserve file opening and page switching only
 			const searchQuery = source.referenceString || "test";
 			
@@ -588,8 +619,11 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			primary: true,
 			openPopup: false,
 			activateSearch: true
-			}); 
+			});
 			*/
+			
+			// Future: Add search functionality here when needed
+			Zotero.debug('DeepTutorChatBox: PDF opened, search functionality available if needed');
 		}
 		catch (error) {
 			Zotero.debug(error);
@@ -873,6 +907,13 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			if (!isAtBottom && isAutoScrollingRef.current) {
 				isAutoScrollingRef.current = false;
 			}
+		}
+	};
+
+	// Handle rename functionality
+	const handleRenameClick = () => {
+		if (onShowRenamePopup && currentSession?.id) {
+			onShowRenamePopup(currentSession.id);
 		}
 	};
 
@@ -2244,7 +2285,20 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			}} />
             
 			<div style={styles.sessionNameDiv}>
-				{currentSession?.sessionName || "New Session"}
+				<div style={styles.sessionNameText}>
+					{currentSession?.sessionName || "New Session"}
+				</div>
+				<button
+					style={styles.renameIconButton}
+					onClick={handleRenameClick}
+					title="Rename Session"
+				>
+					<img
+						src={renameIconPath}
+						alt="Rename"
+						style={styles.renameIcon}
+					/>
+				</button>
 			</div>
 
 			<div style={styles.viewContextContainer} ref={contextPopupRef}>
@@ -2391,6 +2445,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 					/>
 				</button>
 			</div>
+			
+			{/* Rename popup overlay is rendered by parent (DeepTutorMain) */}
 		</div>
 	);
 };
@@ -2399,7 +2455,8 @@ DeepTutorChatBox.propTypes = {
 	currentSession: PropTypes.object,
 	onSessionSelect: PropTypes.func,
 	onInitWaitChange: PropTypes.func,
-	handleShowNoteSavePopup: PropTypes.func
+	handleShowNoteSavePopup: PropTypes.func,
+	onShowRenamePopup: PropTypes.func
 };
 
 export default DeepTutorChatBox;

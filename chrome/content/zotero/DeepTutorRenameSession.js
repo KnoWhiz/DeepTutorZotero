@@ -39,7 +39,8 @@ export default function DeepTutorRenameSession({
 				let existingStyle = window.document.getElementById('deep-tutor-rename-session-styles');
 				if (existingStyle) {
 					existingStyle.textContent = cssText;
-				} else {
+				}
+				else {
 					const style = window.document.createElement('style');
 					style.id = 'deep-tutor-rename-session-styles';
 					style.textContent = cssText;
@@ -48,7 +49,8 @@ export default function DeepTutorRenameSession({
 					}
 				}
 			}
-		} catch (e) {
+		}
+		catch (e) {
 			console.error('Failed to inject CSS:', e.message);
 		}
 	}, []);

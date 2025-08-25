@@ -722,10 +722,20 @@ var DeepTutor = class DeepTutor extends React.Component {
 		});
 	};
 
-	handleRenameSuccess = async () => {
-		// Reload sessions to get updated session names
+	handleRenameSuccess = async (renamedSessionId) => {
 		try {
+			// Reload sessions (refresh local mapping and list)
 			await this.loadSession();
+
+			// If the renamed session is the one currently open, update it in-place and stay on chat
+			if (renamedSessionId && this.state.currentSession && this.state.currentSession.id === renamedSessionId) {
+				const updated = this.state.sesIdToObj.get(renamedSessionId);
+				if (updated) {
+					this.setState({ currentSession: updated });
+				}
+				// Ensure we remain on the main chat pane
+				this.switchPane('main');
+			}
 		}
 		catch (error) {
 			Zotero.debug(`DeepTutor: Error reloading sessions after rename: ${error.message}`);
