@@ -39,7 +39,8 @@ export default function DeepTutorRenameSession({
 				let existingStyle = window.document.getElementById('deep-tutor-rename-session-styles');
 				if (existingStyle) {
 					existingStyle.textContent = cssText;
-				} else {
+				}
+				else {
 					const style = window.document.createElement('style');
 					style.id = 'deep-tutor-rename-session-styles';
 					style.textContent = cssText;
@@ -48,7 +49,8 @@ export default function DeepTutorRenameSession({
 					}
 				}
 			}
-		} catch (e) {
+		}
+		catch (e) {
 			console.error('Failed to inject CSS:', e.message);
 		}
 	}, []);
@@ -210,7 +212,7 @@ export default function DeepTutorRenameSession({
 			await new Promise(resolve => setTimeout(resolve, 500));
 			
 			if (onConfirmRename) {
-				onConfirmRename(sessionId);
+				onConfirmRename(sessionId, sessionNameString);
 			}
 		}
 		catch (error) {
@@ -285,6 +287,6 @@ export default function DeepTutorRenameSession({
 DeepTutorRenameSession.propTypes = {
 	sessionId: PropTypes.string.isRequired,
 	currentSessionName: PropTypes.string,
-	onConfirmRename: PropTypes.func.isRequired,
+	onConfirmRename: PropTypes.func.isRequired, // Now receives (sessionId, newSessionName)
 	onCancelRename: PropTypes.func.isRequired
 };

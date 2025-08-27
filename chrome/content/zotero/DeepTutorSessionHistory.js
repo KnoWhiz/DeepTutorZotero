@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // eslint-disable-line no-unused-vars
 import PropTypes from 'prop-types';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 
@@ -262,7 +262,7 @@ function SessionHistory({ sessions = [], onSessionSelect, isLoading = false, err
 	const handleEditClick = (e, sessionId) => {
 		e.stopPropagation();
 		if (onRenameSession) {
-			onRenameSession(sessionId);
+			onRenameSession(sessionId, 'sessionHistory');
 		}
 	};
 

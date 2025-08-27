@@ -203,6 +203,18 @@ const DeepTutorMain = (props) => {
 			background: colors.button.primary,
 			color: colors.button.primaryText,
 		},
+		renamePopupOverlay: {
+			position: 'absolute',
+			top: 0,
+			left: 0,
+			right: 0,
+			bottom: 0,
+			background: 'rgba(0, 0, 0, 0.5)',
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'center',
+			zIndex: 9999,
+		},
 	};
 
 	// Dynamic close button path based on theme
@@ -262,6 +274,7 @@ const DeepTutorMain = (props) => {
 							onSessionSelect={props.handleSessionSelect}
 							onInitWaitChange={props.handleInitWaitChange}
 							handleShowNoteSavePopup={props.handleShowNoteSavePopup}
+							onShowRenamePopup={props.handleShowRenamePopup}
 						/>
 					)}
 					{props.currentPane === 'sessionHistory'
@@ -460,8 +473,8 @@ const DeepTutorMain = (props) => {
 						<DeepTutorRenameSession
 							sessionId={props.sessionToRename}
 							currentSessionName={props.sessionNameToRename}
-							onConfirmRename={(_sessionId) => {
-								props.handleRenameSuccess();
+							onConfirmRename={(_sessionId, _newSessionName) => {
+								props.handleRenameSuccess(_sessionId, _newSessionName);
 								props.handleCancelRename();
 							}}
 							onCancelRename={props.handleCancelRename}
