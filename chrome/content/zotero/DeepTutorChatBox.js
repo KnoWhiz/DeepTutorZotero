@@ -961,7 +961,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 	// Handle rename functionality
 	const handleRenameClick = () => {
 		if (onShowRenamePopup && currentSession?.id) {
-			onShowRenamePopup(currentSession.id);
+			onShowRenamePopup(currentSession.id, 'chat');
 		}
 	};
 

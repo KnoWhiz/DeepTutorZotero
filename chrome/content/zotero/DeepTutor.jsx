@@ -27,7 +27,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
 import DeepTutorMain from './DeepTutorMain.js';
-import DeepTutorLocalhostServer from './localhostServer.js';
+import DeepTutorLocalhostServer from './DeepTutorLocalhostServer.js';
 import {
 	getMessagesBySessionId,
 	getSessionById,
@@ -179,6 +179,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 			sessionNameToDelete: '',
 			sessionToRename: null,
 			sessionNameToRename: '',
+			renameSource: null, // Track where rename was initiated from ('sessionHistory' or 'chat')
 			// Note save popup data
 			noteSaveSuccess: false,
 			noteSaveNoteName: '',
@@ -720,29 +721,40 @@ var DeepTutor = class DeepTutor extends React.Component {
 		});
 	};
 
-	handleShowRenamePopup = (sessionId) => {
+	handleShowRenamePopup = (sessionId, source = 'chat') => {
 		const session = this.state.sesIdToObj.get(sessionId);
 		const sessionName = session ? session.sessionName || 'Unnamed Session' : 'Unnamed Session';
 
 		this.setState({
 			sessionToRename: sessionId,
 			sessionNameToRename: sessionName,
+			renameSource: source, // Track where rename was initiated from
 			showRenamePopup: true
 		});
 	};
 
 	handleRenameSuccess = async (renamedSessionId) => {
 		try {
+			// Store the renameSource before reloading sessions (it might get overwritten)
+			const renameSource = this.state.renameSource;
+			
 			// Reload sessions (refresh local mapping and list)
 			await this.loadSession();
 
-			// If the renamed session is the one currently open, update it in-place and stay on chat
+			// If the renamed session is the one currently open, update it in-place
 			if (renamedSessionId && this.state.currentSession && this.state.currentSession.id === renamedSessionId) {
 				const updated = this.state.sesIdToObj.get(renamedSessionId);
 				if (updated) {
 					this.setState({ currentSession: updated });
 				}
-				// Ensure we remain on the main chat pane
+			}
+
+			// Navigate based on where the rename was initiated from
+			if (renameSource === 'sessionHistory') {
+				// Stay on sessionHistory page if rename was initiated from there
+				this.switchPane('sessionHistory');
+			} else {
+				// Stay on chat page if rename was initiated from there (default behavior)
 				this.switchPane('main');
 			}
 		}
@@ -755,7 +767,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 		this.setState({
 			showRenamePopup: false,
 			sessionToRename: null,
-			sessionNameToRename: ''
+			sessionNameToRename: '',
+			renameSource: null
 		});
 	};
 
