@@ -1266,8 +1266,6 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 				}
 			}
 
-
-
 			// Create session data
 			const sessionData = {
 				userId: user.id,
@@ -1474,9 +1472,9 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 				Zotero.debug(`BBBBB: Found ${validResults.length} valid results after processing`);
 				
 				// Get the corresponding validated PDF attachments
-				const validPdfAttachments = validResults.map(result => 
-					pdfAttachments.find(pdf => pdf.id === result.id)
-				).filter(pdf => pdf !== undefined);
+				const validPdfAttachments = validResults
+					.map(result => pdfAttachments.find(pdf => pdf.id === result.id))
+					.filter(pdf => pdf !== undefined);
         
 				// Update originalFileList with only validated PDFs
 				setOriginalFileList((prev) => {
@@ -1554,7 +1552,7 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 								...styles.input1,
 								opacity: isEffectivelyFrozen ? 0.5 : 1,
 								cursor: isEffectivelyFrozen ? 'not-allowed' : 'text',
-								color: '#000000'
+								color: isDark ? '#FFFFFF' : '#000000'
 							}}
 							placeholder={backupModelName}
 							disabled={isEffectivelyFrozen}
