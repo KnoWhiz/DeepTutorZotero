@@ -733,13 +733,35 @@ var DeepTutor = class DeepTutor extends React.Component {
 		});
 	};
 
-	handleRenameSuccess = async (renamedSessionId) => {
+	handleRenameSuccess = async (renamedSessionId, newSessionName) => {
 		try {
 			// Store the renameSource before reloading sessions (it might get overwritten)
 			const renameSource = this.state.renameSource;
 			
-			// Reload sessions (refresh local mapping and list)
-			await this.loadSession();
+			// Update local session data instead of reloading from server (faster, no page refresh)
+			if (renamedSessionId && newSessionName) {
+				// Update the session in sesIdToObj - create a new object to ensure React re-renders
+				const updatedSesIdToObj = new Map(this.state.sesIdToObj);
+				const sessionToUpdate = updatedSesIdToObj.get(renamedSessionId);
+				if (sessionToUpdate) {
+					const updatedSession = { ...sessionToUpdate, sessionName: newSessionName };
+					updatedSesIdToObj.set(renamedSessionId, updatedSession);
+				}
+				
+				// Update the session in the sessions array
+				const updatedSessions = this.state.sessions.map(session => {
+					if (session.id === renamedSessionId) {
+						return { ...session, sessionName: newSessionName };
+					}
+					return session;
+				});
+				
+				// Update state with the modified session data
+				this.setState({
+					sessions: updatedSessions,
+					sesIdToObj: updatedSesIdToObj
+				});
+			}
 
 			// If the renamed session is the one currently open, update it in-place
 			if (renamedSessionId && this.state.currentSession && this.state.currentSession.id === renamedSessionId) {

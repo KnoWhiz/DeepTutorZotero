@@ -473,8 +473,8 @@ const DeepTutorMain = (props) => {
 						<DeepTutorRenameSession
 							sessionId={props.sessionToRename}
 							currentSessionName={props.sessionNameToRename}
-							onConfirmRename={(_sessionId) => {
-								props.handleRenameSuccess(_sessionId);
+							onConfirmRename={(_sessionId, _newSessionName) => {
+								props.handleRenameSuccess(_sessionId, _newSessionName);
 								props.handleCancelRename();
 							}}
 							onCancelRename={props.handleCancelRename}

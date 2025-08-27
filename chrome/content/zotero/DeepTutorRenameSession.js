@@ -212,7 +212,7 @@ export default function DeepTutorRenameSession({
 			await new Promise(resolve => setTimeout(resolve, 500));
 			
 			if (onConfirmRename) {
-				onConfirmRename(sessionId);
+				onConfirmRename(sessionId, sessionNameString);
 			}
 		}
 		catch (error) {
@@ -287,6 +287,6 @@ export default function DeepTutorRenameSession({
 DeepTutorRenameSession.propTypes = {
 	sessionId: PropTypes.string.isRequired,
 	currentSessionName: PropTypes.string,
-	onConfirmRename: PropTypes.func.isRequired,
+	onConfirmRename: PropTypes.func.isRequired, // Now receives (sessionId, newSessionName)
 	onCancelRename: PropTypes.func.isRequired
 };
