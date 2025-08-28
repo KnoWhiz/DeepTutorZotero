@@ -66,7 +66,8 @@ const DeepTutorChatBoxMessage = ({
 	setHoveredQuestion,
 	hoveredQuestion,
 	colors,
-	theme
+	theme,
+	handleShowNoteSavePopup
 }) => {
 	// Format response text for markdown rendering
 	const formatResponseForMarkdown = (text, subMessage) => {
@@ -511,11 +512,16 @@ const DeepTutorChatBoxMessage = ({
 				containerName = parentItem.getDisplayTitle();
 			});
 			
-			// Show success message with actual names
-			Zotero.alert(null, "Note Created Successfully", `Note "${noteName}" created successfully in "${containerName}".`);
+			// Show success message with actual names using popup
+			if (handleShowNoteSavePopup) {
+				handleShowNoteSavePopup(true, noteName, containerName);
+			}
 		}
 		catch (error) {
-			 Zotero.alert(null, "Error Creating Note", `Error creating note: ${error.message}`);
+			// Show error message using popup
+			if (handleShowNoteSavePopup) {
+				handleShowNoteSavePopup(false, '', '');
+			}
 		}
 		finally {
 			// Always reset the saving state, regardless of success or failure
@@ -647,8 +653,8 @@ const DeepTutorChatBoxMessage = ({
 	
 	return (
 		<div>
-			{/* Show streaming component toggle button for non-streaming messages with streamText */}
-			{!message.isStreaming && message.streamText && (
+			{/* Show streaming component toggle button for non-streaming messages with streamText, but not for manually stopped messages */}
+			{!message.isStreaming && message.streamText && !message.manuallyStopped ? (
 				<div style={{
 					display: 'flex',
 					justifyContent: 'flex-start',
@@ -684,7 +690,7 @@ const DeepTutorChatBoxMessage = ({
 						{isStreamingComponentVisible ? "Hide Thinking Process" : message.streamText.includes('<stopped>') ? "Show Stopped Thinking Process" : "Show Thinking Process"}
 					</button>
 				</div>
-			)}
+			) : null}
 			
 			{/* Show streaming component during streaming OR when explicitly visible */}
 			{(message.isStreaming || isStreamingComponentVisible) && (
@@ -856,7 +862,8 @@ DeepTutorChatBoxMessage.propTypes = {
 	setHoveredQuestion: PropTypes.func,
 	hoveredQuestion: PropTypes.number,
 	colors: PropTypes.object.isRequired,
-	theme: PropTypes.string.isRequired
+	theme: PropTypes.string.isRequired,
+	handleShowNoteSavePopup: PropTypes.func
 };
 
 export default DeepTutorChatBoxMessage;

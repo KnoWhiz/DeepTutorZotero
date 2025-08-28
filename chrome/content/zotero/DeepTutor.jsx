@@ -166,15 +166,23 @@ var DeepTutor = class DeepTutor extends React.Component {
 			showProfilePopup: false,
 			showSignInPopup: false,
 
+			// First-run workspace setup
+			showWorkspaceSetupPopup: false,
+
 			showModelSelectionPopup: false,
 			showDeletePopup: false,
 			showRenamePopup: false,
 			showNoPDFWarningPopup: false,
 			showFileSizeWarningPopup: false,
+			showNoteSavePopup: false,
 			sessionToDelete: null,
 			sessionNameToDelete: '',
 			sessionToRename: null,
 			sessionNameToRename: '',
+			// Note save popup data
+			noteSaveSuccess: false,
+			noteSaveNoteName: '',
+			noteSaveContainerName: '',
 			collapsed: false,
 			showSubscriptionConfirmPopup: false,
 			showManageSubscriptionPopup: false,
@@ -238,10 +246,30 @@ var DeepTutor = class DeepTutor extends React.Component {
 		this._loadingPromiseResolve();
 		Zotero.debug("DeepTutor: Component mounted");
 
+		// Show workspace setup only on first run
+		try {
+			const completed = Zotero.Prefs.get('deeptutor.workspaceSetupCompleted');
+			Zotero.debug(`DeepTutor: workspace setup completed flag: ${String(completed)}`);
+			this.setState({ showWorkspaceSetupPopup: !completed });
+		}
+		catch (e) {
+			Zotero.debug(`DeepTutor: error reading workspaceSetupCompleted pref: ${e}`);
+			this.setState({ showWorkspaceSetupPopup: true });
+		}
+
 		// Make instance available globally for testing
 		if (typeof window !== "undefined") {
 			window.deepTutorInstance = this;
 			console.log("🌐 DeepTutor: Instance made available globally as window.deepTutorInstance");
+			
+			// Add workspace setup testing methods to global instance
+			window.deepTutorInstance.showWorkspaceSetup = () => this.setState({ showWorkspaceSetupPopup: true });
+			window.deepTutorInstance.hideWorkspaceSetup = () => this.setState({ showWorkspaceSetupPopup: false });
+			window.deepTutorInstance.resetWorkspaceSetup = () => {
+				Zotero.Prefs.set('deeptutor.workspaceSetupCompleted', false);
+				Zotero.debug('DeepTutor: Reset workspace setup completion flag');
+			};
+			console.log("🔧 DeepTutor: Workspace setup testing methods added to global instance");
 		}
 
 		// Add window resize listener for responsive layout
@@ -643,6 +671,24 @@ var DeepTutor = class DeepTutor extends React.Component {
 	closeFileSizeWarningPopup = () => {
 		this.setState({
 			showFileSizeWarningPopup: false,
+		});
+	};
+
+	showNoteSavePopup = (isSuccessful, noteName, containerName) => {
+		this.setState({
+			showNoteSavePopup: true,
+			noteSaveSuccess: isSuccessful,
+			noteSaveNoteName: noteName,
+			noteSaveContainerName: containerName
+		});
+	};
+
+	closeNoteSavePopup = () => {
+		this.setState({
+			showNoteSavePopup: false,
+			noteSaveSuccess: false,
+			noteSaveNoteName: '',
+			noteSaveContainerName: ''
 		});
 	};
 
@@ -1489,6 +1535,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 				showProfilePopup={this.state.showProfilePopup}
 				showSignInPopup={this.state.showSignInPopup}
 				showUsagePopup={this.state.showUsagePopup}
+				showWorkspaceSetupPopup={this.state.showWorkspaceSetupPopup}
 
 				showModelSelectionPopup={this.state.showModelSelectionPopup}
 				showDeletePopup={this.state.showDeletePopup}
@@ -1497,12 +1544,17 @@ var DeepTutor = class DeepTutor extends React.Component {
 				showSubscriptionConfirmPopup={this.state.showSubscriptionConfirmPopup}
 				showManageSubscriptionPopup={this.state.showManageSubscriptionPopup}
 				showSubscriptionPopup={this.state.showSubscriptionPopup}
+				showNoteSavePopup={this.state.showNoteSavePopup}
 				
 				// Session props
 				sessionToDelete={this.state.sessionToDelete}
 				sessionNameToDelete={this.state.sessionNameToDelete}
 				sessionToRename={this.state.sessionToRename}
 				sessionNameToRename={this.state.sessionNameToRename}
+				// Note save popup props
+				noteSaveSuccess={this.state.noteSaveSuccess}
+				noteSaveNoteName={this.state.noteSaveNoteName}
+				noteSaveContainerName={this.state.noteSaveContainerName}
 				
 				// Feature flags
 				modelSelectionFrozen={this.state.modelSelectionFrozen}
@@ -1557,6 +1609,14 @@ var DeepTutor = class DeepTutor extends React.Component {
 				toggleModelSelectionPopup={this.toggleModelSelectionPopup}
 				toggleSignInPopup={this.toggleSignInPopup}
 				toggleUsagePopup={this.toggleUsagePopup}
+				toggleWorkspaceSetupPopup={() => this.setState({ showWorkspaceSetupPopup: !this.state.showWorkspaceSetupPopup })}
+				// Method to force show workspace setup for testing
+				forceShowWorkspaceSetup={() => this.setState({ showWorkspaceSetupPopup: true })}
+				// Method to reset workspace setup completion flag for testing
+				resetWorkspaceSetupFlag={() => {
+					Zotero.Prefs.set('deeptutor.workspaceSetupCompleted', false);
+					Zotero.debug('DeepTutor: Reset workspace setup completion flag');
+				}}
 
 				toggleProfilePopup={this.toggleProfilePopup}
 				openNoPDFWarningPopup={this.openNoPDFWarningPopup}
@@ -1570,10 +1630,18 @@ var DeepTutor = class DeepTutor extends React.Component {
 				openFileSizeWarningPopup={this.openFileSizeWarningPopup}
 				closeFileSizeWarningPopup={this.closeFileSizeWarningPopup}
 				
+				// Note save popup handlers
+				handleShowNoteSavePopup={this.showNoteSavePopup}
+				closeNoteSavePopup={this.closeNoteSavePopup}
+				
 				// Centralized subscription refresh function
 				refreshActiveSubscription={this.refreshSubscriptionData}
 				// Usage summary accessors
 				refreshUsageSummary={this.refreshUsageSummary}
+				// Workspace setup completion
+				handleWorkspaceSetupComplete={() => {
+					this.setState({ showWorkspaceSetupPopup: false });
+				}}
 			/>
 		);
 	}

@@ -23,6 +23,8 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction: _onActio
 	const closePath = isDark ? PopupCloseDarkPath : PopupClosePath;
 	const [currentPlan, setCurrentPlan] = useState(null); // 'free' | 'pro' | 'premium' | null
 	const [currentPanel, setCurrentPanel] = useState("select"); // "select" | "processing" | "confirm"
+	const [isMainButtonHovered, setIsMainButtonHovered] = useState(false);
+	const [hoveredTab, setHoveredTab] = useState(null);
 
 	useEffect(() => {
 		let mounted = true;
@@ -79,11 +81,36 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction: _onActio
 	const handleProcessingContinue = async () => {
 		try {
 			Zotero.debug("DeepTutorSubscriptionPopup: Refreshing subscription status after processing via centralized function");
+			
+			// Store the current subscription type before refresh
+			const previousSubscriptionType = activeSubscription?.type?.toUpperCase() || "BASIC";
+			
 			if (onRefreshSubscription) {
 				await onRefreshSubscription();
 			}
-			// After refresh, proceed to confirmation view
-			setCurrentPanel("confirm");
+			
+			// Check if there was a subscription type change (upgrade)
+			// We need to get the fresh subscription data to compare
+			let freshSubscription = null;
+			if (userId) {
+				try {
+					freshSubscription = await getActiveUserSubscriptionByUserId(userId);
+				} catch (error) {
+					Zotero.debug(`DeepTutorSubscriptionPopup: Error fetching fresh subscription: ${error.message}`);
+				}
+			}
+			
+			const currentSubscriptionType = freshSubscription?.type?.toUpperCase() || "BASIC";
+			
+			// Only show confirmation if there's a subscription type change (upgrade)
+			if (currentSubscriptionType !== previousSubscriptionType
+				&& (currentSubscriptionType === "PLUS" || currentSubscriptionType === "PREMIUM")) {
+				Zotero.debug(`DeepTutorSubscriptionPopup: Subscription upgraded from ${previousSubscriptionType} to ${currentSubscriptionType}, showing confirmation`);
+				setCurrentPanel("confirm");
+			} else {
+				Zotero.debug(`DeepTutorSubscriptionPopup: No subscription upgrade detected (${previousSubscriptionType} -> ${currentSubscriptionType}), returning to select panel`);
+				setCurrentPanel("select");
+			}
 		}
 		catch (error) {
 			Zotero.debug(`DeepTutorSubscriptionPopup: Error refreshing subscription status: ${error.message}`);
@@ -323,15 +350,33 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction: _onActio
 		}
 	};
 
-	const renderTabButton = (tabKey, label) => (
-		<button
-			key={tabKey}
-			style={activeTab === tabKey ? { ...styles.tab, ...styles.tabActive, border: 'none' } : { ...styles.tab, border: 'none' }}
-			onClick={() => setActiveTab(tabKey)}
-		>
-			{label}
-		</button>
-	);
+	const renderTabButton = (tabKey, label) => {
+		const isActive = activeTab === tabKey;
+		const isHovered = hoveredTab === tabKey;
+		
+		let tabStyle = { ...styles.tab, border: 'none' };
+		if (isActive) {
+			tabStyle = { ...tabStyle, ...styles.tabActive };
+		} else if (isHovered) {
+			tabStyle = {
+				...tabStyle,
+				background: isDark ? "#333333" : "#EEEEEE",
+				color: isDark ? "#DDDDDD" : "#333333"
+			};
+		}
+		
+		return (
+			<button
+				key={tabKey}
+				style={tabStyle}
+				onClick={() => setActiveTab(tabKey)}
+				onMouseEnter={() => setHoveredTab(tabKey)}
+				onMouseLeave={() => setHoveredTab(null)}
+			>
+				{label}
+			</button>
+		);
+	};
 
 	const renderFree = () => (
 		<div style={styles.content}>
@@ -426,12 +471,18 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction: _onActio
 		const selectedLevel = planHierarchy[activeTab];
 		
 		if (selectedLevel < currentLevel) {
-			// Downgrade - use gray button
-			return styles.downgradeButton;
+			// Downgrade - use secondary button style with hover
+			return {
+				...styles.secondaryButton,
+				background: isMainButtonHovered ? colors.background.quaternary : colors.button.secondary,
+			};
 		}
 		
-		// Upgrade or same level - use primary button
-		return styles.primaryButton;
+		// Upgrade or same level - use primary button with hover
+		return {
+			...styles.primaryButton,
+			background: isMainButtonHovered ? colors.button.primaryHover : colors.button.primary,
+		};
 	};
 
 	// Helper function to determine if button should show arrow
@@ -463,7 +514,7 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction: _onActio
 			if (selectedLevel < currentLevel) {
 				// Downgrade - redirect to manage subscription page
 				//const manageUrl = `http://localhost:3000/dzSubscription?manage=true`;
-				const manageUrl = `https://${DT_BASE_URL}/manage-subscription`;
+				const manageUrl = `https://${DT_BASE_URL}/dzSubscription?manage=true`;
 				try {
 					Zotero.launchURL(manageUrl);
 				}
@@ -519,6 +570,8 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction: _onActio
 						<button
 							style={getButtonStyle()}
 							onClick={handlePrimary}
+							onMouseEnter={() => setIsMainButtonHovered(true)}
+							onMouseLeave={() => setIsMainButtonHovered(false)}
 						>
 							<span>{getButtonText()}</span>
 							{shouldShowArrow() && (

@@ -163,16 +163,16 @@ const DeepTutorBottomSection = (props) => {
 	};
 
 	const renderMain = () => {
-		const isPremiumLabel = (function () {
+		const isProOrPremiumLabel = (function () {
 			// Determine anticipated label based on current props (mirror logic below)
-			if (props.userSubscribed && props.activeSubscription) {
+			if (props.activeSubscription) {
 				const subscriptionType = props.activeSubscription.type;
-				return subscriptionType === 'PREMIUM';
+				return subscriptionType === 'PLUS' || subscriptionType === 'PREMIUM';
 			}
 			return false;
 		})();
 
-		const upgradeButtonDynamicStyle = isPremiumLabel
+		const upgradeButtonDynamicStyle = isProOrPremiumLabel
 			? {
 				...styles.secondaryButton,
 				background: isUpgradeHovered ? colors.background.quaternary : colors.button.secondary,
@@ -313,8 +313,10 @@ const DeepTutorBottomSection = (props) => {
 								<DeepTutorProfilePopup
 									onShowUsage={handleShowUsage}
 									onSignOut={props.onSignOut}
+									onShowUpgrade={props.onToggleSubscriptionPopup}
 									userData={props.userData}
 									currentUser={props.currentUser}
+									activeSubscription={props.activeSubscription}
 								/>
 							)}
 							{/* Usage popup is rendered at the parent level */}

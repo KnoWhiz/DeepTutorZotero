@@ -8,6 +8,7 @@ import {
 	subscribeToChat
 } from './api/libs/api';
 import DeepTutorChatBoxMessage from './DeepTutorChatBoxMessage';
+import DeepTutorRenameSession from './DeepTutorRenameSession.js';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 import ClaudeAutoInstall from './ClaudeAutoInstall';
 
@@ -151,7 +152,10 @@ Format requirement:
 1. Make sure each sentence in the response there is a corresponding context chunk to support the sentence, and cite the most relevant context chunk keys in the format "[<chunk_key, like {example_keys}, etc>]" at the end of the sentence after the period mark. If there are more than one context chunk keys, use the format "[<chunk_key_1>][<chunk_key_2>] ..." to cite all the context chunk keys.
 2. Use markdown syntax for formatting the response to make it more clear and readable.`;
 
-const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
+const RenameIconPath = 'chrome://zotero/content/DeepTutorMaterials/History/RENAME_SESSION.svg';
+const RenameIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/History/RENAME_SESSION_DARK.svg';
+const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSavePopup }) => {
+
 	const { colors, theme, isDark } = useDeepTutorTheme();
 	
 	// Theme-aware styles
@@ -177,6 +181,12 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 		sessionNameDiv: {
 			width: '100%',
 			marginBottom: '1.25rem',
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'space-between',
+			gap: '10px',
+		},
+		sessionNameText: {
 			color: colors.text.allText,
 			fontWeight: 500,
 			fontSize: '1.25rem',
@@ -187,6 +197,24 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			overflow: 'hidden',
 			textOverflow: 'ellipsis',
 			whiteSpace: 'nowrap',
+			flex: 1,
+		},
+		renameIconButton: {
+			width: '1.0625rem',
+			height: '1.0625rem',
+			background: 'transparent',
+			border: 'none',
+			cursor: 'pointer',
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'center',
+			padding: 0,
+			flexShrink: 0,
+		},
+		renameIcon: {
+			width: '1.0625rem',
+			height: '1.0625rem',
+			objectFit: 'contain',
 		},
 		sessionInfo: {
 			width: '90%',
@@ -506,6 +534,18 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			cursor: 'pointer',
 			width: '100%',
 			boxSizing: 'border-box',
+		},
+		renamePopupOverlay: {
+			position: 'fixed',
+			top: 0,
+			left: 0,
+			right: 0,
+			bottom: 0,
+			background: 'rgba(0, 0, 0, 0.5)',
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'center',
+			zIndex: 9999,
 		}
 	};
 	const [messages, setMessages] = useState([]);
@@ -540,6 +580,16 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 
 	// Add state to track streaming component visibility for each message
 	const [streamingComponentVisibility, setStreamingComponentVisibility] = useState({});
+	const [showRenamePopup, setShowRenamePopup] = useState(false);
+	
+	// Choose rename icon based on theme
+	const renameIconPath = isDark ? RenameIconDarkPath : RenameIconPath;
+
+	// Add state to track waiting for AI response (backend processing)
+	const [waitingStreaming, setWaitingStreaming] = useState(false);
+
+	// Add state to track if we have an active stream connection (vs just backend processing)
+	const [hasActiveStream, setHasActiveStream] = useState(false);
 
 	// Toggle streaming component visibility for a specific message
 	const toggleStreamingComponent = (messageId) => {
@@ -663,6 +713,14 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 		isManuallyStoppedRef.current = isManuallyStopped;
 	}, [isManuallyStopped]);
 
+	// Clear waiting state when active streaming starts
+	useEffect(() => {
+		if (hasActiveStream && waitingStreaming) {
+			Zotero.debug(`DeepTutorChatBox: Active streaming started, clearing waiting state`);
+			setWaitingStreaming(false);
+		}
+	}, [hasActiveStream, waitingStreaming]);
+
 	// Periodic message fetching useEffect
 	useEffect(() => {
 		let isActive = true;
@@ -679,16 +737,33 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				&& messages[messages.length - 1].role === MessageRole.USER
 				&& checkTime(messages[messages.length - 1])
 			) {
+				// Set waiting state to show thinking animation (AI is processing but not yet in history)
+				Zotero.debug(`DeepTutorChatBox: Setting waitingStreaming to true - last message is USER and within time limit`);
+				setWaitingStreaming(true);
+				
 				getMessagesBySessionId(sessionId).then((response) => {
 					if (response && response.length > messages.length) {
+						Zotero.debug(`DeepTutorChatBox: New messages found, stopping waitingStreaming`);
 						setMessages(response);
 						setLatestMessageId(response[response.length - 1].id);
 						// Stop streaming if it was active (AI response received)
 						setIsStreaming(false);
+						setHasActiveStream(false);
+						// Stop waiting since we got a response
+						setWaitingStreaming(false);
+					} else {
+						Zotero.debug(`DeepTutorChatBox: No new messages, keeping waitingStreaming true`);
 					}
+					// If no new messages but we're still checking, keep waiting state true
 				}).catch((error) => {
-					Zotero.debug(error);
+					Zotero.debug(`DeepTutorChatBox: Error checking messages: ${error}`);
+					// Stop waiting state on error
+					setWaitingStreaming(false);
 				});
+			} else {
+				// Not waiting for response
+				Zotero.debug(`DeepTutorChatBox: Not in waiting condition, setting waitingStreaming to false`);
+				setWaitingStreaming(false);
 			}
 			
 			// Schedule next check
@@ -762,17 +837,22 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			// Get the reader instance for the current tab
 			const reader = Zotero.Reader.getByTabID(Zotero.getMainWindow().Zotero_Tabs.selectedID);
 			if (!reader) {
-				return;
+				return; // Early exit if reader is not available
 			}
-			
-			// Use the new public setFindQuery method
+
+			/*
+			Search functionality commented out - preserve file opening and page switching only
 			const searchQuery = source.referenceString || "test";
 			
 			reader._internalReader.setFindQuery(searchQuery, {
-				primary: true,
-				openPopup: false,
-				activateSearch: true
+			primary: true,
+			openPopup: false,
+			activateSearch: true
 			});
+			*/
+			
+			// Future: Add search functionality here when needed
+			Zotero.debug('DeepTutorChatBox: PDF opened, search functionality available if needed');
 		}
 		catch (error) {
 			Zotero.debug(error);
@@ -984,7 +1064,21 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 		};
 
 		loadSessionData();
-	}, [currentSession]);
+		
+		// Immediately check for waiting state when session changes
+		// This handles the case where user switches back to a session that's waiting for AI response
+		setTimeout(() => {
+			if (
+				currentSession?.id
+				&& messages.length > 0
+				&& messages[messages.length - 1].role === MessageRole.USER
+				&& checkTime(messages[messages.length - 1])
+			) {
+				Zotero.debug(`DeepTutorChatBox: Session changed, immediately checking for waiting state`);
+				setWaitingStreaming(true);
+			}
+		}, 100); // Small delay to ensure state updates are processed
+	}, [currentSession, messages, checkTime]);
 
 
 	// Handle message updates
@@ -1125,6 +1219,21 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				isAutoScrollingRef.current = false;
 			}
 		}
+	};
+
+	// Handle rename functionality
+	const handleRenameClick = () => {
+		setShowRenamePopup(true);
+	};
+
+	const handleRenameCancel = () => {
+		setShowRenamePopup(false);
+	};
+
+	const handleRenameConfirm = async (_sessionId) => {
+		setShowRenamePopup(false);
+		// The session should be refreshed after renaming, which will happen through the API
+		// and the parent component should handle updating the current session
 	};
 
 	// Handle scroll to detect if user scrolled back to bottom
@@ -1369,7 +1478,23 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 					const lastMessage = newMessages[newMessages.length - 1];
 					if (lastMessage && lastMessage.isStreaming) {
 						lastMessage.isStreaming = false;
-						lastMessage.subMessages[0].text += '<stopped>';
+						
+						// Clean the message text to remove any message ID that might have been added
+						let cleanText = lastMessage.subMessages[0].text || '';
+						
+						// Remove any message ID patterns that might have been added (like long hex strings)
+						cleanText = cleanText.replace(/[a-f0-9]{16,}/gi, ''); // Remove long hex strings
+						cleanText = cleanText.replace(/^\d+/, ''); // Remove leading numbers (index fallbacks)
+						
+						// Add the stopped tag
+						cleanText += '<stopped>';
+						
+						// Update the message text
+						lastMessage.subMessages[0].text = cleanText;
+						
+						// Add flag to indicate this message was manually stopped
+						lastMessage.manuallyStopped = true;
+						
 						// Hide streaming component by default when streaming is stopped
 						setStreamingComponentVisibility(prevVisibility => ({
 							...prevVisibility,
@@ -1384,11 +1509,22 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				streamReaderRef.current = null; // Clear reader reference even on error
 			}
 		}
+		
+		// Handle waiting case - just stop the waiting animation
+		if (waitingStreaming) {
+			Zotero.debug(`DeepTutorChatBox: Stopping waiting animation`);
+			setWaitingStreaming(false);
+		}
+		
+		setIsStreaming(false);
+		setHasActiveStream(false);
 	};
 
 	const sendToAPI = async (message) => {
 		try {
 			setIsStreaming(true); // Set streaming to true at start
+			setHasActiveStream(true); // Set active stream flag
+			setWaitingStreaming(false); // Clear waiting state when normal streaming starts
 			isAutoScrollingRef.current = true; // Re-enable auto-scrolling for new stream
 			// Send message to API
 			const responseData = await createMessage(message);
@@ -1420,11 +1556,13 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 
 			if (!streamResponse.ok) {
 				setIsStreaming(false); // Set streaming to false on error
+				setHasActiveStream(false);
 				throw new Error(`Stream request failed: ${streamResponse.status}`);
 			}
             
 			if (!streamResponse.body) {
 				setIsStreaming(false); // Set streaming to false if no body
+				setHasActiveStream(false);
 				throw new Error('Stream response body is null');
 			}
 
@@ -1466,12 +1604,14 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				// Check for timeout
 				if (Date.now() - lastDataTime > 600000) {
 					setIsStreaming(false); // Set streaming to false on timeout
+					setHasActiveStream(false);
 					throw new Error('Stream timeout - no data received for 300 seconds');
 				}
                 
 				if (done) {
 					if (!hasReceivedData) {
 						setIsStreaming(false); // Set streaming to false if no data received
+						setHasActiveStream(false);
 						throw new Error('Stream closed without receiving any data');
 					}
 					break;
@@ -1525,6 +1665,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			}
 			if (isManuallyStoppedRef.current) {
 				setIsStreaming(false);
+				setHasActiveStream(false);
 				// For manual stop, we need to handle this differently since the message doesn't have an ID yet
 				// We'll set the visibility when the message is processed later
 				return;
@@ -1582,6 +1723,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 
             
 			setIsStreaming(false); // Set streaming to false when done
+			setHasActiveStream(false);
 			streamReaderRef.current = null; // Clear reader reference
 			
 			// Hide streaming component by default when streaming finishes
@@ -1591,6 +1733,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 		catch (error) {
 			Zotero.debug(error);
 			setIsStreaming(false); // Set streaming to false on any error
+			setHasActiveStream(false);
 			streamReaderRef.current = null; // Clear reader reference
 			
 			// Even on error, try to fetch message history to ensure UI consistency
@@ -1758,6 +1901,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				hoveredQuestion={hoveredQuestion}
 				colors={colors}
 				theme={theme}
+				handleShowNoteSavePopup={handleShowNoteSavePopup}
 			/>
 		);
 	};
@@ -2705,7 +2849,20 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 			}} />
             
 			<div style={styles.sessionNameDiv}>
-				{currentSession?.sessionName || "New Session"}
+				<div style={styles.sessionNameText}>
+					{currentSession?.sessionName || "New Session"}
+				</div>
+				<button
+					style={styles.renameIconButton}
+					onClick={handleRenameClick}
+					title="Rename Session"
+				>
+					<img
+						src={renameIconPath}
+						alt="Rename"
+						style={styles.renameIcon}
+					/>
+				</button>
 			</div>
 
 			<div style={styles.viewContextContainer} ref={contextPopupRef}>
@@ -2803,6 +2960,18 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				onScroll={handleScroll}
 			>
 				{messages.map((message, index) => renderMessage(message, index))}
+				{/* Show waiting message with thinking animation when backend is processing (but NOT during active streaming) */}
+				{waitingStreaming && !hasActiveStream && (() => {
+					Zotero.debug(`DeepTutorChatBox: Rendering waiting message with thinking animation`);
+					return renderMessage({
+						id: 'waiting-message',
+						role: MessageRole.TUTOR,
+						subMessages: [{ text: '' }],
+						isStreaming: true,
+						streamText: '<thinking></thinking>',
+						creationTime: new Date().toISOString()
+					}, messages.length);
+				})()}
 			</div>
 
 			<div style={styles.bottomBar}>
@@ -2872,17 +3041,17 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 						opacity: iniWait ? 0.5 : 1,
 						cursor: iniWait ? "not-allowed" : "pointer"
 					}}
-					onClick={isStreaming ? handleStopStreaming : handleSend}
+					onClick={(hasActiveStream || waitingStreaming) ? handleStopStreaming : handleSend}
 					disabled={iniWait}
+					title={(hasActiveStream || waitingStreaming) ? "Stop Thinking" : "Send"}
 				>
 					<img
-						src={isStreaming ? StopIconPath : SendIconPath}
-						alt={isStreaming ? "Stop" : "Send"}
+						src={(hasActiveStream || waitingStreaming) ? StopIconPath : SendIconPath}
+						alt={(hasActiveStream || waitingStreaming) ? "Stop" : "Send"}
 						style={styles.sendIcon}
 					/>
 				</button>
 			</div>
-			
 			{/* Claude Install Popup for agentic mode */}
 			{showClaudeInstallPopup && (
 				<div style={{
@@ -2901,6 +3070,17 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 						onInstallComplete={handleClaudeInstallComplete}
 						onCancel={handleClaudeInstallCancel}
 					/>
+			{/* Rename popup */}
+			{showRenamePopup && currentSession && (
+				<div style={styles.renamePopupOverlay} onClick={handleRenameCancel}>
+					<div onClick={e => e.stopPropagation()}>
+						<DeepTutorRenameSession
+							sessionId={currentSession.id}
+							currentSessionName={currentSession.sessionName || "New Session"}
+							onConfirmRename={handleRenameConfirm}
+							onCancelRename={handleRenameCancel}
+						/>
+					</div>
 				</div>
 			)}
 		</div>
@@ -2910,7 +3090,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 DeepTutorChatBox.propTypes = {
 	currentSession: PropTypes.object,
 	onSessionSelect: PropTypes.func,
-	onInitWaitChange: PropTypes.func
+	onInitWaitChange: PropTypes.func,
+	handleShowNoteSavePopup: PropTypes.func
 };
 
 export default DeepTutorChatBox;
