@@ -1581,50 +1581,87 @@ The system will automatically:
      */
     async extractFirstPageAsAbstract(attachmentItem) {
         try {
-            Zotero.debug("DeepTutorClaudeManagement: Extracting first page as abstract");
+            Zotero.debug("DeepTutorClaudeManagement: Extracting first 1.5-2 pages as abstract");
             
-            // Get full text with page limit
-            const fullTextResult = await Zotero.PDFWorker.getFullText(attachmentItem.id, 1); // Only first page
+            // Try to get 2 pages first, then fall back to 1.5 if needed
+            let fullTextResult = await Zotero.PDFWorker.getFullText(attachmentItem.id, 2); // Try 2 pages
             
             if (!fullTextResult || !fullTextResult.text) {
-                throw new Error("No text content available from first page");
+                // Fallback to 1.5 pages
+                Zotero.debug("DeepTutorClaudeManagement: 2 pages not available, trying 1.5 pages");
+                fullTextResult = await Zotero.PDFWorker.getFullText(attachmentItem.id, 1.5);
+                
+                if (!fullTextResult || !fullTextResult.text) {
+                    // Final fallback to 1 page
+                    Zotero.debug("DeepTutorClaudeManagement: 1.5 pages not available, falling back to 1 page");
+                    fullTextResult = await Zotero.PDFWorker.getFullText(attachmentItem.id, 1);
+                    
+                    if (!fullTextResult || !fullTextResult.text) {
+                        throw new Error("No text content available from first page");
+                    }
+                }
             }
             
-            let firstPageText = fullTextResult.text.trim();
+            let extractedText = fullTextResult.text.trim();
             
-            // Clean up the first page text
-            firstPageText = firstPageText
+            // Clean up the extracted text
+            extractedText = extractedText
+                .replace(/\r\n/g, '\n')         // Normalize line endings
+                .replace(/\r/g, '\n')           // Normalize line endings
                 .replace(/\n{3,}/g, '\n\n')     // Remove excessive line breaks
                 .replace(/\s{2,}/g, ' ')        // Remove excessive spaces
                 .trim();
             
-            // Limit length for abstract
-            if (firstPageText.length > 1000) {
+            // Determine the actual pages extracted
+            const extractedPages = fullTextResult.extractedPages || 'Unknown';
+            const totalPages = fullTextResult.totalPages || 'Unknown';
+            
+            // Much more merciful length constraint for abstracts (allowing up to 8000 characters for 1.5-2 pages)
+            if (extractedText.length > 8000) {
                 // Try to find a natural break point
-                const sentences = firstPageText.split(/[.!?]+/);
+                const sentences = extractedText.split(/[.!?]+/);
                 let truncatedText = '';
                 
                 for (const sentence of sentences) {
-                    if ((truncatedText + sentence).length < 1000) {
+                    if ((truncatedText + sentence).length < 8000) {
                         truncatedText += sentence + '.';
                     } else {
                         break;
                     }
                 }
                 
-                if (truncatedText.length > 100) {
-                    firstPageText = truncatedText.trim();
+                if (truncatedText.length > 500) {
+                    extractedText = truncatedText.trim();
                 } else {
                     // Fallback to simple truncation
-                    firstPageText = firstPageText.substring(0, 1000) + '...';
+                    extractedText = extractedText.substring(0, 8000) + '...';
                 }
             }
             
+            // Determine method used based on pages extracted
+            let method = 'first_page';
+            let note = 'Using first page content as abstract fallback';
+            
+            if (extractedPages === 2 || extractedPages === '2') {
+                method = 'first_two_pages';
+                note = 'Using first 2 pages content as abstract fallback';
+            } else if (extractedPages === 1.5 || extractedPages === '1.5') {
+                method = 'first_one_and_half_pages';
+                note = 'Using first 1.5 pages content as abstract fallback';
+            } else if (extractedPages === 1 || extractedPages === '1') {
+                method = 'first_page';
+                note = 'Using first page content as abstract fallback';
+            }
+            
+            Zotero.debug(`DeepTutorClaudeManagement: Successfully extracted ${extractedPages} pages (${extractedText.length} characters)`);
+            
             return {
-                abstract: firstPageText,
+                abstract: extractedText,
                 confidence: 'low',
-                method: 'first_page',
-                note: 'Using first page content as abstract fallback'
+                method: method,
+                note: note,
+                pagesExtracted: extractedPages,
+                totalPages: totalPages
             };
             
         } catch (error) {
@@ -2137,89 +2174,59 @@ The system will automatically:
                 }
             };
 
-            // Simple approach: use search to find collections
+            // Use proper Zotero API to get collections
             let collections = [];
             try {
-                const search = new Zotero.Search();
-                search.libraryID = Zotero.Libraries.userLibraryID;
-                search.addCondition('itemType', 'is', 'collection');
-                const collectionIDs = await search.search();
-                collections = collectionIDs.map(id => Zotero.Collections.get(id)).filter(col => col);
+                const userLibID = Zotero.Libraries.userLibraryID;
+                Zotero.debug(`DeepTutorClaudeManagement: Getting collections for library ${userLibID} using Zotero.Collections.getByLibrary`);
+                
+                // Use the correct Zotero API method
+                collections = Zotero.Collections.getByLibrary(userLibID);
+                Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections using getByLibrary`);
+                
             } catch (error) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error getting collections with search, trying alternative: ${error.message}`);
-                // Try alternative approach - get all items and filter collections
+                Zotero.debug(`DeepTutorClaudeManagement: Error getting collections with getByLibrary, trying alternative: ${error.message}`);
+                // Fallback: use search approach
                 try {
-                    const userLibID = Zotero.Libraries.userLibraryID;
-                    const allObjects = await Zotero.DB.columnQueryAsync(
-                        "SELECT collectionID FROM collections WHERE libraryID=?", 
-                        [userLibID]
-                    );
-                    collections = allObjects.map(id => Zotero.Collections.get(id)).filter(col => col);
-                } catch (dbError) {
-                    Zotero.debug(`DeepTutorClaudeManagement: Database query failed, creating minimal hierarchy: ${dbError.message}`);
-                    collections = [];
+                    const search = new Zotero.Search();
+                    search.libraryID = userLibID;
+                    search.addCondition('itemType', 'is', 'collection');
+                    const collectionIDs = await search.search();
+                    collections = collectionIDs.map(id => Zotero.Collections.get(id)).filter(col => col);
+                    Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections using search fallback`);
+                } catch (searchError) {
+                    Zotero.debug(`DeepTutorClaudeManagement: Search fallback failed, trying database query: ${searchError.message}`);
+                    // Last resort: direct database query
+                    try {
+                        const allObjects = await Zotero.DB.columnQueryAsync(
+                            "SELECT collectionID FROM collections WHERE libraryID=?", 
+                            [userLibID]
+                        );
+                        collections = allObjects.map(id => Zotero.Collections.get(id)).filter(col => col);
+                        Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections using database query`);
+                    } catch (dbError) {
+                        Zotero.debug(`DeepTutorClaudeManagement: All collection retrieval methods failed: ${dbError.message}`);
+                        collections = [];
+                    }
                 }
             }
             
             Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections`);
 
-            // Build simple collection data
+            // Build complete collection hierarchy using proper Zotero API
             for (const collection of collections) {
                 try {
                     if (!collection.parentID) { // Only top-level collections
-                        const collectionData = {
-                            id: collection.id,
-                            key: collection.key,
-                            name: collection.name,
-                            level: 0,
-                            parentID: null,
-                            fullPath: collection.name,
-                            items: [],
-                            itemCount: 0,
-                            attachmentCount: 0,
-                            pdfCount: 0
-                        };
-
-                        // Get items in this collection (simple approach)
-                        try {
-                            const items = collection.getChildItems();
-                            for (const item of items) {
-                                if (item && item.isRegularItem && item.isRegularItem()) {
-                                    const itemData = {
-                                        id: item.id,
-                                        title: item.getField('title') || 'Untitled',
-                                        itemType: item.itemType,
-                                        date: item.getField('date') || '',
-                                        attachmentCount: 0,
-                                        pdfCount: 0
-                                    };
-                                    
-                                    // Count attachments
-                                    try {
-                                        const attachments = item.getAttachments();
-                                        itemData.attachmentCount = attachments.length;
-                                        for (const attachmentID of attachments) {
-                                            const attachment = Zotero.Items.get(attachmentID);
-                                            if (attachment && this.isPDFAttachment(attachment)) {
-                                                itemData.pdfCount++;
-                                            }
-                                        }
-                                    } catch (attachError) {
-                                        Zotero.debug(`DeepTutorClaudeManagement: Error getting attachments for item ${item.id}: ${attachError.message}`);
-                                    }
-                                    
-                                    collectionData.items.push(itemData);
-                                    collectionData.itemCount++;
-                                    collectionData.attachmentCount += itemData.attachmentCount;
-                                    collectionData.pdfCount += itemData.pdfCount;
-                                }
-                            }
-                        } catch (itemError) {
-                            Zotero.debug(`DeepTutorClaudeManagement: Error getting items for collection ${collection.id}: ${itemError.message}`);
-                        }
+                        Zotero.debug(`DeepTutorClaudeManagement: Processing top-level collection: ${collection.name} (ID: ${collection.id})`);
                         
+                        const collectionData = await this.buildCollectionHierarchyRecursive(collection, 0);
                         hierarchyData.collections.push(collectionData);
                         hierarchyData.statistics.totalCollections++;
+                        
+                        // Update statistics
+                        hierarchyData.statistics.totalItems += collectionData.itemCount;
+                        hierarchyData.statistics.totalAttachments += collectionData.attachmentCount;
+                        hierarchyData.statistics.totalPDFs += collectionData.pdfCount;
                     }
                 } catch (error) {
                     Zotero.debug(`DeepTutorClaudeManagement: Error processing collection ${collection.id}: ${error.message}`);
@@ -2259,20 +2266,19 @@ The system will automatically:
     }
 
     /**
-     * Build collection hierarchy non-recursively to avoid stack overflow
+     * Build collection hierarchy recursively using proper Zotero API
      * @param {Object} collection - Zotero collection object
-     * @param {Map} collectionMap - Map of all collections for reference
+     * @param {number} level - Current nesting level
      * @returns {Object} Collection hierarchy data
      */
-    async buildCollectionHierarchyNonRecursive(collection, collectionMap) {
+    async buildCollectionHierarchyRecursive(collection, level) {
         try {
             const collectionData = {
                 id: collection.id,
                 key: collection.key,
                 name: collection.name,
-                level: 0,
+                level: level,
                 parentID: collection.parentID || null,
-                path: [],
                 fullPath: collection.name,
                 items: [],
                 subcollections: [],
@@ -2281,47 +2287,86 @@ The system will automatically:
                 pdfCount: 0
             };
 
-            // Build path hierarchy using iteration instead of recursion
-            const pathComponents = [collection.name];
-            let currentParentID = collection.parentID;
-            let level = 0;
-            
-            while (currentParentID && collectionMap.has(currentParentID)) {
-                const parentCollection = collectionMap.get(currentParentID);
-                pathComponents.unshift(parentCollection.name);
-                currentParentID = parentCollection.parentID;
-                level++;
-            }
-            
-            collectionData.level = level;
-            collectionData.path = pathComponents.slice(0, -1); // All except current collection name
-            collectionData.fullPath = pathComponents.join(' > ');
-
-            // Get items in this collection
+            // Get items in this collection using proper Zotero API
             try {
                 const items = collection.getChildItems();
+                Zotero.debug(`DeepTutorClaudeManagement: Collection ${collection.name} has ${items.length} child items`);
+                
                 for (const item of items) {
                     if (item && item.isRegularItem && item.isRegularItem()) {
-                        const itemData = await this.buildItemData(item);
+                        const itemData = {
+                            id: item.id,
+                            title: item.getField('title') || 'Untitled',
+                            itemType: item.itemType,
+                            date: item.getField('date') || '',
+                            attachmentCount: 0,
+                            pdfCount: 0,
+                            attachments: []
+                        };
+                        
+                        // Count attachments using proper Zotero API
+                        try {
+                            const attachments = item.getAttachments();
+                            itemData.attachmentCount = attachments.length;
+                            
+                            for (const attachmentID of attachments) {
+                                const attachment = Zotero.Items.get(attachmentID);
+                                if (attachment && attachment.isAttachment && attachment.isAttachment()) {
+                                    const attachmentData = {
+                                        id: attachment.id,
+                                        filename: attachment.attachmentFilename || '',
+                                        isPDF: this.isPDFAttachment(attachment),
+                                        fileSize: attachment.attachmentFileSize || 0
+                                    };
+                                    itemData.attachments.push(attachmentData);
+                                    
+                                    if (attachmentData.isPDF) {
+                                        itemData.pdfCount++;
+                                    }
+                                }
+                            }
+                        } catch (attachError) {
+                            Zotero.debug(`DeepTutorClaudeManagement: Error getting attachments for item ${item.id}: ${attachError.message}`);
+                        }
+                        
                         collectionData.items.push(itemData);
                         collectionData.itemCount++;
                         collectionData.attachmentCount += itemData.attachmentCount;
                         collectionData.pdfCount += itemData.pdfCount;
                     }
                 }
-            } catch (e) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error getting items for collection ${collection.id}: ${e.message}`);
+            } catch (itemError) {
+                Zotero.debug(`DeepTutorClaudeManagement: Error getting items for collection ${collection.id}: ${itemError.message}`);
             }
 
-            // Get subcollections
+            // Get subcollections using proper Zotero API
             try {
                 const subcollections = collection.getChildCollections();
+                Zotero.debug(`DeepTutorClaudeManagement: Collection ${collection.name} has ${subcollections.length} subcollections`);
+                
                 for (const subcollection of subcollections) {
-                    const subcollectionData = await this.buildCollectionHierarchyNonRecursive(subcollection, collectionMap);
+                    const subcollectionData = await this.buildCollectionHierarchyRecursive(subcollection, level + 1);
                     collectionData.subcollections.push(subcollectionData);
+                    
+                    // Update parent collection statistics
+                    collectionData.itemCount += subcollectionData.itemCount;
+                    collectionData.attachmentCount += subcollectionData.attachmentCount;
+                    collectionData.pdfCount += subcollectionData.pdfCount;
                 }
-            } catch (e) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error getting subcollections for collection ${collection.id}: ${e.message}`);
+            } catch (subcolError) {
+                Zotero.debug(`DeepTutorClaudeManagement: Error getting subcollections for collection ${collection.id}: ${subcolError.message}`);
+            }
+
+            // Build full path for this collection
+            if (collection.parentID) {
+                try {
+                    const parentCollection = await Zotero.Collections.getAsync(collection.parentID);
+                    if (parentCollection) {
+                        collectionData.fullPath = `${parentCollection.name} > ${collection.name}`;
+                    }
+                } catch (pathError) {
+                    Zotero.debug(`DeepTutorClaudeManagement: Error building path for collection ${collection.id}: ${pathError.message}`);
+                }
             }
 
             return collectionData;
@@ -2949,3 +2994,4 @@ The system will automatically:
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = DeepTutorClaudeManagement;
 }
+
