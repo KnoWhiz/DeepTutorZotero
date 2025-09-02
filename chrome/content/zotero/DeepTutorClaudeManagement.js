@@ -18,6 +18,11 @@ class DeepTutorClaudeManagement {
         this.fileTreePath = null;
         this.generalPath = null;
         
+        // Metadata tracking to avoid repetitive work
+        this.metadataCache = new Map(); // Cache for PDF metadata
+        this.abstractCache = new Map(); // Cache for PDF abstracts
+        this.hierarchyCache = null; // Cache for file hierarchy
+        
         // Set up global error handling to prevent crashes
         this.setupErrorHandling();
     }
@@ -399,44 +404,7 @@ class DeepTutorClaudeManagement {
         }
     }
 
-    /**
-     * Save file hierarchy data to FileTree folder
-     * @param {Object} metadata - Comprehensive metadata object
-     * @param {string} itemID - Item ID for the file
-     */
-    async saveFileHierarchyData(metadata, itemID) {
-        try {
-            Zotero.debug(`DeepTutorClaudeManagement: Saving file hierarchy data for item ${itemID}`);
-            
-            const hierarchyFileName = `${itemID}_hierarchy.json`;
-            const hierarchyFilePath = this.pathJoin(this.fileTreePath, hierarchyFileName);
-            
-            const hierarchyData = {
-                itemID: itemID,
-                timestamp: new Date().toISOString(),
-                library: metadata.library,
-                collections: metadata.collections,
-                hierarchy: metadata.hierarchy,
-                item: metadata.item,
-                parent: metadata.parent,
-                fileStructure: {
-                    markdownFulltext: `${itemID}_fulltext.md`,
-                    markdownSummary: `${itemID}_summary.md`,
-                    hierarchyFile: hierarchyFileName
-                }
-            };
-            
-            const hierarchyJson = JSON.stringify(hierarchyData, null, 2);
-            this.writeTextFile(hierarchyFilePath, hierarchyJson);
-            
-            Zotero.debug(`DeepTutorClaudeManagement: Hierarchy data saved to: ${hierarchyFilePath}`);
-            return hierarchyData;
-            
-        } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error saving hierarchy data: ${error.message}`);
-            throw error;
-        }
-    }
+    // saveFileHierarchyData method removed - using comprehensive hierarchy generation instead
 
     /**
      * Load and process raw PDF documents
@@ -527,7 +495,7 @@ class DeepTutorClaudeManagement {
             
             Zotero.debug("DeepTutorClaudeManagement: Starting PDF processing loop...");
             for (const pdfItem of pdfItems) {
-                // New file naming with _fulltext and _summary suffixes
+                // New file naming - only fulltext since summary is commented off
                 const markdownFulltextFileName = `${pdfItem.itemID}_fulltext.md`;
                 const markdownSummaryFileName = `${pdfItem.itemID}_summary.md`;
                 const markdownFulltextFilePath = this.pathJoin(this.rawDocDataPath, markdownFulltextFileName);
@@ -535,14 +503,13 @@ class DeepTutorClaudeManagement {
 
                 Zotero.debug(`DeepTutorClaudeManagement: Processing PDF item ${pdfItem.itemID} (${processedCount + 1}/${pdfItems.length})`);
 
-                // Check if markdown files already exist
-                // const fulltextExists = this.pathExists(markdownFulltextFilePath);
-                // const summaryExists = this.pathExists(markdownSummaryFilePath);
-                // if (fulltextExists && summaryExists) {
-                //     Zotero.debug(`DeepTutorClaudeManagement: Markdown files for item ${pdfItem.itemID} already exist, skipping`);
-                //     skippedCount++;
-                //     continue;
-                // }
+                // Check if markdown files already exist (only check fulltext since summary is commented off)
+                const fulltextExists = this.pathExists(markdownFulltextFilePath);
+                if (fulltextExists) {
+                    Zotero.debug(`DeepTutorClaudeManagement: Fulltext markdown for item ${pdfItem.itemID} already exists, skipping`);
+                    skippedCount++;
+                    continue;
+                }
 
                 try {
                     // Get the PDF file path for metadata purposes
@@ -591,18 +558,16 @@ class DeepTutorClaudeManagement {
                     this.writeTextFile(markdownFulltextFilePath, fulltextMarkdown);
                     Zotero.debug(`DeepTutorClaudeManagement: Fulltext markdown saved: ${markdownFulltextFilePath}`);
                     
-                    // Save summary markdown
-                    this.writeTextFile(markdownSummaryFilePath, summaryMarkdown);
-                    Zotero.debug(`DeepTutorClaudeManagement: Summary markdown saved: ${markdownSummaryFilePath}`);
-
-                    // Save file hierarchy data to FileTree folder
-                    try {
-                        await this.saveFileHierarchyData(comprehensiveMetadata, pdfItem.itemID);
-                        Zotero.debug(`DeepTutorClaudeManagement: File hierarchy data saved for item ${pdfItem.itemID}`);
-                    } catch (hierarchyError) {
-                        Zotero.debug(`DeepTutorClaudeManagement: Warning - could not save hierarchy data: ${hierarchyError.message}`);
-                        // Don't fail the entire process for hierarchy errors
+                    // Save summary markdown (only if not empty - currently commented off)
+                    if (summaryMarkdown && summaryMarkdown.trim()) {
+                        this.writeTextFile(markdownSummaryFilePath, summaryMarkdown);
+                        Zotero.debug(`DeepTutorClaudeManagement: Summary markdown saved: ${markdownSummaryFilePath}`);
+                    } else {
+                        Zotero.debug(`DeepTutorClaudeManagement: Summary markdown is empty, skipping save`);
                     }
+
+                    // Note: Individual file hierarchy data is no longer saved here
+                    // Complete hierarchy mapping is generated at the end of processing
 
                     Zotero.debug(`DeepTutorClaudeManagement: Successfully processed PDF for item ${pdfItem.itemID}`);
                     processedCount++;
@@ -616,6 +581,25 @@ class DeepTutorClaudeManagement {
             }
 
             Zotero.debug(`DeepTutorClaudeManagement: PDF document loading completed - Processed: ${processedCount}, Skipped: ${skippedCount}, Errors: ${errorCount}`);
+            
+            // Generate comprehensive summary after processing all PDFs
+            try {
+                Zotero.debug("DeepTutorClaudeManagement: Generating comprehensive summary...");
+                await this.generateComprehensiveSummary();
+                Zotero.debug("DeepTutorClaudeManagement: Comprehensive summary generated successfully");
+            } catch (summaryError) {
+                Zotero.debug(`DeepTutorClaudeManagement: Error generating comprehensive summary: ${summaryError.message}`);
+            }
+            
+            // Generate complete file hierarchy mapping
+            try {
+                Zotero.debug("DeepTutorClaudeManagement: Generating complete file hierarchy...");
+                await this.generateFileHierarchy();
+                Zotero.debug("DeepTutorClaudeManagement: File hierarchy generated successfully");
+            } catch (hierarchyError) {
+                Zotero.debug(`DeepTutorClaudeManagement: Error generating file hierarchy: ${hierarchyError.message}`);
+            }
+            
             return true;
 
         } catch (error) {
@@ -631,6 +615,34 @@ class DeepTutorClaudeManagement {
      */
     isPdfLibAvailable() {
         return this.isPDFWorkerAvailable();
+    }
+
+    /**
+     * Check if an attachment is a PDF file
+     * @param {Object} attachment - Zotero attachment item
+     * @returns {boolean} True if the attachment is a PDF
+     */
+    isPDFAttachment(attachment) {
+        try {
+            if (!attachment || !attachment.isAttachment || !attachment.isAttachment()) {
+                return false;
+            }
+            
+            // Check using Zotero's built-in method first
+            if (attachment.isPDFAttachment && attachment.isPDFAttachment()) {
+                return true;
+            }
+            
+            // Fallback: check MIME type and filename
+            const mime = String(attachment.attachmentContentType || attachment.attachmentMIMEType || '').toLowerCase();
+            const filename = String(attachment.attachmentFilename || '');
+            
+            return mime.includes('pdf') || /\.pdf$/i.test(filename);
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error checking PDF attachment: ${error.message}`);
+            return false;
+        }
     }
 
 
@@ -675,19 +687,18 @@ class DeepTutorClaudeManagement {
                 Zotero.debug(`DeepTutorClaudeManagement: Could not get file size: ${e.message}`);
             }
             
-            // Extract abstract
+            // Extract abstract (for comprehensive summary, not for individual files)
             const abstractResult = await this.extractAbstract(attachmentItem, pdfFilePath);
             
-            // Generate summary
-            const summaryResult = this.generateSummary(fullText, abstractResult);
+            // Store abstract in cache for comprehensive summary
+            this.abstractCache.set(attachmentItem.id, abstractResult);
             
-            // Create enhanced metadata section
-            const metadataSection = this.createEnhancedMetadataSection(comprehensiveMetadata, fileName, currentDate, fileSize, totalPages, extractedPages);
+            // Create minimal metadata section for raw doc (only key metadata and process data)
+            const rawDocMetadataSection = this.createRawDocMetadataSection(comprehensiveMetadata, fileName, currentDate, fileSize, totalPages, extractedPages);
             
-            // Build fulltext markdown
-            let fulltextMarkdown = `# PDF Document: ${fileName} (Full Text)\n\n`;
-            fulltextMarkdown += metadataSection;
-            fulltextMarkdown += this.createAbstractSection(abstractResult);
+            // Build fulltext markdown (raw doc - only key metadata, process data, and full text)
+            let fulltextMarkdown = `# PDF Document: ${fileName}\n\n`;
+            fulltextMarkdown += rawDocMetadataSection;
             fulltextMarkdown += `---\n\n## Extracted Text Content\n\n`;
             
             if (fullText && fullText.trim()) {
@@ -703,17 +714,20 @@ class DeepTutorClaudeManagement {
             
             fulltextMarkdown += this.createProcessingInfoSection(currentDate, fullText, extractedPages, totalPages);
             
-            // Build summary markdown
-            let summaryMarkdown = `# PDF Document: ${fileName} (Summary)\n\n`;
-            summaryMarkdown += metadataSection;
-            summaryMarkdown += this.createAbstractSection(abstractResult);
-            summaryMarkdown += `---\n\n## Document Summary\n\n`;
-            summaryMarkdown += `**Summary Method:** ${summaryResult.method}\n\n`;
-            summaryMarkdown += `**Confidence:** ${summaryResult.confidence}\n\n`;
-            summaryMarkdown += `**Word Count:** ${summaryResult.wordCount}\n\n`;
-            summaryMarkdown += `**Summary Text:**\n\n`;
-            summaryMarkdown += summaryResult.summary + `\n\n`;
-            summaryMarkdown += this.createProcessingInfoSection(currentDate, fullText, extractedPages, totalPages);
+            // Build summary markdown (commented off to save space - only metadata and abstract)
+            // let summaryMarkdown = `# PDF Document: ${fileName} (Summary)\n\n`;
+            // summaryMarkdown += rawDocMetadataSection;
+            // summaryMarkdown += `---\n\n## Document Abstract\n\n`;
+            // if (abstractResult.abstract) {
+            //     summaryMarkdown += `**Abstract:**\n\n`;
+            //     summaryMarkdown += abstractResult.abstract + `\n\n`;
+            // } else {
+            //     summaryMarkdown += `*No abstract could be extracted from this PDF.*\n\n`;
+            // }
+            // summaryMarkdown += this.createProcessingInfoSection(currentDate, fullText, extractedPages, totalPages);
+            
+            // Return empty summary markdown since it's commented off
+            const summaryMarkdown = '';
             
             Zotero.debug(`DeepTutorClaudeManagement: Enhanced PDF conversion completed successfully`);
             
@@ -721,7 +735,6 @@ class DeepTutorClaudeManagement {
                 fulltextMarkdown: fulltextMarkdown,
                 summaryMarkdown: summaryMarkdown,
                 abstractResult: abstractResult,
-                summaryResult: summaryResult,
                 metadata: comprehensiveMetadata
             };
             
@@ -736,12 +749,39 @@ class DeepTutorClaudeManagement {
             
             return {
                 fulltextMarkdown: fallbackContent,
-                summaryMarkdown: fallbackContent.replace('(Full Text)', '(Summary)'),
+                summaryMarkdown: '',
                 abstractResult: { abstract: null, confidence: 'none', error: error.message },
-                summaryResult: { summary: null, method: 'error', error: error.message },
                 metadata: comprehensiveMetadata
             };
         }
+    }
+
+    /**
+     * Create raw document metadata section (minimal - only key metadata and process data)
+     */
+    createRawDocMetadataSection(metadata, fileName, currentDate, fileSize, totalPages, extractedPages) {
+        let section = `**File Path:** ${fileName}\n\n`;
+        section += `**Processed Date:** ${currentDate}\n\n`;
+        section += `**File Size:** ${(fileSize / 1024).toFixed(2)} KB\n\n`;
+        section += `**Total Pages:** ${totalPages}\n\n`;
+        section += `**Extracted Pages:** ${extractedPages}\n\n`;
+        section += `**PDF Library:** Zotero PDFWorker\n\n`;
+        section += `**Attachment Item ID:** ${metadata.item.id}\n\n`;
+        
+        // Only essential metadata
+        if (metadata.parent.title) {
+            section += `**Title:** ${metadata.parent.title}\n\n`;
+        }
+        
+        if (metadata.parent.authorsString) {
+            section += `**Authors:** ${metadata.parent.authorsString}\n\n`;
+        }
+        
+        if (metadata.hierarchy.primaryCollection) {
+            section += `**Collection:** ${metadata.hierarchy.primaryCollection}\n\n`;
+        }
+        
+        return section;
     }
 
     /**
@@ -1320,55 +1360,7 @@ The system will automatically:
         return testResult;
     }
 
-    /**
-     * Extract abstract from PDF using multiple fallback strategies
-     * @param {Object} attachmentItem - Zotero attachment item
-     * @param {string} pdfFilePath - Path to the PDF file
-     * @returns {Object} Abstract extraction result with text, confidence, and method used
-     */
-    async extractAbstract(attachmentItem, pdfFilePath) {
-        try {
-            Zotero.debug(`DeepTutorClaudeManagement: Starting abstract extraction for item ${attachmentItem.id}`);
-            
-            // Strategy 1: Use getRecognizerData for enhanced text analysis (first/last 2 pages)
-            let abstractResult = await this.extractAbstractWithRecognizer(attachmentItem);
-            
-            if (abstractResult.abstract) {
-                Zotero.debug(`DeepTutorClaudeManagement: Abstract extracted using recognizer method - confidence: ${abstractResult.confidence}`);
-                return abstractResult;
-            }
-            
-            // Strategy 2: Fallback to first page content
-            Zotero.debug("DeepTutorClaudeManagement: Falling back to first page extraction");
-            abstractResult = await this.extractFirstPageAsAbstract(attachmentItem);
-            
-            if (abstractResult.abstract) {
-                Zotero.debug(`DeepTutorClaudeManagement: Abstract extracted using first page method - confidence: ${abstractResult.confidence}`);
-                return abstractResult;
-            }
-            
-            // Strategy 3: DeepTutor API call (future implementation)
-            // TODO: Implement API call to DeepTutor pipeline for advanced abstract extraction
-            // abstractResult = await this.extractAbstractWithAPI(attachmentItem, pdfFilePath);
-            
-            Zotero.debug("DeepTutorClaudeManagement: No abstract could be extracted");
-            return {
-                abstract: null,
-                confidence: 'none',
-                method: 'failed',
-                error: 'No extraction method successful'
-            };
-            
-        } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error in abstract extraction: ${error.message}`);
-            return {
-                abstract: null,
-                confidence: 'none',
-                method: 'error',
-                error: error.message
-            };
-        }
-    }
+    // Legacy method removed - using the main extractAbstract method instead
 
     /**
      * Extract abstract using getRecognizerData for enhanced text analysis
@@ -1641,6 +1633,146 @@ The system will automatically:
                 abstract: null,
                 confidence: 'none',
                 method: 'error',
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Extract abstract from PDF using multiple strategies
+     * @param {Object} attachmentItem - Zotero attachment item
+     * @param {string} pdfFilePath - Path to the PDF file
+     * @returns {Object} Abstract extraction result
+     */
+    async extractAbstract(attachmentItem, pdfFilePath) {
+        try {
+            Zotero.debug(`DeepTutorClaudeManagement: Starting abstract extraction for attachment ${attachmentItem.id}`);
+            
+            // Strategy 1: Try to get abstract from parent item metadata
+            try {
+                const parentItem = attachmentItem.parentItem;
+                if (parentItem && parentItem.getField) {
+                    const abstractNote = parentItem.getField('abstractNote');
+                    if (abstractNote && abstractNote.trim()) {
+                        Zotero.debug("DeepTutorClaudeManagement: Found abstract in parent item metadata");
+                        return {
+                            abstract: abstractNote.trim(),
+                            confidence: 'high',
+                            method: 'metadata',
+                            note: 'Extracted from Zotero item metadata'
+                        };
+                    }
+                }
+            } catch (e) {
+                Zotero.debug(`DeepTutorClaudeManagement: Error checking parent metadata: ${e.message}`);
+            }
+            
+            // Strategy 2: Try to extract from first page content
+            try {
+                const firstPageResult = await this.extractFirstPageAsAbstract(attachmentItem);
+                if (firstPageResult.abstract) {
+                    Zotero.debug("DeepTutorClaudeManagement: Successfully extracted abstract from first page");
+                    return firstPageResult;
+                }
+            } catch (e) {
+                Zotero.debug(`DeepTutorClaudeManagement: Error in first page extraction: ${e.message}`);
+            }
+            
+            // Strategy 3: Try to extract using recognizer-based approach
+            try {
+                const recognizerResult = await this.extractAbstractWithRecognizer(attachmentItem, pdfFilePath);
+                if (recognizerResult.abstract) {
+                    Zotero.debug("DeepTutorClaudeManagement: Successfully extracted abstract using recognizer");
+                    return recognizerResult;
+                }
+            } catch (e) {
+                Zotero.debug(`DeepTutorClaudeManagement: Error in recognizer extraction: ${e.message}`);
+            }
+            
+            // All strategies failed
+            Zotero.debug("DeepTutorClaudeManagement: All abstract extraction strategies failed");
+            return {
+                abstract: null,
+                confidence: 'none',
+                method: 'failed',
+                note: 'All extraction strategies failed'
+            };
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error in abstract extraction: ${error.message}`);
+            return {
+                abstract: null,
+                confidence: 'none',
+                method: 'error',
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Extract abstract using recognizer-based approach
+     * @param {Object} attachmentItem - Zotero attachment item
+     * @param {string} pdfFilePath - Path to the PDF file
+     * @returns {Object} Abstract extraction result
+     */
+    async extractAbstractWithRecognizer(attachmentItem, pdfFilePath) {
+        try {
+            Zotero.debug("DeepTutorClaudeManagement: Using recognizer-based abstract extraction");
+            
+            // Get full text to analyze
+            const extractionResult = await Zotero.PDFWorker.getFullText(attachmentItem.id);
+            if (!extractionResult || !extractionResult.text) {
+                throw new Error("No text content available for recognizer analysis");
+            }
+            
+            const fullText = extractionResult.text;
+            
+            // Simple keyword-based abstract extraction
+            const abstractKeywords = [
+                'abstract',
+                'summary', 
+                'overview',
+                'résumé',
+                'resumen',
+                'zusammenfassung'
+            ];
+            
+            for (const keyword of abstractKeywords) {
+                const extractedText = this.extractTextAfterKeyword(fullText, keyword);
+                if (extractedText && extractedText.length > 50) {
+                    Zotero.debug(`DeepTutorClaudeManagement: Successfully extracted abstract using keyword "${keyword}"`);
+                    return {
+                        abstract: extractedText,
+                        confidence: 'medium',
+                        method: 'recognizer_keyword',
+                        note: `Extracted using keyword "${keyword}"`
+                    };
+                }
+            }
+            
+            // If no keyword found, try to extract first few paragraphs
+            const paragraphs = fullText.split(/\n\s*\n/).filter(p => p.trim().length > 50);
+            if (paragraphs.length > 0) {
+                const firstParagraphs = paragraphs.slice(0, 2).join('\n\n');
+                if (firstParagraphs.length > 100) {
+                    Zotero.debug("DeepTutorClaudeManagement: Extracted abstract from first paragraphs");
+                    return {
+                        abstract: firstParagraphs,
+                        confidence: 'low',
+                        method: 'recognizer_first_paragraphs',
+                        note: 'Using first paragraphs as abstract fallback'
+                    };
+                }
+            }
+            
+            throw new Error("No abstract content found using recognizer approach");
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error in recognizer-based extraction: ${error.message}`);
+            return {
+                abstract: null,
+                confidence: 'none',
+                method: 'recognizer_error',
                 error: error.message
             };
         }
@@ -1968,6 +2100,847 @@ The system will automatically:
             const sep = (Zotero.isWin ? "\\" : "/");
             const parts = path.split(sep);
             return parts[parts.length - 1] || path;
+        }
+    }
+
+    /**
+     * Generate comprehensive file hierarchy mapping using simple approach
+     * Creates a complete hierarchy map of collections and their attachments
+     */
+    async generateFileHierarchy() {
+        try {
+            Zotero.debug("DeepTutorClaudeManagement: Starting file hierarchy generation...");
+            
+            if (this.hierarchyCache) {
+                Zotero.debug("DeepTutorClaudeManagement: Using cached hierarchy data");
+                return this.hierarchyCache;
+            }
+
+            const hierarchyData = {
+                timestamp: new Date().toISOString(),
+                library: {
+                    id: Zotero.Libraries.userLibraryID,
+                    name: 'User Library',
+                    type: 'user'
+                },
+                collections: [],
+                uncategorized: {
+                    name: 'Uncategorized',
+                    items: [],
+                    itemCount: 0
+                },
+                statistics: {
+                    totalCollections: 0,
+                    totalItems: 0,
+                    totalAttachments: 0,
+                    totalPDFs: 0
+                }
+            };
+
+            // Simple approach: use search to find collections
+            let collections = [];
+            try {
+                const search = new Zotero.Search();
+                search.libraryID = Zotero.Libraries.userLibraryID;
+                search.addCondition('itemType', 'is', 'collection');
+                const collectionIDs = await search.search();
+                collections = collectionIDs.map(id => Zotero.Collections.get(id)).filter(col => col);
+            } catch (error) {
+                Zotero.debug(`DeepTutorClaudeManagement: Error getting collections with search, trying alternative: ${error.message}`);
+                // Try alternative approach - get all items and filter collections
+                try {
+                    const userLibID = Zotero.Libraries.userLibraryID;
+                    const allObjects = await Zotero.DB.columnQueryAsync(
+                        "SELECT collectionID FROM collections WHERE libraryID=?", 
+                        [userLibID]
+                    );
+                    collections = allObjects.map(id => Zotero.Collections.get(id)).filter(col => col);
+                } catch (dbError) {
+                    Zotero.debug(`DeepTutorClaudeManagement: Database query failed, creating minimal hierarchy: ${dbError.message}`);
+                    collections = [];
+                }
+            }
+            
+            Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections`);
+
+            // Build simple collection data
+            for (const collection of collections) {
+                try {
+                    if (!collection.parentID) { // Only top-level collections
+                        const collectionData = {
+                            id: collection.id,
+                            key: collection.key,
+                            name: collection.name,
+                            level: 0,
+                            parentID: null,
+                            fullPath: collection.name,
+                            items: [],
+                            itemCount: 0,
+                            attachmentCount: 0,
+                            pdfCount: 0
+                        };
+
+                        // Get items in this collection (simple approach)
+                        try {
+                            const items = collection.getChildItems();
+                            for (const item of items) {
+                                if (item && item.isRegularItem && item.isRegularItem()) {
+                                    const itemData = {
+                                        id: item.id,
+                                        title: item.getField('title') || 'Untitled',
+                                        itemType: item.itemType,
+                                        date: item.getField('date') || '',
+                                        attachmentCount: 0,
+                                        pdfCount: 0
+                                    };
+                                    
+                                    // Count attachments
+                                    try {
+                                        const attachments = item.getAttachments();
+                                        itemData.attachmentCount = attachments.length;
+                                        for (const attachmentID of attachments) {
+                                            const attachment = Zotero.Items.get(attachmentID);
+                                            if (attachment && this.isPDFAttachment(attachment)) {
+                                                itemData.pdfCount++;
+                                            }
+                                        }
+                                    } catch (attachError) {
+                                        Zotero.debug(`DeepTutorClaudeManagement: Error getting attachments for item ${item.id}: ${attachError.message}`);
+                                    }
+                                    
+                                    collectionData.items.push(itemData);
+                                    collectionData.itemCount++;
+                                    collectionData.attachmentCount += itemData.attachmentCount;
+                                    collectionData.pdfCount += itemData.pdfCount;
+                                }
+                            }
+                        } catch (itemError) {
+                            Zotero.debug(`DeepTutorClaudeManagement: Error getting items for collection ${collection.id}: ${itemError.message}`);
+                        }
+                        
+                        hierarchyData.collections.push(collectionData);
+                        hierarchyData.statistics.totalCollections++;
+                    }
+                } catch (error) {
+                    Zotero.debug(`DeepTutorClaudeManagement: Error processing collection ${collection.id}: ${error.message}`);
+                }
+            }
+
+            // Add uncategorized items (use same approach as comprehensive summary)
+            try {
+                const uncategorizedItems = await this.getUncategorizedItems();
+                hierarchyData.uncategorized.items = uncategorizedItems;
+                hierarchyData.uncategorized.itemCount = uncategorizedItems.length;
+                hierarchyData.statistics.totalItems += uncategorizedItems.length;
+            } catch (uncatError) {
+                Zotero.debug(`DeepTutorClaudeManagement: Error getting uncategorized items: ${uncatError.message}`);
+            }
+
+            // Save hierarchy data as both JSON and Markdown
+            const hierarchyJsonPath = this.pathJoin(this.fileTreePath, 'complete_hierarchy.json');
+            const hierarchyMdPath = this.pathJoin(this.fileTreePath, 'complete_hierarchy.md');
+            
+            this.writeTextFile(hierarchyJsonPath, JSON.stringify(hierarchyData, null, 2));
+            
+            // Generate comprehensive markdown mapping
+            const hierarchyMarkdown = this.generateHierarchyMarkdown(hierarchyData);
+            this.writeTextFile(hierarchyMdPath, hierarchyMarkdown);
+            
+            // Cache the result
+            this.hierarchyCache = hierarchyData;
+            
+            Zotero.debug(`DeepTutorClaudeManagement: File hierarchy generated successfully. Collections: ${hierarchyData.statistics.totalCollections}, Items: ${hierarchyData.statistics.totalItems}`);
+            return hierarchyData;
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error generating file hierarchy: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Build collection hierarchy non-recursively to avoid stack overflow
+     * @param {Object} collection - Zotero collection object
+     * @param {Map} collectionMap - Map of all collections for reference
+     * @returns {Object} Collection hierarchy data
+     */
+    async buildCollectionHierarchyNonRecursive(collection, collectionMap) {
+        try {
+            const collectionData = {
+                id: collection.id,
+                key: collection.key,
+                name: collection.name,
+                level: 0,
+                parentID: collection.parentID || null,
+                path: [],
+                fullPath: collection.name,
+                items: [],
+                subcollections: [],
+                itemCount: 0,
+                attachmentCount: 0,
+                pdfCount: 0
+            };
+
+            // Build path hierarchy using iteration instead of recursion
+            const pathComponents = [collection.name];
+            let currentParentID = collection.parentID;
+            let level = 0;
+            
+            while (currentParentID && collectionMap.has(currentParentID)) {
+                const parentCollection = collectionMap.get(currentParentID);
+                pathComponents.unshift(parentCollection.name);
+                currentParentID = parentCollection.parentID;
+                level++;
+            }
+            
+            collectionData.level = level;
+            collectionData.path = pathComponents.slice(0, -1); // All except current collection name
+            collectionData.fullPath = pathComponents.join(' > ');
+
+            // Get items in this collection
+            try {
+                const items = collection.getChildItems();
+                for (const item of items) {
+                    if (item && item.isRegularItem && item.isRegularItem()) {
+                        const itemData = await this.buildItemData(item);
+                        collectionData.items.push(itemData);
+                        collectionData.itemCount++;
+                        collectionData.attachmentCount += itemData.attachmentCount;
+                        collectionData.pdfCount += itemData.pdfCount;
+                    }
+                }
+            } catch (e) {
+                Zotero.debug(`DeepTutorClaudeManagement: Error getting items for collection ${collection.id}: ${e.message}`);
+            }
+
+            // Get subcollections
+            try {
+                const subcollections = collection.getChildCollections();
+                for (const subcollection of subcollections) {
+                    const subcollectionData = await this.buildCollectionHierarchyNonRecursive(subcollection, collectionMap);
+                    collectionData.subcollections.push(subcollectionData);
+                }
+            } catch (e) {
+                Zotero.debug(`DeepTutorClaudeManagement: Error getting subcollections for collection ${collection.id}: ${e.message}`);
+            }
+
+            return collectionData;
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error building collection hierarchy: ${error.message}`);
+            return {
+                id: collection.id,
+                name: collection.name,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Build collection hierarchy recursively (legacy method - kept for compatibility)
+     * @param {Object} collection - Zotero collection object
+     * @returns {Object} Collection hierarchy data
+     */
+    async buildCollectionHierarchy(collection) {
+        // Use non-recursive version to avoid stack overflow
+        const collectionMap = new Map();
+        const allCollections = await Zotero.Collections.getAll(collection.libraryID);
+        for (const col of allCollections) {
+            collectionMap.set(col.id, col);
+        }
+        return this.buildCollectionHierarchyNonRecursive(collection, collectionMap);
+    }
+
+    /**
+     * Build item data with attachment information
+     * @param {Object} item - Zotero item object
+     * @returns {Object} Item data with attachment details
+     */
+    async buildItemData(item) {
+        try {
+            const itemData = {
+                id: item.id,
+                key: item.key,
+                title: item.getField('title') || 'Untitled',
+                itemType: item.itemType,
+                creators: item.getCreators().map(creator => ({
+                    firstName: creator.firstName || '',
+                    lastName: creator.lastName || '',
+                    name: creator.name || '',
+                    creatorType: creator.creatorType || 'author'
+                })),
+                date: item.getField('date') || '',
+                abstract: item.getField('abstractNote') || '',
+                tags: item.getTags().map(tag => tag.tag),
+                attachments: [],
+                attachmentCount: 0,
+                pdfCount: 0
+            };
+
+            // Get attachments
+            const attachments = item.getAttachments();
+            for (const attachmentID of attachments) {
+                const attachment = Zotero.Items.get(attachmentID);
+                if (attachment && attachment.isAttachment && attachment.isAttachment()) {
+                    const attachmentData = {
+                        id: attachment.id,
+                        key: attachment.key,
+                        filename: attachment.attachmentFilename || '',
+                        contentType: attachment.attachmentContentType || '',
+                        isPDF: this.isPDFAttachment(attachment),
+                        fileSize: attachment.attachmentFileSize || 0
+                    };
+                    
+                    itemData.attachments.push(attachmentData);
+                    itemData.attachmentCount++;
+                    
+                    if (attachmentData.isPDF) {
+                        itemData.pdfCount++;
+                    }
+                }
+            }
+
+            return itemData;
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error building item data: ${error.message}`);
+            return {
+                id: item.id,
+                title: 'Error loading item',
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Get uncategorized items (items not in any collection)
+     * @returns {Array} Array of uncategorized items
+     */
+    async getUncategorizedItems() {
+        try {
+            // Use the same approach as comprehensive summary that works
+            const libraryID = Zotero.Libraries.userLibraryID;
+            let allItems;
+            
+            try {
+                allItems = await Zotero.Items.getAll(libraryID);
+            } catch (error) {
+                Zotero.debug(`DeepTutorClaudeManagement: Error getting items with getAll for uncategorized, trying alternative: ${error.message}`);
+                // Fallback: get items from search
+                const search = new Zotero.Search();
+                search.libraryID = libraryID;
+                search.addCondition('itemType', 'isNot', 'note');
+                search.addCondition('itemType', 'isNot', 'annotation');
+                const itemIDs = await search.search();
+                allItems = itemIDs.map(id => Zotero.Items.get(id)).filter(item => item);
+            }
+            
+            if (!allItems || !Array.isArray(allItems)) {
+                return [];
+            }
+            
+            const uncategorizedItems = [];
+            
+            for (const item of allItems) {
+                try {
+                    if (item && item.isRegularItem && item.isRegularItem()) {
+                        const collections = item.getCollections();
+                        if (collections.length === 0) {
+                            const itemData = {
+                                id: item.id,
+                                title: item.getField('title') || 'Untitled',
+                                itemType: item.itemType,
+                                date: item.getField('date') || '',
+                                attachmentCount: 0,
+                                pdfCount: 0,
+                                attachments: []
+                            };
+                            
+                            // Get attachments for this item
+                            try {
+                                const attachments = item.getAttachments();
+                                itemData.attachmentCount = attachments.length;
+                                for (const attachmentID of attachments) {
+                                    const attachment = Zotero.Items.get(attachmentID);
+                                    if (attachment && attachment.isAttachment && attachment.isAttachment()) {
+                                        const attachmentData = {
+                                            id: attachment.id,
+                                            filename: attachment.attachmentFilename || '',
+                                            isPDF: this.isPDFAttachment(attachment),
+                                            fileSize: attachment.attachmentFileSize || 0
+                                        };
+                                        itemData.attachments.push(attachmentData);
+                                        if (attachmentData.isPDF) {
+                                            itemData.pdfCount++;
+                                        }
+                                    }
+                                }
+                            } catch (attachError) {
+                                Zotero.debug(`DeepTutorClaudeManagement: Error getting attachments for uncategorized item ${item.id}: ${attachError.message}`);
+                            }
+                            
+                            uncategorizedItems.push(itemData);
+                        }
+                    }
+                } catch (itemError) {
+                    Zotero.debug(`DeepTutorClaudeManagement: Error processing uncategorized item ${item.id}: ${itemError.message}`);
+                }
+            }
+            
+            return uncategorizedItems;
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error getting uncategorized items: ${error.message}`);
+            return [];
+        }
+    }
+
+    /**
+     * Generate comprehensive summary of all PDF files
+     * Saves metadata and abstracts to General folder
+     */
+    async generateComprehensiveSummary() {
+        try {
+            Zotero.debug("DeepTutorClaudeManagement: Starting comprehensive summary generation...");
+            
+            const summaryData = {
+                timestamp: new Date().toISOString(),
+                totalPDFs: 0,
+                totalItems: 0,
+                pdfs: [],
+                statistics: {
+                    totalSize: 0,
+                    totalPages: 0,
+                    byItemType: {},
+                    byCollection: {},
+                    byYear: {}
+                }
+            };
+
+            // Use the same simple approach as in loadRawPDFDoc that works
+            const libraryID = Zotero.Libraries.userLibraryID;
+            let allItems;
+            
+            try {
+                allItems = await Zotero.Items.getAll(libraryID);
+            } catch (error) {
+                Zotero.debug(`DeepTutorClaudeManagement: Error getting items with getAll, trying alternative: ${error.message}`);
+                // Fallback: get items from search
+                const search = new Zotero.Search();
+                search.libraryID = libraryID;
+                search.addCondition('itemType', 'isNot', 'note');
+                search.addCondition('itemType', 'isNot', 'annotation');
+                const itemIDs = await search.search();
+                allItems = itemIDs.map(id => Zotero.Items.get(id)).filter(item => item);
+            }
+            
+            if (!allItems || !Array.isArray(allItems)) {
+                Zotero.debug("DeepTutorClaudeManagement: Failed to get items array, creating empty summary");
+                allItems = [];
+            }
+            
+            Zotero.debug(`DeepTutorClaudeManagement: Processing ${allItems.length} items for summary`);
+            
+            for (const item of allItems) {
+                try {
+                    if (!item) continue;
+                    
+                    if (item.isAttachment && item.isAttachment()) {
+                        if (this.isPDFAttachment(item)) {
+                            await this.processItemForSummary(item, summaryData);
+                        }
+                    } else if (item.isRegularItem && item.isRegularItem()) {
+                        const attachments = item.getAttachments();
+                        for (const attachmentID of attachments) {
+                            const attachment = Zotero.Items.get(attachmentID);
+                            if (attachment && this.isPDFAttachment(attachment)) {
+                                await this.processItemForSummary(attachment, summaryData);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    Zotero.debug(`DeepTutorClaudeManagement: Error processing item ${item.id} for summary: ${error.message}`);
+                }
+            }
+
+            // Generate summary markdown
+            const summaryMarkdown = this.generateSummaryMarkdown(summaryData);
+            
+            // Save to General folder
+            const summaryFilePath = this.pathJoin(this.generalPath, 'comprehensive_summary.md');
+            this.writeTextFile(summaryFilePath, summaryMarkdown);
+            
+            // Also save as JSON for programmatic access
+            const summaryJsonPath = this.pathJoin(this.generalPath, 'comprehensive_summary.json');
+            this.writeTextFile(summaryJsonPath, JSON.stringify(summaryData, null, 2));
+            
+            Zotero.debug(`DeepTutorClaudeManagement: Comprehensive summary generated successfully. Total PDFs: ${summaryData.totalPDFs}`);
+            return summaryData;
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error generating comprehensive summary: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Process individual item for comprehensive summary
+     * @param {Object} attachment - PDF attachment item
+     * @param {Object} summaryData - Summary data object to update
+     */
+    async processItemForSummary(attachment, summaryData) {
+        try {
+            // Check cache first
+            const cacheKey = attachment.id;
+            if (this.metadataCache.has(cacheKey)) {
+                const cachedMetadata = this.metadataCache.get(cacheKey);
+                this.addToSummaryData(cachedMetadata, summaryData);
+                return;
+            }
+
+            // Extract metadata if not cached
+            const metadata = await this.extractComprehensiveMetadata(attachment);
+            this.metadataCache.set(cacheKey, metadata);
+            
+            // Extract abstract if not cached - ensure we get the full, detailed abstract
+            if (!this.abstractCache.has(cacheKey)) {
+                try {
+                    Zotero.debug(`DeepTutorClaudeManagement: Extracting full abstract for comprehensive summary - item ${attachment.id}`);
+                    const abstractResult = await this.extractAbstract(attachment);
+                    this.abstractCache.set(cacheKey, abstractResult);
+                    
+                    // Store the full abstract with all details
+                    metadata.abstract = abstractResult.abstract || '';
+                    metadata.abstractMethod = abstractResult.method || 'unknown';
+                    metadata.abstractConfidence = abstractResult.confidence || 'none';
+                    
+                    Zotero.debug(`DeepTutorClaudeManagement: Abstract extracted for item ${attachment.id} - method: ${metadata.abstractMethod}, confidence: ${metadata.abstractConfidence}, length: ${metadata.abstract.length} characters`);
+                } catch (error) {
+                    Zotero.debug(`DeepTutorClaudeManagement: Error extracting abstract for ${attachment.id}: ${error.message}`);
+                    metadata.abstract = '';
+                    metadata.abstractMethod = 'error';
+                    metadata.abstractConfidence = 'none';
+                }
+            } else {
+                const cachedAbstract = this.abstractCache.get(cacheKey);
+                metadata.abstract = cachedAbstract.abstract || '';
+                metadata.abstractMethod = cachedAbstract.method || 'cached';
+                metadata.abstractConfidence = cachedAbstract.confidence || 'none';
+                Zotero.debug(`DeepTutorClaudeManagement: Using cached abstract for item ${attachment.id} - length: ${metadata.abstract.length} characters`);
+            }
+
+            this.addToSummaryData(metadata, summaryData);
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error processing item for summary: ${error.message}`);
+        }
+    }
+
+    /**
+     * Add item metadata to summary data
+     * @param {Object} metadata - Item metadata
+     * @param {Object} summaryData - Summary data to update
+     */
+    addToSummaryData(metadata, summaryData) {
+        try {
+            summaryData.totalPDFs++;
+            
+            const pdfInfo = {
+                id: metadata.item.id,
+                title: metadata.parent.title || metadata.item.title || 'Untitled',
+                filename: metadata.item.filename || '',
+                itemType: metadata.parent.itemType || 'attachment',
+                creators: metadata.parent.creators || [],
+                date: metadata.parent.date || '',
+                abstract: metadata.abstract || '',
+                abstractMethod: metadata.abstractMethod || 'unknown',
+                abstractConfidence: metadata.abstractConfidence || 'none',
+                collections: metadata.collections.map(c => c.fullPath),
+                primaryCollection: metadata.hierarchy.primaryCollection,
+                fileSize: metadata.item.fileSize || 0,
+                pageCount: metadata.item.pageCount || 0
+            };
+            
+            summaryData.pdfs.push(pdfInfo);
+            
+            // Update statistics
+            summaryData.statistics.totalSize += pdfInfo.fileSize;
+            summaryData.statistics.totalPages += pdfInfo.pageCount;
+            
+            // Count by item type
+            const itemType = pdfInfo.itemType;
+            summaryData.statistics.byItemType[itemType] = (summaryData.statistics.byItemType[itemType] || 0) + 1;
+            
+            // Count by collection
+            const primaryCollection = pdfInfo.primaryCollection;
+            summaryData.statistics.byCollection[primaryCollection] = (summaryData.statistics.byCollection[primaryCollection] || 0) + 1;
+            
+            // Count by year
+            if (pdfInfo.date) {
+                const year = pdfInfo.date.substring(0, 4);
+                if (/^\d{4}$/.test(year)) {
+                    summaryData.statistics.byYear[year] = (summaryData.statistics.byYear[year] || 0) + 1;
+                }
+            }
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error adding to summary data: ${error.message}`);
+        }
+    }
+
+    /**
+     * Generate markdown summary from summary data
+     * @param {Object} summaryData - Summary data object
+     * @returns {string} Markdown formatted summary
+     */
+    generateSummaryMarkdown(summaryData) {
+        try {
+            let markdown = `# Comprehensive PDF Summary\n\n`;
+            markdown += `**Generated:** ${new Date(summaryData.timestamp).toLocaleString()}\n\n`;
+            
+            // Statistics
+            markdown += `## Statistics\n\n`;
+            markdown += `- **Total PDFs:** ${summaryData.totalPDFs}\n`;
+            markdown += `- **Total Items:** ${summaryData.totalItems}\n`;
+            markdown += `- **Total Size:** ${this.formatFileSize(summaryData.statistics.totalSize)}\n`;
+            markdown += `- **Total Pages:** ${summaryData.statistics.totalPages.toLocaleString()}\n\n`;
+            
+            // By Item Type
+            if (Object.keys(summaryData.statistics.byItemType).length > 0) {
+                markdown += `### By Item Type\n\n`;
+                Object.entries(summaryData.statistics.byItemType)
+                    .sort(([,a], [,b]) => b - a)
+                    .forEach(([type, count]) => {
+                        markdown += `- **${type}:** ${count}\n`;
+                    });
+                markdown += `\n`;
+            }
+            
+            // By Collection
+            if (Object.keys(summaryData.statistics.byCollection).length > 0) {
+                markdown += `### By Collection\n\n`;
+                Object.entries(summaryData.statistics.byCollection)
+                    .sort(([,a], [,b]) => b - a)
+                    .forEach(([collection, count]) => {
+                        markdown += `- **${collection}:** ${count}\n`;
+                    });
+                markdown += `\n`;
+            }
+            
+            // By Year
+            if (Object.keys(summaryData.statistics.byYear).length > 0) {
+                markdown += `### By Year\n\n`;
+                Object.entries(summaryData.statistics.byYear)
+                    .sort(([a], [b]) => b - a)
+                    .forEach(([year, count]) => {
+                        markdown += `- **${year}:** ${count}\n`;
+                    });
+                markdown += `\n`;
+            }
+            
+            // PDF List with full abstracts
+            markdown += `## PDF Documents\n\n`;
+            summaryData.pdfs.forEach((pdf, index) => {
+                markdown += `### ${index + 1}. ${pdf.title}\n\n`;
+                markdown += `- **ID:** ${pdf.id}\n`;
+                markdown += `- **Filename:** ${pdf.filename}\n`;
+                markdown += `- **Type:** ${pdf.itemType}\n`;
+                markdown += `- **Date:** ${pdf.date}\n`;
+                markdown += `- **Size:** ${this.formatFileSize(pdf.fileSize)}\n`;
+                markdown += `- **Pages:** ${pdf.pageCount}\n`;
+                markdown += `- **Collection:** ${pdf.primaryCollection}\n`;
+                
+                if (pdf.creators && pdf.creators.length > 0) {
+                    markdown += `- **Authors:** ${pdf.creators.map(c => `${c.firstName} ${c.lastName}`.trim()).join(', ')}\n`;
+                }
+                
+                // Show abstract extraction details and full abstract (not summary)
+                if (pdf.abstract && pdf.abstract.trim()) {
+                    markdown += `- **Abstract Extraction:** Method: ${pdf.abstractMethod || 'unknown'}, Confidence: ${pdf.abstractConfidence || 'none'}\n`;
+                    markdown += `\n**Extracted Abstract:**\n\n${pdf.abstract.trim()}\n`;
+                } else {
+                    markdown += `- **Abstract:** No abstract available (Method: ${pdf.abstractMethod || 'unknown'})\n`;
+                }
+                
+                markdown += `\n---\n\n`;
+            });
+            
+            return markdown;
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error generating summary markdown: ${error.message}`);
+            return `# Error Generating Summary\n\n${error.message}`;
+        }
+    }
+
+    /**
+     * Format file size in human-readable format
+     * @param {number} bytes - File size in bytes
+     * @returns {string} Formatted file size
+     */
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    /**
+     * Generate comprehensive hierarchy markdown from hierarchy data
+     * @param {Object} hierarchyData - Complete hierarchy data
+     * @returns {string} Markdown formatted hierarchy
+     */
+    generateHierarchyMarkdown(hierarchyData) {
+        try {
+            let markdown = `# Complete Zotero Library Hierarchy\n\n`;
+            markdown += `**Generated:** ${new Date(hierarchyData.timestamp).toLocaleString()}\n\n`;
+            
+            // Statistics
+            markdown += `## Library Statistics\n\n`;
+            markdown += `- **Library:** ${hierarchyData.library.name}\n`;
+            markdown += `- **Library ID:** ${hierarchyData.library.id}\n`;
+            markdown += `- **Library Type:** ${hierarchyData.library.type}\n`;
+            markdown += `- **Total Collections:** ${hierarchyData.statistics.totalCollections}\n`;
+            markdown += `- **Total Items:** ${hierarchyData.statistics.totalItems}\n`;
+            markdown += `- **Total Attachments:** ${hierarchyData.statistics.totalAttachments}\n`;
+            markdown += `- **Total PDFs:** ${hierarchyData.statistics.totalPDFs}\n\n`;
+            
+            // Collections hierarchy
+            if (hierarchyData.collections && hierarchyData.collections.length > 0) {
+                markdown += `## Collections Hierarchy\n\n`;
+                
+                // Group collections by level for better organization
+                const collectionsByLevel = {};
+                for (const collection of hierarchyData.collections) {
+                    const level = collection.level || 0;
+                    if (!collectionsByLevel[level]) {
+                        collectionsByLevel[level] = [];
+                    }
+                    collectionsByLevel[level].push(collection);
+                }
+                
+                // Render top-level collections first
+                const topLevelCollections = collectionsByLevel[0] || [];
+                for (const collection of topLevelCollections) {
+                    markdown += this.renderCollectionHierarchy(collection, 0);
+                }
+            }
+            
+            // Uncategorized items
+            if (hierarchyData.uncategorized && hierarchyData.uncategorized.items.length > 0) {
+                markdown += `## Uncategorized Items\n\n`;
+                markdown += `**Total Uncategorized Items:** ${hierarchyData.uncategorized.itemCount}\n\n`;
+                
+                for (const item of hierarchyData.uncategorized.items) {
+                    markdown += `### ${item.title}\n\n`;
+                    markdown += `- **ID:** ${item.id}\n`;
+                    markdown += `- **Type:** ${item.itemType}\n`;
+                    markdown += `- **Date:** ${item.date}\n`;
+                    
+                    if (item.creators && item.creators.length > 0) {
+                        const authors = item.creators
+                            .filter(c => c.creatorType === 'author')
+                            .map(c => `${c.firstName} ${c.lastName}`.trim())
+                            .join(', ');
+                        if (authors) {
+                            markdown += `- **Authors:** ${authors}\n`;
+                        }
+                    }
+                    
+                    markdown += `- **Attachments:** ${item.attachmentCount}\n`;
+                    markdown += `- **PDFs:** ${item.pdfCount}\n`;
+                    
+                    if (item.attachments && item.attachments.length > 0) {
+                        markdown += `- **Files:**\n`;
+                        for (const attachment of item.attachments) {
+                            const pdfIndicator = attachment.isPDF ? ' 📄' : '';
+                            markdown += `  - ${attachment.filename}${pdfIndicator} (${this.formatFileSize(attachment.fileSize)})\n`;
+                        }
+                    }
+                    
+                    markdown += `\n`;
+                }
+            }
+            
+            return markdown;
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error generating hierarchy markdown: ${error.message}`);
+            return `# Error Generating Hierarchy\n\n${error.message}`;
+        }
+    }
+
+    /**
+     * Render a collection and its hierarchy recursively
+     * @param {Object} collection - Collection data
+     * @param {number} level - Indentation level
+     * @returns {string} Markdown for the collection
+     */
+    renderCollectionHierarchy(collection, level) {
+        try {
+            const indent = '  '.repeat(level);
+            const headerLevel = Math.min(level + 3, 6); // Max H6
+            const header = '#'.repeat(headerLevel);
+            
+            let markdown = `${header} ${collection.name}\n\n`;
+            
+            // Collection metadata
+            markdown += `${indent}- **Collection ID:** ${collection.id}\n`;
+            markdown += `${indent}- **Full Path:** ${collection.fullPath}\n`;
+            markdown += `${indent}- **Level:** ${collection.level}\n`;
+            markdown += `${indent}- **Items:** ${collection.itemCount}\n`;
+            markdown += `${indent}- **Attachments:** ${collection.attachmentCount}\n`;
+            markdown += `${indent}- **PDFs:** ${collection.pdfCount}\n\n`;
+            
+            // Items in this collection
+            if (collection.items && collection.items.length > 0) {
+                markdown += `${indent}**Items in this collection:**\n\n`;
+                
+                for (const item of collection.items) {
+                    markdown += `${indent}- **${item.title}**\n`;
+                    markdown += `${indent}  - ID: ${item.id}\n`;
+                    markdown += `${indent}  - Type: ${item.itemType}\n`;
+                    markdown += `${indent}  - Date: ${item.date}\n`;
+                    
+                    if (item.creators && item.creators.length > 0) {
+                        const authors = item.creators
+                            .filter(c => c.creatorType === 'author')
+                            .map(c => `${c.firstName} ${c.lastName}`.trim())
+                            .join(', ');
+                        if (authors) {
+                            markdown += `${indent}  - Authors: ${authors}\n`;
+                        }
+                    }
+                    
+                    markdown += `${indent}  - Attachments: ${item.attachmentCount}\n`;
+                    markdown += `${indent}  - PDFs: ${item.pdfCount}\n`;
+                    
+                    if (item.attachments && item.attachments.length > 0) {
+                        markdown += `${indent}  - Files:\n`;
+                        for (const attachment of item.attachments) {
+                            const pdfIndicator = attachment.isPDF ? ' 📄' : '';
+                            markdown += `${indent}    - ${attachment.filename}${pdfIndicator} (${this.formatFileSize(attachment.fileSize)})\n`;
+                        }
+                    }
+                    
+                    markdown += `\n`;
+                }
+            }
+            
+            // Subcollections
+            if (collection.subcollections && collection.subcollections.length > 0) {
+                markdown += `${indent}**Subcollections:**\n\n`;
+                for (const subcollection of collection.subcollections) {
+                    markdown += this.renderCollectionHierarchy(subcollection, level + 1);
+                }
+            }
+            
+            return markdown;
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error rendering collection hierarchy: ${error.message}`);
+            return `Error rendering collection: ${error.message}\n\n`;
         }
     }
 }
