@@ -12,7 +12,13 @@ import DeepTutorRenameSession from './DeepTutorRenameSession.js';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 import ClaudeAutoInstall from './ClaudeAutoInstall';
 
+// Import DeepTutor Claude Management class
+const DeepTutorClaudeManagement = require('./DeepTutorClaudeManagement.js');
+
 const ClaudeCliWrapper = require('./ClaudeCliWrapper.js');
+
+// Chrome Components for file system operations
+const { Cc, Ci } = require('chrome');
 
 const markdownit = require('markdown-it');
 // Try to require markdown-it-container, fallback to a simpler implementation if not available
@@ -117,9 +123,9 @@ const ArrowDownPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/CHAT_ARRO
 const SettingsIconPath = 'chrome://zotero/content/DeepTutorMaterials/History/SESHIS_SEARCH.svg';
 
 // Default system prompts for agentic mode
-const DEFAULT_SYS_PROMPT = 'Note: In the current data directory, please only view the /storage folder and the pdf files inside of it. In particular, please view the pdf file or files associated with the current session, which are named: {DOCUMENT_NAMES}. You are a helpful AI assistant. Please provide clear, accurate, and helpful responses to user questions.';
+const DEFAULT_SYS_PROMPT = 'Note: In the current data directory, please only view the /DeepTutorDataBase folder and the pdf files inside of it. In particular, please view the pdf file or files associated with the current session, which are named: {DOCUMENT_NAMES}. You are a helpful AI assistant. Please provide clear, accurate, and helpful responses to user questions.';
 
-const DEFAULT_SYS_SUM_PROMPT = `Note: In the current data directory, please only view the /storage folder and the pdf files inside of it. In particular, please view the pdf file or files associated with the current session, which are named: {DOCUMENT_NAMES}. You are an expert academic tutor helping a student understand multiple documents. The student has loaded multiple PDF files and needs a comprehensive summary that explains what each document is about. Here are the files with previews of their content:
+const DEFAULT_SYS_SUM_PROMPT = `Note: In the current data directory, please only view the /DeepTutorDataBase folder and the pdf files inside of it. In particular, please view the pdf file or files associated with the current session, which are named: {DOCUMENT_NAMES}. You are an expert academic tutor helping a student understand multiple documents. The student has loaded multiple PDF files and needs a comprehensive summary that explains what each document is about. Here are the files with previews of their content:
 
 {formatted_previews}
 
@@ -134,7 +140,7 @@ Please provide a comprehensive summary that:
 
 Format your summary with a friendly welcome message at the beginning and a closing "Ask me anything" message at the end.`;
 
-const DEFAULT_SYS_QA_PROMPT = `Note: In the current data directory, please only view the /storage folder and the pdf files inside of it. In particular, please view the pdf file or files associated with the current session, which are named: {DOCUMENT_NAMES}. You are a deep thinking tutor helping a student reading a paper.
+const DEFAULT_SYS_QA_PROMPT = `Note: In the current data directory, please only view the /DeepTutorDataBase folder and the pdf files inside of it. In particular, please view the pdf file or files associated with the current session, which are named: {DOCUMENT_NAMES}. You are a deep thinking tutor helping a student reading a paper.
 Reference context from the paper: {formatted_context_string}
 This is a detailed plan for constructing the answer: {str(question.answer_planning)}
 The student's query is: {user_input_string}
@@ -1022,6 +1028,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		const loadSessionData = async () => {
 			if (!currentSession?.id) return;
 
+			Zotero.debug('DeepTutorChatBox: Session change detected, starting session data loading...');
+
 			// Check if this is an agentic mode session
 			const isAgentic = currentSession.sessionName && currentSession.sessionName.startsWith('_AGENTIC_');
 			setIsAgenticMode(isAgentic);
@@ -1031,6 +1039,10 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			setUserId(currentSession.userId);
 			setDocumentIds(currentSession.documentIds || []);
 			setcurSessionType(isAgentic ? SessionType.AGENTIC : (currentSession.type || SessionType.BASIC));
+
+			// Note: PDF processing is now available through the settings popup
+			// Users can manually trigger PDF processing when needed
+			Zotero.debug('DeepTutorChatBox: Session loaded - PDF processing available in settings');
 
 			// For agentic mode, check Claude CLI availability
 			if (isAgentic) {
@@ -1347,22 +1359,39 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 
 			// Call Claude CLI
 			try {
-				// Resolve working directory
+				// Resolve working directory - now pointing to DeepTutorDataBase
 				let workingDir = null;
 				try {
 					const prefDir = Zotero.Prefs.get('dataDir') || Zotero.Prefs.get('lastDataDir');
 					if (prefDir && typeof prefDir === 'string') {
-						workingDir = prefDir;
+						// Point to DeepTutorDataBase subdirectory instead of main data directory
+						const separator = Zotero.isWin ? '\\' : '/';
+						workingDir = prefDir + separator + 'DeepTutorDataBase';
 					}
 					else if (Zotero.DataDirectory && typeof Zotero.DataDirectory.dir === 'string') {
-						workingDir = Zotero.DataDirectory.dir;
+						// Point to DeepTutorDataBase subdirectory instead of main data directory
+						const separator = Zotero.isWin ? '\\' : '/';
+						workingDir = Zotero.DataDirectory.dir + separator + 'DeepTutorDataBase';
 					}
 				} catch (e) { 
 					Zotero.debug(e); 
 				}
 				
 				if (!workingDir) {
-					workingDir = '/home/sherman01/Zotero';
+					const separator = Zotero.isWin ? '\\' : '/';
+					workingDir = `/home/sherman01/Zotero${separator}DeepTutorDataBase`;
+				}
+
+				// Ensure the DeepTutorDataBase directory exists
+				try {
+					const dirFile = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile);
+					dirFile.initWithPath(workingDir);
+					if (!dirFile.exists()) {
+						Zotero.debug(`DeepTutorChatBox: DeepTutorDataBase directory does not exist, creating: ${workingDir}`);
+						dirFile.create(Ci.nsIFile.DIRECTORY_TYPE, 0o755);
+					}
+				} catch (dirError) {
+					Zotero.debug(`DeepTutorChatBox: Error ensuring DeepTutorDataBase directory exists: ${dirError.message}`);
 				}
 
 				// Choose the appropriate system prompt
@@ -1381,7 +1410,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 					Zotero.debug(`DeepTutorChatBox: Using QA prompt for regular conversation with documents: ${documentNames}`);
 				}
 
-				Zotero.debug(`DeepTutorChatBox: Calling Claude CLI for agentic mode`);
+				Zotero.debug(`DeepTutorChatBox: Calling Claude CLI for agentic mode with working directory: ${workingDir}`);
 				const claudeResult = await ClaudeCliWrapper.runClaude([], workingDir, messageText, null, false, systemPrompt);
 				
 				let responseText = '';
@@ -1842,9 +1871,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 
 	// Settings popup handlers
 	const handleSettingsClick = () => {
-		if (isAgenticMode) {
-			setShowSettingsPopup(!showSettingsPopup);
-		}
+		// Settings popup is now available for all session types
+		setShowSettingsPopup(!showSettingsPopup);
 	};
 
 	const handleClaudeInstallComplete = (result) => {
@@ -2436,9 +2464,47 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 	const SettingsPopup = ({ onConfirm, onCancel, initialApiKey, initialPrompt, styles }) => {
 		const [tempApiKey, setTempApiKey] = useState(initialApiKey || '');
 		const [tempPrompt, setTempPrompt] = useState(initialPrompt || '');
+		const [isProcessingPDFs, setIsProcessingPDFs] = useState(false);
+		const [pdfProcessingStatus, setPdfProcessingStatus] = useState('');
 
 		const handleConfirm = () => {
 			onConfirm(tempApiKey, tempPrompt);
+		};
+
+		const handleProcessPDFs = async () => {
+			try {
+				setIsProcessingPDFs(true);
+				setPdfProcessingStatus('Initializing database...');
+				
+				Zotero.debug('DeepTutorChatBox: User initiated PDF processing from settings popup');
+				const deepTutorManager = new DeepTutorClaudeManagement();
+				
+				// Initialize the database structure
+				setPdfProcessingStatus('Creating database structure...');
+				await deepTutorManager.initializeDataBase();
+				setPdfProcessingStatus('Database structure created successfully');
+				
+				// Load and process raw PDF documents
+				setPdfProcessingStatus('Processing PDF documents...');
+				await deepTutorManager.loadRawPDFDoc();
+				setPdfProcessingStatus('PDF processing completed successfully!');
+				
+				// Show success status for a few seconds
+				setTimeout(() => {
+					setPdfProcessingStatus('');
+				}, 3000);
+				
+			} catch (error) {
+				Zotero.debug(`DeepTutorChatBox: Error in PDF processing from settings: ${error.message}`);
+				setPdfProcessingStatus(`Error: ${error.message}`);
+				
+				// Show error status for a few seconds
+				setTimeout(() => {
+					setPdfProcessingStatus('');
+				}, 5000);
+			} finally {
+				setIsProcessingPDFs(false);
+			}
 		};
 
 		return (
@@ -2466,6 +2532,38 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 				>
 					Confirm
 				</button>
+
+				{/* PDF Processing Section */}
+				<div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: `1px solid ${colors.border.primary}` }}>
+					<label style={styles.settingsLabel}>PDF Processing</label>
+					<button
+						onClick={handleProcessPDFs}
+						disabled={isProcessingPDFs}
+						style={{
+							...styles.settingsButton,
+							backgroundColor: isProcessingPDFs ? '#9ca3af' : colors.button.primary,
+							cursor: isProcessingPDFs ? 'not-allowed' : 'pointer',
+							opacity: isProcessingPDFs ? 0.6 : 1
+						}}
+						title="Process all PDF files in Zotero and convert them to markdown"
+					>
+						{isProcessingPDFs ? 'Processing...' : 'Process PDFs'}
+					</button>
+					
+					{pdfProcessingStatus && (
+						<div style={{
+							marginTop: '0.5rem',
+							padding: '0.5rem',
+							borderRadius: '0.25rem',
+							backgroundColor: pdfProcessingStatus.includes('Error') ? '#fee2e2' : '#dcfce7',
+							color: pdfProcessingStatus.includes('Error') ? '#991b1b' : '#166534',
+							fontSize: '0.875rem',
+							textAlign: 'center'
+						}}>
+							{pdfProcessingStatus}
+						</div>
+					)}
+				</div>
 			</div>
 		);
 	};
@@ -3004,37 +3102,36 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 					}
 					`}
 				</style>
-				{isAgenticMode && (
-					<div style={{ position: 'relative' }}>
-						<button
-							style={{
-								...styles.sendButton,
-								marginRight: '0.5rem',
-								opacity: iniWait ? 0.5 : 1,
-								cursor: iniWait ? "not-allowed" : "pointer"
-							}}
-							onClick={handleSettingsClick}
-							disabled={iniWait}
-							title="Settings"
-						>
-							<img
-								src={SettingsIconPath}
-								alt="Settings"
-								style={styles.sendIcon}
-							/>
-						</button>
-						
-						{showSettingsPopup && (
-							<SettingsPopup
-								onConfirm={handleSettingsConfirm}
-								onCancel={() => setShowSettingsPopup(false)}
-								initialApiKey={agenticApiKey}
-								initialPrompt={agenticSystemPrompt}
-								styles={styles}
-							/>
-						)}
-					</div>
-				)}
+				{/* Settings button - available for all session types */}
+				<div style={{ position: 'relative' }}>
+					<button
+						style={{
+							...styles.sendButton,
+							marginRight: '0.5rem',
+							opacity: iniWait ? 0.5 : 1,
+							cursor: iniWait ? "not-allowed" : "pointer"
+						}}
+						onClick={handleSettingsClick}
+						disabled={iniWait}
+						title="Settings"
+					>
+						<img
+							src={SettingsIconPath}
+							alt="Settings"
+							style={styles.sendIcon}
+						/>
+					</button>
+					
+					{showSettingsPopup && (
+						<SettingsPopup
+							onConfirm={handleSettingsConfirm}
+							onCancel={() => setShowSettingsPopup(false)}
+							initialApiKey={agenticApiKey}
+							initialPrompt={agenticSystemPrompt}
+							styles={styles}
+						/>
+					)}
+				</div>
 				<button
 					style={{
 						...styles.sendButton,
@@ -3070,6 +3167,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 						onInstallComplete={handleClaudeInstallComplete}
 						onCancel={handleClaudeInstallCancel}
 					/>
+				</div>
+			)}
 			{/* Rename popup */}
 			{showRenamePopup && currentSession && (
 				<div style={styles.renamePopupOverlay} onClick={handleRenameCancel}>
