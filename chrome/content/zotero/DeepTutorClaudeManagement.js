@@ -21,6 +21,7 @@ class DeepTutorClaudeManagement {
         // Configuration options
         this.useEnhancedHierarchy = true; // Use enhanced hierarchy generation by default
         this.enableSQLFallbacks = true; // Enable SQL fallbacks for better reliability
+        this.useSQLBasedHierarchy = true; // Use SQL-based hierarchy generation as primary method
         
         // Metadata tracking to avoid repetitive work
         this.metadataCache = new Map(); // Cache for PDF metadata
@@ -36,6 +37,7 @@ class DeepTutorClaudeManagement {
      * @param {Object} options - Configuration options
      * @param {boolean} options.useEnhancedHierarchy - Whether to use enhanced hierarchy generation
      * @param {boolean} options.enableSQLFallbacks - Whether to enable SQL fallbacks
+     * @param {boolean} options.useSQLBasedHierarchy - Whether to use SQL-based hierarchy generation as primary method
      */
     configureHierarchyGeneration(options = {}) {
         if (options.hasOwnProperty('useEnhancedHierarchy')) {
@@ -46,6 +48,11 @@ class DeepTutorClaudeManagement {
         if (options.hasOwnProperty('enableSQLFallbacks')) {
             this.enableSQLFallbacks = options.enableSQLFallbacks;
             Zotero.debug(`DeepTutorClaudeManagement: SQL fallbacks ${this.enableSQLFallbacks ? 'enabled' : 'disabled'}`);
+        }
+        
+        if (options.hasOwnProperty('useSQLBasedHierarchy')) {
+            this.useSQLBasedHierarchy = options.useSQLBasedHierarchy;
+            Zotero.debug(`DeepTutorClaudeManagement: SQL-based hierarchy generation ${this.useSQLBasedHierarchy ? 'enabled' : 'disabled'}`);
         }
         
         // Clear cache when configuration changes
@@ -60,26 +67,44 @@ class DeepTutorClaudeManagement {
         return {
             useEnhancedHierarchy: this.useEnhancedHierarchy,
             enableSQLFallbacks: this.enableSQLFallbacks,
-            description: this.useEnhancedHierarchy 
-                ? "Using enhanced hierarchy generation with SQL fallbacks" 
-                : "Using original hierarchy generation method"
+            useSQLBasedHierarchy: this.useSQLBasedHierarchy,
+            description: this.useSQLBasedHierarchy 
+                ? "Using SQL-based hierarchy generation as primary method" 
+                : this.useEnhancedHierarchy 
+                    ? "Using enhanced hierarchy generation with SQL fallbacks" 
+                    : "Using original hierarchy generation method"
         };
     }
 
     /**
-     * Test and compare both hierarchy generation methods
+     * Test and compare all hierarchy generation methods
      * @returns {Object} Comparison results
      */
     async testHierarchyMethods() {
         try {
-            Zotero.debug("DeepTutorClaudeManagement: Testing both hierarchy generation methods...");
+            Zotero.debug("DeepTutorClaudeManagement: Testing all hierarchy generation methods...");
             
             const results = {
                 timestamp: new Date().toISOString(),
                 original: null,
                 enhanced: null,
+                sql: null,
                 comparison: {}
             };
+            
+            // Test SQL-based method
+            try {
+                const startTime = Date.now();
+                results.sql = await this.generateFileHierarchySQL();
+                const sqlTime = Date.now() - startTime;
+                results.comparison.sqlTime = sqlTime;
+                results.comparison.sqlSuccess = true;
+                Zotero.debug(`DeepTutorClaudeManagement: SQL-based method completed in ${sqlTime}ms`);
+            } catch (error) {
+                results.comparison.sqlSuccess = false;
+                results.comparison.sqlError = error.message;
+                Zotero.debug(`DeepTutorClaudeManagement: SQL-based method failed: ${error.message}`);
+            }
             
             // Test original method
             try {
@@ -110,19 +135,17 @@ class DeepTutorClaudeManagement {
             }
             
             // Generate comparison summary
-            if (results.comparison.originalSuccess && results.comparison.enhancedSuccess) {
-                results.comparison.summary = `Both methods succeeded. Original: ${results.comparison.originalTime}ms, Enhanced: ${results.comparison.enhancedTime}ms`;
-                results.comparison.recommendation = results.comparison.enhancedTime < results.comparison.originalTime 
-                    ? "Enhanced method is faster" 
-                    : "Original method is faster";
-            } else if (results.comparison.originalSuccess) {
-                results.comparison.summary = "Only original method succeeded";
-                results.comparison.recommendation = "Use original method";
-            } else if (results.comparison.enhancedSuccess) {
-                results.comparison.summary = "Only enhanced method succeeded";
-                results.comparison.recommendation = "Use enhanced method";
+            const successfulMethods = [];
+            if (results.comparison.sqlSuccess) successfulMethods.push({ name: 'SQL-based', time: results.comparison.sqlTime });
+            if (results.comparison.originalSuccess) successfulMethods.push({ name: 'Original', time: results.comparison.originalTime });
+            if (results.comparison.enhancedSuccess) successfulMethods.push({ name: 'Enhanced', time: results.comparison.enhancedTime });
+            
+            if (successfulMethods.length > 0) {
+                successfulMethods.sort((a, b) => a.time - b.time);
+                results.comparison.summary = `${successfulMethods.length} method(s) succeeded. Fastest: ${successfulMethods[0].name} (${successfulMethods[0].time}ms)`;
+                results.comparison.recommendation = `Use ${successfulMethods[0].name} method for best performance`;
             } else {
-                results.comparison.summary = "Both methods failed";
+                results.comparison.summary = "All methods failed";
                 results.comparison.recommendation = "Check system configuration";
             }
             
@@ -3107,6 +3130,16 @@ The system will automatically:
      */
     async generateFileHierarchySmart() {
         try {
+            // Priority order: SQL-based > Enhanced > Original
+            if (this.useSQLBasedHierarchy && this.enableSQLFallbacks) {
+                try {
+                    Zotero.debug("DeepTutorClaudeManagement: Attempting SQL-based hierarchy generation...");
+                    return await this.generateFileHierarchySQL();
+                } catch (sqlError) {
+                    Zotero.debug(`DeepTutorClaudeManagement: SQL-based method failed, falling back to enhanced: ${sqlError.message}`);
+                }
+            }
+            
             if (this.useEnhancedHierarchy) {
                 Zotero.debug("DeepTutorClaudeManagement: Using enhanced hierarchy generation...");
                 return await this.generateFileHierarchyEnhanced();
@@ -4119,6 +4152,794 @@ The system will automatically:
         } catch (error) {
             Zotero.debug(`DeepTutorClaudeManagement: Error getting enhanced uncategorized items: ${error.message}`);
             return [];
+        }
+    }
+
+    /**
+     * Generate file hierarchy using direct SQL queries for better performance and reliability
+     * Creates a hierarchical map structure based on parent/child relationships
+     * @returns {Object} Complete hierarchy mapping object
+     */
+    async generateFileHierarchySQL() {
+        try {
+            Zotero.debug("DeepTutorClaudeManagement: Starting SQL-based file hierarchy generation...");
+            
+            if (this.hierarchyCache) {
+                Zotero.debug("DeepTutorClaudeManagement: Using cached hierarchy data");
+                return this.hierarchyCache;
+            }
+
+            const userLibID = Zotero.Libraries.userLibraryID;
+            const hierarchyData = {
+                timestamp: new Date().toISOString(),
+                library: {
+                    id: userLibID,
+                    name: 'User Library',
+                    type: 'user'
+                },
+                collections: {},
+                uncategorized: {
+                    type: 'uncategorized',
+                    name: 'Uncategorized',
+                    items: [],
+                    itemCount: 0
+                },
+                statistics: {
+                    totalCollections: 0,
+                    totalItems: 0,
+                    totalAttachments: 0,
+                    totalPDFs: 0
+                }
+            };
+
+            // Step 1: Get all collections using API (not SQL - bro learned his lesson!)
+            Zotero.debug("DeepTutorClaudeManagement: Step 1 - Retrieving collections via API (no more SQL pain!)...");
+            const collections = await this.getCollectionsViaAPI(userLibID);
+            Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections`);
+
+            // Step 2: Build hierarchical collection map
+            Zotero.debug("DeepTutorClaudeManagement: Step 2 - Building hierarchical collection map...");
+            const collectionMap = this.buildCollectionHierarchyMap(collections);
+            hierarchyData.collections = collectionMap;
+
+            // Step 3: Get all items using API (ditched SQL for good!)
+            Zotero.debug("DeepTutorClaudeManagement: Step 3 - Retrieving items via API (much safer!)...");
+            const items = await this.getItemsViaAPI(userLibID);
+            Zotero.debug(`DeepTutorClaudeManagement: Found ${items.length} items`);
+
+            // Step 4: Position items in collection hierarchy
+            Zotero.debug("DeepTutorClaudeManagement: Step 4 - Positioning items in collection hierarchy...");
+            await this.positionItemsInHierarchy(items, collectionMap, hierarchyData);
+
+            // Step 5: Calculate statistics
+            Zotero.debug("DeepTutorClaudeManagement: Step 5 - Calculating statistics...");
+            this.calculateHierarchyStatisticsSQL(hierarchyData);
+
+            // Step 6: Export to markdown
+            Zotero.debug("DeepTutorClaudeManagement: Step 6 - Exporting to markdown...");
+            const hierarchyMarkdown = this.generateSQLHierarchyMarkdown(hierarchyData);
+            
+            // Save files with clear naming
+            const hierarchyJsonPath = this.pathJoin(this.fileTreePath, 'File_Hierarchy_SQL_REAL.json');
+            const hierarchyMdPath = this.pathJoin(this.fileTreePath, 'File_Hierarchy_SQL_REAL.md');
+            
+            this.writeTextFile(hierarchyJsonPath, JSON.stringify(hierarchyData, null, 2));
+            this.writeTextFile(hierarchyMdPath, hierarchyMarkdown);
+            
+            Zotero.debug(`DeepTutorClaudeManagement: 🎉 BRO! FILES EXPORTED TO:`);
+            Zotero.debug(`DeepTutorClaudeManagement: 📄 JSON FILE: ${hierarchyJsonPath}`);
+            Zotero.debug(`DeepTutorClaudeManagement: 📝 MARKDOWN FILE: ${hierarchyMdPath}`);
+            Zotero.debug(`DeepTutorClaudeManagement: 📁 BASE DIRECTORY: ${this.dataDirectory}`);
+            Zotero.debug(`DeepTutorClaudeManagement: 🏗️ DEEPTUTOR PATH: ${this.deepTutorDBPath}`);
+            Zotero.debug(`DeepTutorClaudeManagement: 🌳 FILETREE PATH: ${this.fileTreePath}`);
+            
+            // Cache the result
+            this.hierarchyCache = hierarchyData;
+            
+            Zotero.debug(`DeepTutorClaudeManagement: SQL-based file hierarchy generated successfully. Collections: ${hierarchyData.statistics.totalCollections}, Items: ${hierarchyData.statistics.totalItems}`);
+            return hierarchyData;
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error generating SQL-based file hierarchy: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Get all collections using Zotero API instead of SQL - BRO SAFE VERSION! 😎
+     * @param {number} libraryID - Library ID
+     * @returns {Array} Array of collection objects with metadata
+     */
+    async getCollectionsViaAPI(libraryID) {
+        try {
+            Zotero.debug(`DeepTutorClaudeManagement: 🚀 BRO! Using Zotero API to get collections for library ${libraryID}`);
+            
+            // Use the actual Zotero Collections API that KNOWS what it's doing!
+            const collections = Zotero.Collections.getByLibrary(libraryID, true); // recursive = true
+            
+            if (!collections) {
+                Zotero.debug("DeepTutorClaudeManagement: 😅 No collections found, but that's cool!");
+                return [];
+            }
+            
+            Zotero.debug(`DeepTutorClaudeManagement: 🎉 Found ${collections.length} collections using the API like a boss!`);
+            
+            return collections.map(collection => ({
+                id: collection.id,
+                key: collection.key,
+                name: collection.name,
+                parentID: collection.parentID,
+                libraryID: collection.libraryID,
+                version: collection.version || 0,
+                synced: collection.synced || true,
+                deleted: collection.deleted || false,
+                level: collection.level || 0 // Zotero might give us this for free!
+            }));
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: 😱 Error getting collections via API: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Build hierarchical collection map based on parent/child relationships
+     * @param {Array} collections - Array of collection objects
+     * @returns {Object} Hierarchical collection map
+     */
+    buildCollectionHierarchyMap(collections) {
+        try {
+            const collectionMap = {};
+            const collectionById = {};
+            
+            // First pass: create all collection objects
+            for (const collection of collections) {
+                const collectionData = {
+                    id: collection.id,
+                    key: collection.key,
+                    name: collection.name,
+                    parentID: collection.parentID,
+                    libraryID: collection.libraryID,
+                    version: collection.version,
+                    synced: collection.synced,
+                    deleted: collection.deleted,
+                    type: 'collection',
+                    level: 0,
+                    fullPath: collection.name,
+                    items: [],
+                    subcollections: {},
+                    itemCount: 0,
+                    attachmentCount: 0,
+                    pdfCount: 0,
+                    metadata: {
+                        version: collection.version,
+                        synced: collection.synced,
+                        deleted: collection.deleted
+                    }
+                };
+                
+                collectionById[collection.id] = collectionData;
+                
+                // Root collections go directly to the map
+                if (!collection.parentID) {
+                    collectionMap[collection.key] = collectionData;
+                }
+            }
+            
+            // Second pass: establish parent/child relationships
+            for (const collection of collections) {
+                if (collection.parentID && collectionById[collection.parentID]) {
+                    const parent = collectionById[collection.parentID];
+                    const child = collectionById[collection.id];
+                    
+                    // Add to parent's subcollections
+                    parent.subcollections[child.key] = child;
+                    
+                    // Calculate level and full path
+                    child.level = parent.level + 1;
+                    child.fullPath = `${parent.fullPath} > ${child.name}`;
+                    
+                    // Update parent's full path if needed
+                    if (parent.fullPath === parent.name) {
+                        parent.fullPath = parent.name;
+                    }
+                }
+            }
+            
+            // Third pass: calculate levels for all collections
+            const calculateLevels = (collections, baseLevel = 0) => {
+                for (const key in collections) {
+                    const collection = collections[key];
+                    collection.level = baseLevel;
+                    
+                    if (Object.keys(collection.subcollections).length > 0) {
+                        calculateLevels(collection.subcollections, baseLevel + 1);
+                    }
+                }
+            };
+            
+            calculateLevels(collectionMap);
+            
+            Zotero.debug(`DeepTutorClaudeManagement: Built hierarchical map with ${Object.keys(collectionMap).length} root collections`);
+            return collectionMap;
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error building collection hierarchy map: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Get all items using Zotero API instead of SQL - BRO SAFE VERSION! 🎯
+     * @param {number} libraryID - Library ID
+     * @returns {Array} Array of item objects with metadata
+     */
+    async getItemsViaAPI(libraryID) {
+        try {
+            Zotero.debug(`DeepTutorClaudeManagement: 🎯 BRO! Using Zotero API to get items for library ${libraryID}`);
+            
+            // Use the actual Zotero Items API that actually works!
+            const items = await Zotero.Items.getAll(libraryID);
+            
+            if (!items) {
+                Zotero.debug("DeepTutorClaudeManagement: 😅 No items found, but that's totally fine!");
+                return [];
+            }
+            
+            Zotero.debug(`DeepTutorClaudeManagement: 🎉 Found ${items.length} total items using the API!`);
+            
+            // Filter to only regular items (not attachments, notes, etc.)
+            const regularItems = items.filter(item => {
+                try {
+                    return item.isRegularItem && item.isRegularItem();
+                } catch (e) {
+                    return false; // If we can't check, skip it
+                }
+            });
+            
+            Zotero.debug(`DeepTutorClaudeManagement: 🔥 Filtered to ${regularItems.length} regular items!`);
+            
+            const processedItems = [];
+            
+            for (const item of regularItems) {
+                try {
+                    const processedItem = {
+                        id: item.id,
+                        key: item.key,
+                        itemTypeID: item.itemTypeID,
+                        libraryID: item.libraryID,
+                        dateAdded: item.dateAdded,
+                        dateModified: item.dateModified,
+                        version: item.version || 0,
+                        synced: item.synced || true,
+                        itemType: item.itemType,
+                        title: item.getField('title') || `Item ${item.id}`,
+                        date: item.getField('date') || '',
+                        abstractNote: item.getField('abstractNote') || '',
+                        publicationTitle: item.getField('publicationTitle') || '',
+                        volume: item.getField('volume') || '',
+                        issue: item.getField('issue') || '',
+                        pages: item.getField('pages') || '',
+                        DOI: item.getField('DOI') || '',
+                        ISBN: item.getField('ISBN') || '',
+                        ISSN: item.getField('ISSN') || '',
+                        url: item.getField('url') || '',
+                        attachments: [],
+                        attachmentCount: 0,
+                        pdfCount: 0
+                    };
+                    
+                    // Get attachments the PROPER way!
+                    try {
+                        const attachmentIDs = item.getAttachments();
+                        processedItem.attachmentCount = attachmentIDs.length;
+                        
+                        for (const attachmentID of attachmentIDs) {
+                            const attachment = Zotero.Items.get(attachmentID);
+                            if (attachment && attachment.isAttachment && attachment.isAttachment()) {
+                                const attachmentData = {
+                                    id: attachment.id,
+                                    key: attachment.key,
+                                    filename: attachment.attachmentFilename || '',
+                                    contentType: attachment.attachmentContentType || '',
+                                    fileSize: attachment.attachmentFileSize || 0,
+                                    type: 'attachment',
+                                    isPDF: this.isPDFAttachment(attachment)
+                                };
+                                
+                                processedItem.attachments.push(attachmentData);
+                                if (attachmentData.isPDF) {
+                                    processedItem.pdfCount++;
+                                }
+                            }
+                        }
+                    } catch (attachError) {
+                        Zotero.debug(`DeepTutorClaudeManagement: 😅 Error getting attachments for item ${item.id}: ${attachError.message}`);
+                    }
+                    
+                    processedItems.push(processedItem);
+                } catch (itemError) {
+                    Zotero.debug(`DeepTutorClaudeManagement: 😅 Error processing item ${item.id}: ${itemError.message}`);
+                }
+            }
+            
+            Zotero.debug(`DeepTutorClaudeManagement: 🚀 Successfully processed ${processedItems.length} items!`);
+            return processedItems;
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: 😱 Error getting items via API: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Get metadata for a specific item using SQL
+     * @param {Object} item - Item object to populate with metadata
+     */
+    async getItemMetadataViaSQL(item) {
+        try {
+            // Get item data values
+            const dataSQL = `
+                SELECT 
+                    f.fieldName,
+                    idv.value
+                FROM itemData id
+                JOIN itemDataValues idv ON id.valueID = idv.valueID
+                JOIN fields f ON id.fieldID = f.fieldID
+                WHERE id.itemID = ?
+            `;
+            
+            const dataResults = await Zotero.DB.queryAsync(dataSQL, [item.id]);
+            
+            for (const row of dataResults) {
+                switch (row.fieldName) {
+                    case 'title':
+                        item.title = row.value || '';
+                        break;
+                    case 'date':
+                        item.date = row.value || '';
+                        break;
+                    case 'abstractNote':
+                        item.abstractNote = row.value || '';
+                        break;
+                    case 'publicationTitle':
+                        item.publicationTitle = row.value || '';
+                        break;
+                    case 'volume':
+                        item.volume = row.value || '';
+                        break;
+                    case 'issue':
+                        item.issue = row.value || '';
+                        break;
+                    case 'pages':
+                        item.pages = row.value || '';
+                        break;
+                    case 'DOI':
+                        item.DOI = row.value || '';
+                        break;
+                    case 'ISBN':
+                        item.ISBN = row.value || '';
+                        break;
+                    case 'ISSN':
+                        item.ISSN = row.value || '';
+                        break;
+                    case 'url':
+                        item.url = row.value || '';
+                        break;
+                }
+            }
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error getting metadata for item ${item.id}: ${error.message}`);
+        }
+    }
+
+    /**
+     * Get attachments for a specific item using SQL
+     * @param {Object} item - Item object to populate with attachments
+     */
+    async getItemAttachmentsViaSQL(item) {
+        try {
+            const sql = `
+                SELECT 
+                    a.itemID,
+                    a.key,
+                    ia.path,
+                    ia.mimeType,
+                    a.dateAdded,
+                    a.dateModified,
+                    a.version,
+                    a.synced
+                FROM items a
+                LEFT JOIN itemAttachments ia ON a.itemID = ia.itemID
+                WHERE a.parentItemID = ? AND a.deleted = 0
+                ORDER BY a.dateAdded
+            `;
+            
+            const results = await Zotero.DB.queryAsync(sql, [item.id]);
+            
+            for (const row of results) {
+                // Extract filename from path
+                let filename = '';
+                if (row.path) {
+                    const pathParts = row.path.split(/[/\\]/);
+                    filename = pathParts[pathParts.length - 1] || '';
+                }
+                
+                const attachment = {
+                    id: row.itemID,
+                    key: row.key,
+                    filename: filename,
+                    contentType: row.mimeType || '',
+                    fileSize: 0, // File size not easily available via SQL
+                    dateAdded: row.dateAdded,
+                    dateModified: row.dateModified,
+                    version: row.version,
+                    synced: row.synced,
+                    type: 'attachment',
+                    isPDF: this.isPDFAttachmentFromData(row.mimeType, filename)
+                };
+                
+                item.attachments.push(attachment);
+                item.attachmentCount++;
+                
+                if (attachment.isPDF) {
+                    item.pdfCount++;
+                }
+            }
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error getting attachments for item ${item.id}: ${error.message}`);
+        }
+    }
+
+    /**
+     * Check if attachment is PDF based on content type and filename
+     * @param {string} contentType - MIME content type
+     * @param {string} filename - Filename
+     * @returns {boolean} True if PDF
+     */
+    isPDFAttachmentFromData(contentType, filename) {
+        if (!contentType && !filename) return false;
+        
+        const mime = String(contentType || '').toLowerCase();
+        const filenameStr = String(filename || '');
+        
+        return mime.includes('pdf') || /\.pdf$/i.test(filenameStr);
+    }
+
+    /**
+     * Position items in the collection hierarchy
+     * @param {Array} items - Array of item objects
+     * @param {Object} collectionMap - Collection hierarchy map
+     * @param {Object} hierarchyData - Main hierarchy data object
+     */
+    async positionItemsInHierarchy(items, collectionMap, hierarchyData) {
+        try {
+            // Get collection membership for all items using API (no more SQL nightmares!)
+            const itemCollectionMap = await this.getItemCollectionMembershipViaAPI(items);
+            
+            for (const item of items) {
+                const collectionIDs = itemCollectionMap.get(item.id) || [];
+                
+                if (collectionIDs.length === 0) {
+                    // Uncategorized item
+                    const uncategorizedItem = {
+                        id: item.id,
+                        key: item.key,
+                        title: item.title || 'Untitled',
+                        itemType: item.itemType,
+                        date: item.date || '',
+                        type: 'item',
+                        attachments: item.attachments,
+                        attachmentCount: item.attachmentCount,
+                        pdfCount: item.pdfCount,
+                        metadata: {
+                            dateAdded: item.dateAdded,
+                            dateModified: item.dateModified,
+                            abstractNote: item.abstractNote,
+                            publicationTitle: item.publicationTitle,
+                            volume: item.volume,
+                            issue: item.issue,
+                            pages: item.pages,
+                            DOI: item.DOI,
+                            ISBN: item.ISBN,
+                            ISSN: item.ISSN,
+                            url: item.url,
+                            version: item.version,
+                            synced: item.synced
+                        }
+                    };
+                    
+                    hierarchyData.uncategorized.items.push(uncategorizedItem);
+                    hierarchyData.uncategorized.itemCount++;
+                } else {
+                    // Add to collections
+                    for (const collectionID of collectionIDs) {
+                        this.addItemToCollection(item, collectionID, collectionMap);
+                    }
+                }
+            }
+            
+            Zotero.debug(`DeepTutorClaudeManagement: Positioned ${items.length} items in hierarchy`);
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error positioning items in hierarchy: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Get collection membership using Zotero API - BRO SAFE VERSION! 🎪
+     * @param {Array} items - Array of item objects (not just IDs)
+     * @returns {Map} Map of itemID to array of collectionIDs
+     */
+    async getItemCollectionMembershipViaAPI(items) {
+        try {
+            if (items.length === 0) return new Map();
+            
+            Zotero.debug(`DeepTutorClaudeManagement: 🎪 Getting collection membership for ${items.length} items via API!`);
+            
+            const membershipMap = new Map();
+            
+            for (const itemData of items) {
+                try {
+                    // Get the actual Zotero item object
+                    const item = Zotero.Items.get(itemData.id);
+                    if (item) {
+                        // Use the API method that actually works!
+                        const collectionIDs = item.getCollections();
+                        if (collectionIDs && collectionIDs.length > 0) {
+                            membershipMap.set(itemData.id, collectionIDs);
+                            Zotero.debug(`DeepTutorClaudeManagement: 🎯 Item ${itemData.id} is in ${collectionIDs.length} collections`);
+                        } else {
+                            membershipMap.set(itemData.id, []);
+                        }
+                    }
+                } catch (itemError) {
+                    Zotero.debug(`DeepTutorClaudeManagement: 😅 Error getting collections for item ${itemData.id}: ${itemError.message}`);
+                    membershipMap.set(itemData.id, []); // Default to uncategorized
+                }
+            }
+            
+            Zotero.debug(`DeepTutorClaudeManagement: 🚀 Successfully mapped ${membershipMap.size} items to their collections!`);
+            return membershipMap;
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: 😱 Error getting item collection membership via API: ${error.message}`);
+            return new Map();
+        }
+    }
+
+    /**
+     * Add item to collection in the hierarchy map
+     * @param {Object} item - Item object
+     * @param {number} collectionID - Collection ID
+     * @param {Object} collectionMap - Collection hierarchy map
+     */
+    addItemToCollection(item, collectionID, collectionMap) {
+        try {
+            const findCollection = (collections, targetID) => {
+                for (const key in collections) {
+                    const collection = collections[key];
+                    if (collection.id === targetID) {
+                        return collection;
+                    }
+                    if (Object.keys(collection.subcollections).length > 0) {
+                        const found = findCollection(collection.subcollections, targetID);
+                        if (found) return found;
+                    }
+                }
+                return null;
+            };
+            
+            const collection = findCollection(collectionMap, collectionID);
+            if (collection) {
+                const collectionItem = {
+                    id: item.id,
+                    key: item.key,
+                    title: item.title || 'Untitled',
+                    itemType: item.itemType,
+                    date: item.date || '',
+                    type: 'item',
+                    attachments: item.attachments,
+                    attachmentCount: item.attachmentCount,
+                    pdfCount: item.pdfCount,
+                    metadata: {
+                        dateAdded: item.dateAdded,
+                        dateModified: item.dateModified,
+                        abstractNote: item.abstractNote,
+                        publicationTitle: item.publicationTitle,
+                        volume: item.volume,
+                        issue: item.issue,
+                        pages: item.pages,
+                        DOI: item.DOI,
+                        ISBN: item.ISBN,
+                        ISSN: item.ISSN,
+                        url: item.url,
+                        version: item.version,
+                        synced: item.synced
+                    }
+                };
+                
+                collection.items.push(collectionItem);
+                collection.itemCount++;
+                collection.attachmentCount += item.attachmentCount;
+                collection.pdfCount += item.pdfCount;
+            }
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error adding item to collection: ${error.message}`);
+        }
+    }
+
+    /**
+     * Calculate statistics for the hierarchy
+     * @param {Object} hierarchyData - Hierarchy data object
+     */
+    calculateHierarchyStatisticsSQL(hierarchyData) {
+        try {
+            const calculateCollectionStats = (collections) => {
+                let stats = { collections: 0, items: 0, attachments: 0, pdfs: 0 };
+                
+                for (const key in collections) {
+                    const collection = collections[key];
+                    stats.collections++;
+                    stats.items += collection.itemCount || 0;
+                    stats.attachments += collection.attachmentCount || 0;
+                    stats.pdfs += collection.pdfCount || 0;
+                    
+                    if (Object.keys(collection.subcollections).length > 0) {
+                        const subStats = calculateCollectionStats(collection.subcollections);
+                        stats.collections += subStats.collections;
+                        stats.items += subStats.items;
+                        stats.attachments += subStats.attachments;
+                        stats.pdfs += subStats.pdfs;
+                    }
+                }
+                
+                return stats;
+            };
+            
+            const collectionStats = calculateCollectionStats(hierarchyData.collections);
+            
+            hierarchyData.statistics = {
+                totalCollections: collectionStats.collections,
+                totalItems: collectionStats.items + hierarchyData.uncategorized.itemCount,
+                totalAttachments: collectionStats.attachments,
+                totalPDFs: collectionStats.pdfs
+            };
+            
+            Zotero.debug(`DeepTutorClaudeManagement: Calculated statistics - Collections: ${hierarchyData.statistics.totalCollections}, Items: ${hierarchyData.statistics.totalItems}`);
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error calculating hierarchy statistics: ${error.message}`);
+        }
+    }
+
+    /**
+     * Generate markdown representation of the SQL-based hierarchy
+     * @param {Object} hierarchyData - Hierarchy data object
+     * @returns {string} Markdown formatted hierarchy
+     */
+    generateSQLHierarchyMarkdown(hierarchyData) {
+        try {
+            let markdown = `# Complete Zotero Library Hierarchy (SQL-Based)\n\n`;
+            markdown += `**Generated:** ${new Date(hierarchyData.timestamp).toLocaleString()}\n\n`;
+            
+            // Statistics
+            markdown += `## Library Statistics\n\n`;
+            markdown += `- **Library:** ${hierarchyData.library.name}\n`;
+            markdown += `- **Library ID:** ${hierarchyData.library.id}\n`;
+            markdown += `- **Library Type:** ${hierarchyData.library.type}\n`;
+            markdown += `- **Total Collections:** ${hierarchyData.statistics.totalCollections}\n`;
+            markdown += `- **Total Items:** ${hierarchyData.statistics.totalItems}\n`;
+            markdown += `- **Total Attachments:** ${hierarchyData.statistics.totalAttachments}\n`;
+            markdown += `- **Total PDFs:** ${hierarchyData.statistics.totalPDFs}\n\n`;
+            
+            // Collections hierarchy
+            if (Object.keys(hierarchyData.collections).length > 0) {
+                markdown += `## Collections Hierarchy\n\n`;
+                markdown += this.renderSQLCollectionHierarchy(hierarchyData.collections, 0);
+            }
+            
+            // Uncategorized items
+            if (hierarchyData.uncategorized.items.length > 0) {
+                markdown += `## Uncategorized Items\n\n`;
+                markdown += `**Total Uncategorized Items:** ${hierarchyData.uncategorized.itemCount}\n\n`;
+                
+                for (const item of hierarchyData.uncategorized.items) {
+                    markdown += `### ${item.title}\n\n`;
+                    markdown += `- **ID:** ${item.id}\n`;
+                    markdown += `- **Type:** ${item.itemType}\n`;
+                    markdown += `- **Date:** ${item.date}\n`;
+                    markdown += `- **Attachments:** ${item.attachmentCount}\n`;
+                    markdown += `- **PDFs:** ${item.pdfCount}\n`;
+                    
+                    if (item.attachments && item.attachments.length > 0) {
+                        markdown += `- **Files:**\n`;
+                        for (const attachment of item.attachments) {
+                            const pdfIndicator = attachment.isPDF ? ' 📄' : '';
+                            markdown += `  - ${attachment.filename}${pdfIndicator} (${this.formatFileSize(attachment.fileSize)})\n`;
+                        }
+                    }
+                    
+                    markdown += `\n`;
+                }
+            }
+            
+            return markdown;
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error generating SQL hierarchy markdown: ${error.message}`);
+            return `# Error Generating Hierarchy\n\n${error.message}`;
+        }
+    }
+
+    /**
+     * Render collection hierarchy recursively for SQL-based data
+     * @param {Object} collections - Collections object
+     * @param {number} level - Indentation level
+     * @returns {string} Markdown for the collections
+     */
+    renderSQLCollectionHierarchy(collections, level) {
+        try {
+            let markdown = '';
+            const indent = '  '.repeat(level);
+            
+            for (const key in collections) {
+                const collection = collections[key];
+                const headerLevel = Math.min(level + 3, 6); // Max H6
+                const header = '#'.repeat(headerLevel);
+                
+                markdown += `${header} ${collection.name}\n\n`;
+                
+                // Collection metadata
+                markdown += `${indent}- **Collection ID:** ${collection.id}\n`;
+                markdown += `${indent}- **Full Path:** ${collection.fullPath}\n`;
+                markdown += `${indent}- **Level:** ${collection.level}\n`;
+                markdown += `${indent}- **Items:** ${collection.itemCount}\n`;
+                markdown += `${indent}- **Attachments:** ${collection.attachmentCount}\n`;
+                markdown += `${indent}- **PDFs:** ${collection.pdfCount}\n`;
+                markdown += `${indent}- **Version:** ${collection.version || 0}\n`;
+                markdown += `${indent}- **Synced:** ${collection.synced ? 'Yes' : 'No'}\n\n`;
+                
+                // Items in this collection
+                if (collection.items && collection.items.length > 0) {
+                    markdown += `${indent}**Items in this collection:**\n\n`;
+                    
+                    for (const item of collection.items) {
+                        markdown += `${indent}- **${item.title}**\n`;
+                        markdown += `${indent}  - ID: ${item.id}\n`;
+                        markdown += `${indent}  - Type: ${item.itemType}\n`;
+                        markdown += `${indent}  - Date: ${item.date}\n`;
+                        markdown += `${indent}  - Attachments: ${item.attachmentCount}\n`;
+                        markdown += `${indent}  - PDFs: ${item.pdfCount}\n`;
+                        
+                        if (item.attachments && item.attachments.length > 0) {
+                            markdown += `${indent}  - Files:\n`;
+                            for (const attachment of item.attachments) {
+                                const pdfIndicator = attachment.isPDF ? ' 📄' : '';
+                                markdown += `${indent}    - ${attachment.filename}${pdfIndicator} (${this.formatFileSize(attachment.fileSize)})\n`;
+                            }
+                        }
+                        
+                        markdown += `\n`;
+                    }
+                }
+                
+                // Subcollections
+                if (Object.keys(collection.subcollections).length > 0) {
+                    markdown += `${indent}**Subcollections:**\n\n`;
+                    markdown += this.renderSQLCollectionHierarchy(collection.subcollections, level + 1);
+                }
+            }
+            
+            return markdown;
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error rendering SQL collection hierarchy: ${error.message}`);
+            return `Error rendering collection: ${error.message}\n\n`;
         }
     }
 }
