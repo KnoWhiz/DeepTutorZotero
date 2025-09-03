@@ -18,6 +18,10 @@ class DeepTutorClaudeManagement {
         this.fileTreePath = null;
         this.generalPath = null;
         
+        // Configuration options
+        this.useEnhancedHierarchy = true; // Use enhanced hierarchy generation by default
+        this.enableSQLFallbacks = true; // Enable SQL fallbacks for better reliability
+        
         // Metadata tracking to avoid repetitive work
         this.metadataCache = new Map(); // Cache for PDF metadata
         this.abstractCache = new Map(); // Cache for PDF abstracts
@@ -27,6 +31,114 @@ class DeepTutorClaudeManagement {
         this.setupErrorHandling();
     }
     
+    /**
+     * Configure hierarchy generation settings
+     * @param {Object} options - Configuration options
+     * @param {boolean} options.useEnhancedHierarchy - Whether to use enhanced hierarchy generation
+     * @param {boolean} options.enableSQLFallbacks - Whether to enable SQL fallbacks
+     */
+    configureHierarchyGeneration(options = {}) {
+        if (options.hasOwnProperty('useEnhancedHierarchy')) {
+            this.useEnhancedHierarchy = options.useEnhancedHierarchy;
+            Zotero.debug(`DeepTutorClaudeManagement: Enhanced hierarchy generation ${this.useEnhancedHierarchy ? 'enabled' : 'disabled'}`);
+        }
+        
+        if (options.hasOwnProperty('enableSQLFallbacks')) {
+            this.enableSQLFallbacks = options.enableSQLFallbacks;
+            Zotero.debug(`DeepTutorClaudeManagement: SQL fallbacks ${this.enableSQLFallbacks ? 'enabled' : 'disabled'}`);
+        }
+        
+        // Clear cache when configuration changes
+        this.hierarchyCache = null;
+    }
+
+    /**
+     * Get current hierarchy generation configuration
+     * @returns {Object} Current configuration
+     */
+    getHierarchyConfiguration() {
+        return {
+            useEnhancedHierarchy: this.useEnhancedHierarchy,
+            enableSQLFallbacks: this.enableSQLFallbacks,
+            description: this.useEnhancedHierarchy 
+                ? "Using enhanced hierarchy generation with SQL fallbacks" 
+                : "Using original hierarchy generation method"
+        };
+    }
+
+    /**
+     * Test and compare both hierarchy generation methods
+     * @returns {Object} Comparison results
+     */
+    async testHierarchyMethods() {
+        try {
+            Zotero.debug("DeepTutorClaudeManagement: Testing both hierarchy generation methods...");
+            
+            const results = {
+                timestamp: new Date().toISOString(),
+                original: null,
+                enhanced: null,
+                comparison: {}
+            };
+            
+            // Test original method
+            try {
+                const startTime = Date.now();
+                results.original = await this.generateFileHierarchy();
+                const originalTime = Date.now() - startTime;
+                results.comparison.originalTime = originalTime;
+                results.comparison.originalSuccess = true;
+                Zotero.debug(`DeepTutorClaudeManagement: Original method completed in ${originalTime}ms`);
+            } catch (error) {
+                results.comparison.originalSuccess = false;
+                results.comparison.originalError = error.message;
+                Zotero.debug(`DeepTutorClaudeManagement: Original method failed: ${error.message}`);
+            }
+            
+            // Test enhanced method
+            try {
+                const startTime = Date.now();
+                results.enhanced = await this.generateFileHierarchyEnhanced();
+                const enhancedTime = Date.now() - startTime;
+                results.comparison.enhancedTime = enhancedTime;
+                results.comparison.enhancedSuccess = true;
+                Zotero.debug(`DeepTutorClaudeManagement: Enhanced method completed in ${enhancedTime}ms`);
+            } catch (error) {
+                results.comparison.enhancedSuccess = false;
+                results.comparison.enhancedError = error.message;
+                Zotero.debug(`DeepTutorClaudeManagement: Enhanced method failed: ${error.message}`);
+            }
+            
+            // Generate comparison summary
+            if (results.comparison.originalSuccess && results.comparison.enhancedSuccess) {
+                results.comparison.summary = `Both methods succeeded. Original: ${results.comparison.originalTime}ms, Enhanced: ${results.comparison.enhancedTime}ms`;
+                results.comparison.recommendation = results.comparison.enhancedTime < results.comparison.originalTime 
+                    ? "Enhanced method is faster" 
+                    : "Original method is faster";
+            } else if (results.comparison.originalSuccess) {
+                results.comparison.summary = "Only original method succeeded";
+                results.comparison.recommendation = "Use original method";
+            } else if (results.comparison.enhancedSuccess) {
+                results.comparison.summary = "Only enhanced method succeeded";
+                results.comparison.recommendation = "Use enhanced method";
+            } else {
+                results.comparison.summary = "Both methods failed";
+                results.comparison.recommendation = "Check system configuration";
+            }
+            
+            // Save test results
+            const testResultsPath = this.pathJoin(this.fileTreePath, 'hierarchy_method_comparison.json');
+            this.writeTextFile(testResultsPath, JSON.stringify(results, null, 2));
+            
+            Zotero.debug(`DeepTutorClaudeManagement: Hierarchy method comparison completed: ${results.comparison.summary}`);
+            return results;
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error testing hierarchy methods: ${error.message}`);
+            throw error;
+        }
+    }
+
     /**
      * Set up global error handling to prevent crashes
      */
@@ -591,10 +703,10 @@ class DeepTutorClaudeManagement {
                 Zotero.debug(`DeepTutorClaudeManagement: Error generating comprehensive summary: ${summaryError.message}`);
             }
             
-            // Generate complete file hierarchy mapping
+            // Generate complete file hierarchy mapping using smart method
             try {
-                Zotero.debug("DeepTutorClaudeManagement: Generating complete file hierarchy...");
-                await this.generateFileHierarchy();
+                Zotero.debug("DeepTutorClaudeManagement: Generating complete file hierarchy using smart method...");
+                await this.generateFileHierarchySmart();
                 Zotero.debug("DeepTutorClaudeManagement: File hierarchy generated successfully");
             } catch (hierarchyError) {
                 Zotero.debug(`DeepTutorClaudeManagement: Error generating file hierarchy: ${hierarchyError.message}`);
@@ -2986,6 +3098,1027 @@ The system will automatically:
         } catch (error) {
             Zotero.debug(`DeepTutorClaudeManagement: Error rendering collection hierarchy: ${error.message}`);
             return `Error rendering collection: ${error.message}\n\n`;
+        }
+    }
+
+    /**
+     * Smart hierarchy generation that automatically chooses the best method
+     * @returns {Object} Hierarchy data
+     */
+    async generateFileHierarchySmart() {
+        try {
+            if (this.useEnhancedHierarchy) {
+                Zotero.debug("DeepTutorClaudeManagement: Using enhanced hierarchy generation...");
+                return await this.generateFileHierarchyEnhanced();
+            } else {
+                Zotero.debug("DeepTutorClaudeManagement: Using original hierarchy generation...");
+                return await this.generateFileHierarchy();
+            }
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Smart hierarchy generation failed: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Generate comprehensive file hierarchy following Zotero's native tree building patterns
+     * Uses recursive collection discovery and proper parent-child relationships
+     */
+    async generateFileHierarchyEnhanced() {
+        try {
+            Zotero.debug("DeepTutorClaudeManagement: Starting enhanced file hierarchy generation following Zotero patterns...");
+            
+            if (this.hierarchyCache) {
+                Zotero.debug("DeepTutorClaudeManagement: Using cached hierarchy data");
+                return this.hierarchyCache;
+            }
+
+            const hierarchyData = {
+                timestamp: new Date().toISOString(),
+                library: {
+                    id: Zotero.Libraries.userLibraryID,
+                    name: 'User Library',
+                    type: 'user'
+                },
+                collections: [],
+                uncategorized: {
+                    name: 'Uncategorized',
+                    items: [],
+                    itemCount: 0
+                },
+                statistics: {
+                    totalCollections: 0,
+                    totalItems: 0,
+                    totalAttachments: 0,
+                    totalPDFs: 0
+                }
+            };
+
+            // Enhanced collection retrieval with multiple fallback strategies
+            let collections = [];
+            const userLibID = Zotero.Libraries.userLibraryID;
+            
+            try {
+                Zotero.debug(`DeepTutorClaudeManagement: Getting collections for library ${userLibID} using Zotero.Collections.getByLibrary`);
+                
+                // Primary method: Use Zotero API
+                collections = Zotero.Collections.getByLibrary(userLibID);
+                Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections using getByLibrary`);
+                
+            } catch (error) {
+                Zotero.debug(`DeepTutorClaudeManagement: Error getting collections with getByLibrary, trying search fallback: ${error.message}`);
+                
+                // Fallback 1: Use search approach
+                try {
+                    const search = new Zotero.Search();
+                    search.libraryID = userLibID;
+                    search.addCondition('itemType', 'is', 'collection');
+                    const collectionIDs = await search.search();
+                    collections = collectionIDs.map(id => Zotero.Collections.get(id)).filter(col => col);
+                    Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections using search fallback`);
+                } catch (searchError) {
+                    Zotero.debug(`DeepTutorClaudeManagement: Search fallback failed, trying direct SQL query: ${searchError.message}`);
+                    
+                    // Fallback 2: Direct database query for collections
+                    try {
+                        const allObjects = await Zotero.DB.columnQueryAsync(
+                            "SELECT collectionID FROM collections WHERE libraryID=? AND deleted=0", 
+                            [userLibID]
+                        );
+                        collections = allObjects.map(id => Zotero.Collections.get(id)).filter(col => col);
+                        Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections using direct SQL query`);
+                    } catch (dbError) {
+                        Zotero.debug(`DeepTutorClaudeManagement: Direct SQL query failed, trying comprehensive SQL approach: ${dbError.message}`);
+                        
+                        // Fallback 3: Comprehensive SQL query with joins
+                        try {
+                            const comprehensiveQuery = `
+                                SELECT 
+                                    c.collectionID,
+                                    c.collectionName,
+                                    c.parentCollectionID,
+                                    c.libraryID,
+                                    c.key,
+                                    c.dateAdded,
+                                    c.dateModified
+                                FROM collections c
+                                WHERE c.libraryID = ? AND c.deleted = 0
+                                ORDER BY c.parentCollectionID NULLS FIRST, c.collectionName
+                            `;
+                            
+                            const comprehensiveResults = await Zotero.DB.queryAsync(comprehensiveQuery, [userLibID]);
+                            Zotero.debug(`DeepTutorClaudeManagement: Comprehensive SQL query returned ${comprehensiveResults.length} rows`);
+                            
+                            // Create collection objects from SQL results
+                            collections = comprehensiveResults.map(row => ({
+                                id: row.collectionID,
+                                key: row.key,
+                                name: row.collectionName,
+                                parentID: row.parentCollectionID,
+                                libraryID: row.libraryID,
+                                dateAdded: row.dateAdded,
+                                dateModified: row.dateModified
+                            }));
+                            
+                            Zotero.debug(`DeepTutorClaudeManagement: Created ${collections.length} collection objects from SQL results`);
+                        } catch (comprehensiveError) {
+                            Zotero.debug(`DeepTutorClaudeManagement: All collection retrieval methods failed: ${comprehensiveError.message}`);
+                            collections = [];
+                        }
+                    }
+                }
+            }
+            
+            Zotero.debug(`DeepTutorClaudeManagement: Final collection count: ${collections.length}`);
+
+            // Build complete collection hierarchy using enhanced approach
+            for (const collection of collections) {
+                try {
+                    if (!collection.parentID) { // Only top-level collections
+                        Zotero.debug(`DeepTutorClaudeManagement: Processing top-level collection: ${collection.name} (ID: ${collection.id})`);
+                        
+                        const collectionData = await this.buildCollectionHierarchyRecursiveEnhanced(collection, 0, userLibID);
+                        hierarchyData.collections.push(collectionData);
+                        hierarchyData.statistics.totalCollections++;
+                        
+                        // Update statistics
+                        hierarchyData.statistics.totalItems += collectionData.itemCount;
+                        hierarchyData.statistics.totalAttachments += collectionData.attachmentCount;
+                        hierarchyData.statistics.totalPDFs += collectionData.pdfCount;
+                    }
+                } catch (error) {
+                    Zotero.debug(`DeepTutorClaudeManagement: Error processing collection ${collection.id}: ${error.message}`);
+                }
+            }
+
+            // Add uncategorized items with enhanced retrieval
+            try {
+                const uncategorizedItems = await this.getUncategorizedItemsEnhanced(userLibID);
+                hierarchyData.uncategorized.items = uncategorizedItems;
+                hierarchyData.uncategorized.itemCount = uncategorizedItems.length;
+                hierarchyData.statistics.totalItems += uncategorizedItems.length;
+            } catch (uncatError) {
+                Zotero.debug(`DeepTutorClaudeManagement: Error getting uncategorized items: ${uncatError.message}`);
+            }
+
+            // Save hierarchy data as both JSON and Markdown
+            const hierarchyJsonPath = this.pathJoin(this.fileTreePath, 'complete_hierarchy_enhanced.json');
+            const hierarchyMdPath = this.pathJoin(this.fileTreePath, 'complete_hierarchy_enhanced.md');
+            
+            this.writeTextFile(hierarchyJsonPath, JSON.stringify(hierarchyData, null, 2));
+            
+            // Generate comprehensive markdown mapping
+            const hierarchyMarkdown = this.generateHierarchyMarkdown(hierarchyData);
+            this.writeTextFile(hierarchyMdPath, hierarchyMarkdown);
+            
+            // Cache the result
+            this.hierarchyCache = hierarchyData;
+            
+            Zotero.debug(`DeepTutorClaudeManagement: Enhanced file hierarchy generated successfully. Collections: ${hierarchyData.statistics.totalCollections}, Items: ${hierarchyData.statistics.totalItems}`);
+            return hierarchyData;
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error generating enhanced file hierarchy: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Build collection tree recursively following Zotero's getByParent pattern
+     * @param {Integer|null} parentID - Parent collection ID, null for root collections
+     * @param {Integer} libraryID - Library ID
+     * @param {Integer} level - Nesting level
+     * @returns {Array} Array of collection objects with children
+     */
+    async buildCollectionTreeRecursive(parentID, libraryID, level = 0) {
+        try {
+            // Use Zotero's native methods - getByLibrary for root, getByParent for children
+            let collections;
+            if (parentID === null) {
+                // Root level: get all top-level collections in library
+                collections = Zotero.Collections.getByLibrary(libraryID).filter(c => !c.parentID);
+            } else {
+                // Child level: get collections that have this parent
+                collections = Zotero.Collections.getByParent(parentID);
+            }
+
+            const result = [];
+            
+            for (let collection of collections) {
+                try {
+                    // Skip deleted collections
+                    if (collection.deleted) continue;
+                    
+                    // Create collection tree row to use Zotero's native item retrieval
+                    const collectionTreeRow = new Zotero.CollectionTreeRow(
+                        null,
+                        'collection',
+                        collection,
+                        level
+                    );
+                    
+                    // Get items using Zotero's search mechanism
+                    const items = await this.getCollectionItemsUsingZoteroSearch(collectionTreeRow);
+                    
+                    // Process items to get attachments and PDFs
+                    const { attachments, pdfCount } = await this.processCollectionItems(items);
+                    
+                    // Recursively get child collections
+                    const childCollections = await this.buildCollectionTreeRecursive(
+                        collection.id, 
+                        libraryID, 
+                        level + 1
+                    );
+                    
+                    const collectionData = {
+                        id: collection.id,
+                        name: collection.name,
+                        level: level,
+                        parentID: collection.parentID,
+                        path: await this.getCollectionPath(collection),
+                        itemCount: items.length,
+                        attachmentCount: attachments.length,
+                        pdfCount: pdfCount,
+                        items: items.map(item => ({
+                            id: item.id,
+                            title: item.getField('title'),
+                            itemType: item.itemType,
+                            key: item.key,
+                            dateAdded: item.dateAdded,
+                            dateModified: item.dateModified
+                        })),
+                        attachments: attachments,
+                        children: childCollections, // Recursive children
+                        hasChildren: childCollections.length > 0,
+                        isExpanded: false
+                    };
+                    
+                    result.push(collectionData);
+                    
+                } catch (collectionError) {
+                    Zotero.debug(`DeepTutorClaudeManagement: Error processing collection ${collection.id}: ${collectionError.message}`);
+                }
+            }
+            
+            return result;
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error in buildCollectionTreeRecursive: ${error.message}`);
+            return [];
+        }
+    }
+
+    /**
+     * Get collection items using Zotero's native search mechanism
+     * @param {CollectionTreeRow} collectionTreeRow - Zotero collection tree row
+     * @returns {Array} Array of items
+     */
+    async getCollectionItemsUsingZoteroSearch(collectionTreeRow) {
+        try {
+            // Use Zotero's native search mechanism
+            const searchResults = await collectionTreeRow.getSearchResults();
+            
+            if (!searchResults || searchResults.length === 0) {
+                return [];
+            }
+            
+            // Get actual item objects
+            const items = await Zotero.Items.getAsync(searchResults);
+            
+            // Filter to only top-level items (no child attachments/notes)
+            return items.filter(item => item.isTopLevelItem());
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error getting collection items via search: ${error.message}`);
+            
+            // Fallback to direct collection item retrieval
+            try {
+                const collection = collectionTreeRow.ref;
+                const itemIDs = collection.getChildItems();
+                return await Zotero.Items.getAsync(itemIDs);
+            } catch (fallbackError) {
+                Zotero.debug(`DeepTutorClaudeManagement: Fallback item retrieval failed: ${fallbackError.message}`);
+                return [];
+            }
+        }
+    }
+
+    /**
+     * Add virtual collections following Zotero's pattern
+     * @param {Object} hierarchyData - Hierarchy data object to modify
+     * @param {Integer} libraryID - Library ID
+     */
+    async addVirtualCollections(hierarchyData, libraryID) {
+        try {
+            // Duplicates
+            try {
+                const duplicatesSearch = new Zotero.Duplicates(libraryID);
+                const duplicateTreeRow = new Zotero.CollectionTreeRow(null, 'duplicates', duplicatesSearch);
+                const duplicateItems = await duplicateTreeRow.getItems();
+                
+                hierarchyData.virtualCollections.duplicates = {
+                    name: 'Duplicate Items',
+                    type: 'duplicates',
+                    itemCount: duplicateItems.length,
+                    items: duplicateItems.map(item => ({
+                        id: item.id,
+                        title: item.getField('title'),
+                        itemType: item.itemType
+                    }))
+                };
+            } catch (dupError) {
+                Zotero.debug(`DeepTutorClaudeManagement: Error getting duplicates: ${dupError.message}`);
+            }
+
+            // Unfiled items
+            try {
+                const unfiledSearch = new Zotero.Search();
+                unfiledSearch.libraryID = libraryID;
+                unfiledSearch.addCondition('unfiled', 'true');
+                const unfiledResults = await unfiledSearch.search();
+                const unfiledItems = await Zotero.Items.getAsync(unfiledResults);
+                
+                hierarchyData.virtualCollections.unfiled = {
+                    name: 'Unfiled Items',
+                    type: 'unfiled',
+                    itemCount: unfiledItems.length,
+                    items: unfiledItems.map(item => ({
+                        id: item.id,
+                        title: item.getField('title'),
+                        itemType: item.itemType
+                    }))
+                };
+                
+                // Use unfiled as uncategorized for backward compatibility
+                hierarchyData.uncategorized = {
+                    name: 'Uncategorized Items',
+                    items: hierarchyData.virtualCollections.unfiled.items,
+                    itemCount: hierarchyData.virtualCollections.unfiled.itemCount
+                };
+            } catch (unfiledError) {
+                Zotero.debug(`DeepTutorClaudeManagement: Error getting unfiled items: ${unfiledError.message}`);
+            }
+
+            // Trash
+            try {
+                const deletedItems = await Zotero.Items.getDeleted(libraryID, true);
+                hierarchyData.virtualCollections.trash = {
+                    name: 'Trash',
+                    type: 'trash',
+                    itemCount: deletedItems.length,
+                    items: deletedItems.map(item => ({
+                        id: item.id,
+                        title: item.getField('title'),
+                        itemType: item.itemType,
+                        deleted: true
+                    }))
+                };
+            } catch (trashError) {
+                Zotero.debug(`DeepTutorClaudeManagement: Error getting trash items: ${trashError.message}`);
+            }
+
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error adding virtual collections: ${error.message}`);
+        }
+    }
+
+    /**
+     * Get the full path of a collection
+     * @param {Collection} collection - Zotero collection
+     * @returns {String} Full collection path
+     */
+    async getCollectionPath(collection) {
+        try {
+            const pathParts = [collection.name];
+            let current = collection;
+            
+            while (current.parentID) {
+                const parent = await Zotero.Collections.getAsync(current.parentID);
+                if (parent) {
+                    pathParts.unshift(parent.name);
+                    current = parent;
+                } else {
+                    break;
+                }
+            }
+            
+            return pathParts.join(' > ');
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error getting collection path: ${error.message}`);
+            return collection.name;
+        }
+    }
+
+    /**
+     * Calculate statistics for the hierarchy
+     * @param {Object} hierarchyData - Hierarchy data to calculate statistics for
+     */
+    calculateHierarchyStatistics(hierarchyData) {
+        try {
+            let totalCollections = 0;
+            let totalItems = 0;
+            let totalAttachments = 0;
+            let totalPDFs = 0;
+
+            const countRecursive = (collections) => {
+                for (let collection of collections) {
+                    totalCollections++;
+                    totalItems += collection.itemCount || 0;
+                    totalAttachments += collection.attachmentCount || 0;
+                    totalPDFs += collection.pdfCount || 0;
+                    
+                    if (collection.children && collection.children.length > 0) {
+                        countRecursive(collection.children);
+                    }
+                }
+            };
+
+            countRecursive(hierarchyData.collections);
+
+            // Add virtual collections to statistics
+            if (hierarchyData.virtualCollections) {
+                Object.values(hierarchyData.virtualCollections).forEach(vc => {
+                    totalItems += vc.itemCount || 0;
+                });
+            }
+
+            hierarchyData.statistics = {
+                totalCollections,
+                totalItems,
+                totalAttachments,
+                totalPDFs
+            };
+
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error calculating statistics: ${error.message}`);
+        }
+    }
+
+    /**
+     * Generate enhanced markdown representation of the hierarchy
+     * @param {Object} hierarchyData - Hierarchy data
+     * @returns {String} Markdown representation
+     */
+    generateEnhancedHierarchyMarkdown(hierarchyData) {
+        try {
+            let markdown = `# Enhanced File Hierarchy\n\n`;
+            markdown += `Generated: ${hierarchyData.timestamp}\n\n`;
+            markdown += `## Library: ${hierarchyData.library.name}\n\n`;
+            
+            // Statistics
+            markdown += `### Statistics\n`;
+            markdown += `- Total Collections: ${hierarchyData.statistics.totalCollections}\n`;
+            markdown += `- Total Items: ${hierarchyData.statistics.totalItems}\n`;
+            markdown += `- Total Attachments: ${hierarchyData.statistics.totalAttachments}\n`;
+            markdown += `- Total PDFs: ${hierarchyData.statistics.totalPDFs}\n\n`;
+
+            // Collections
+            if (hierarchyData.collections.length > 0) {
+                markdown += `## Collections\n\n`;
+                markdown += this.generateCollectionMarkdownRecursive(hierarchyData.collections, 0);
+            }
+
+            // Virtual Collections
+            if (hierarchyData.virtualCollections) {
+                markdown += `## Virtual Collections\n\n`;
+                Object.entries(hierarchyData.virtualCollections).forEach(([key, vc]) => {
+                    markdown += `### ${vc.name}\n`;
+                    markdown += `- Type: ${vc.type}\n`;
+                    markdown += `- Items: ${vc.itemCount}\n\n`;
+                });
+            }
+
+            return markdown;
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error generating enhanced markdown: ${error.message}`);
+            return "Error generating markdown representation";
+        }
+    }
+
+    /**
+     * Generate markdown for collections recursively
+     * @param {Array} collections - Collections array
+     * @param {Integer} level - Nesting level
+     * @returns {String} Markdown string
+     */
+    generateCollectionMarkdownRecursive(collections, level) {
+        let markdown = '';
+        const indent = '  '.repeat(level);
+        
+        for (let collection of collections) {
+            markdown += `${indent}- **${collection.name}** (${collection.itemCount} items)\n`;
+            markdown += `${indent}  - Path: ${collection.path}\n`;
+            markdown += `${indent}  - Attachments: ${collection.attachmentCount}\n`;
+            markdown += `${indent}  - PDFs: ${collection.pdfCount}\n`;
+            
+            if (collection.children && collection.children.length > 0) {
+                markdown += this.generateCollectionMarkdownRecursive(collection.children, level + 1);
+            }
+            markdown += '\n';
+        }
+        
+        return markdown;
+    }
+
+    /**
+     * Build collection hierarchy recursively using enhanced approach with SQL fallbacks
+     * @param {Object} collection - Zotero collection object
+     * @param {number} level - Current nesting level
+     * @param {number} libraryID - Library ID for SQL queries
+     * @returns {Object} Collection hierarchy data
+     */
+    async buildCollectionHierarchyRecursiveEnhanced(collection, level, libraryID) {
+        try {
+            const collectionData = {
+                id: collection.id,
+                key: collection.key,
+                name: collection.name,
+                level: level,
+                parentID: collection.parentID || null,
+                fullPath: collection.name,
+                items: [],
+                subcollections: [],
+                itemCount: 0,
+                attachmentCount: 0,
+                pdfCount: 0,
+                metadata: {
+                    dateAdded: collection.dateAdded || null,
+                    dateModified: collection.dateModified || null
+                }
+            };
+
+            // Enhanced item retrieval with SQL fallback
+            try {
+                let items = [];
+                
+                // Primary method: Use Zotero API
+                try {
+                    items = collection.getChildItems();
+                    Zotero.debug(`DeepTutorClaudeManagement: Collection ${collection.name} has ${items.length} child items using API`);
+                } catch (apiError) {
+                    Zotero.debug(`DeepTutorClaudeManagement: API method failed for items, trying SQL fallback: ${apiError.message}`);
+                    
+                    // SQL fallback: Get items by collection ID
+                    try {
+                        const itemsQuery = `
+                            SELECT DISTINCT i.itemID, i.key, i.itemTypeID, i.dateAdded, i.dateModified
+                            FROM items i
+                            INNER JOIN collectionItems ci ON i.itemID = ci.itemID
+                            WHERE ci.collectionID = ? AND i.deleted = 0
+                            ORDER BY i.dateAdded DESC
+                        `;
+                        
+                        const itemResults = await Zotero.DB.queryAsync(itemsQuery, [collection.id]);
+                        Zotero.debug(`DeepTutorClaudeManagement: SQL query returned ${itemResults.length} items for collection ${collection.id}`);
+                        
+                        // Convert SQL results to item objects
+                        items = itemResults.map(row => ({
+                            id: row.itemID,
+                            key: row.key,
+                            itemTypeID: row.itemTypeID,
+                            dateAdded: row.dateAdded,
+                            dateModified: row.dateModified
+                        }));
+                    } catch (sqlError) {
+                        Zotero.debug(`DeepTutorClaudeManagement: SQL fallback for items failed: ${sqlError.message}`);
+                        items = [];
+                    }
+                }
+                
+                // Process items with enhanced attachment retrieval
+                for (const item of items) {
+                    try {
+                        if (item && (item.isRegularItem ? item.isRegularItem() : true)) {
+                            const itemData = await this.buildItemDataEnhanced(item, libraryID);
+                            if (itemData) {
+                                collectionData.items.push(itemData);
+                                collectionData.itemCount++;
+                                collectionData.attachmentCount += itemData.attachmentCount;
+                                collectionData.pdfCount += itemData.pdfCount;
+                            }
+                        }
+                    } catch (itemError) {
+                        Zotero.debug(`DeepTutorClaudeManagement: Error processing item ${item.id}: ${itemError.message}`);
+                    }
+                }
+            } catch (itemError) {
+                Zotero.debug(`DeepTutorClaudeManagement: Error getting items for collection ${collection.id}: ${itemError.message}`);
+            }
+
+            // Enhanced subcollection retrieval with SQL fallback
+            try {
+                let subcollections = [];
+                
+                // Primary method: Use Zotero API
+                try {
+                    subcollections = collection.getChildCollections();
+                    Zotero.debug(`DeepTutorClaudeManagement: Collection ${collection.name} has ${subcollections.length} subcollections using API`);
+                } catch (apiError) {
+                    Zotero.debug(`DeepTutorClaudeManagement: API method failed for subcollections, trying SQL fallback: ${apiError.message}`);
+                    
+                    // SQL fallback: Get subcollections by parent ID
+                    try {
+                        const subcollectionsQuery = `
+                            SELECT collectionID, key, collectionName, dateAdded, dateModified
+                            FROM collections
+                            WHERE parentCollectionID = ? AND libraryID = ? AND deleted = 0
+                            ORDER BY collectionName
+                        `;
+                        
+                        const subcollectionResults = await Zotero.DB.queryAsync(subcollectionsQuery, [collection.id, libraryID]);
+                        Zotero.debug(`DeepTutorClaudeManagement: SQL query returned ${subcollectionResults.length} subcollections for collection ${collection.id}`);
+                        
+                        // Convert SQL results to collection objects
+                        subcollections = subcollectionResults.map(row => ({
+                            id: row.collectionID,
+                            key: row.key,
+                            name: row.collectionName,
+                            parentID: collection.id,
+                            libraryID: libraryID,
+                            dateAdded: row.dateAdded,
+                            dateModified: row.dateModified
+                        }));
+                    } catch (sqlError) {
+                        Zotero.debug(`DeepTutorClaudeManagement: SQL fallback for subcollections failed: ${sqlError.message}`);
+                        subcollections = [];
+                    }
+                }
+                
+                // Process subcollections recursively
+                for (const subcollection of subcollections) {
+                    const subcollectionData = await this.buildCollectionHierarchyRecursiveEnhanced(subcollection, level + 1, libraryID);
+                    collectionData.subcollections.push(subcollectionData);
+                    
+                    // Update parent collection statistics
+                    collectionData.itemCount += subcollectionData.itemCount;
+                    collectionData.attachmentCount += subcollectionData.attachmentCount;
+                    collectionData.pdfCount += subcollectionData.pdfCount;
+                }
+            } catch (subcolError) {
+                Zotero.debug(`DeepTutorClaudeManagement: Error getting subcollections for collection ${collection.id}: ${subcolError.message}`);
+            }
+
+            // Build full path for this collection
+            if (collection.parentID) {
+                try {
+                    let parentCollection = null;
+                    
+                    // Try to get parent collection
+                    try {
+                        parentCollection = await Zotero.Collections.getAsync(collection.parentID);
+                    } catch (apiError) {
+                        // SQL fallback for parent collection
+                        try {
+                            const parentQuery = "SELECT collectionName FROM collections WHERE collectionID = ? AND deleted = 0";
+                            const parentResult = await Zotero.DB.rowQueryAsync(parentQuery, [collection.parentID]);
+                            if (parentResult) {
+                                parentCollection = { name: parentResult.collectionName };
+                            }
+                        } catch (sqlError) {
+                            Zotero.debug(`DeepTutorClaudeManagement: Could not get parent collection name: ${sqlError.message}`);
+                        }
+                    }
+                    
+                    if (parentCollection) {
+                        collectionData.fullPath = `${parentCollection.name} > ${collection.name}`;
+                    }
+                } catch (pathError) {
+                    Zotero.debug(`DeepTutorClaudeManagement: Error building path for collection ${collection.id}: ${pathError.message}`);
+                }
+            }
+
+            return collectionData;
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error building enhanced collection hierarchy: ${error.message}`);
+            return {
+                id: collection.id,
+                name: collection.name,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Build enhanced item data with SQL fallback for attachments
+     * @param {Object} item - Zotero item object or SQL result
+     * @param {number} libraryID - Library ID for SQL queries
+     * @returns {Object} Enhanced item data with attachment details
+     */
+    async buildItemDataEnhanced(item, libraryID) {
+        try {
+            const itemData = {
+                id: item.id,
+                key: item.key,
+                title: '',
+                itemType: '',
+                creators: [],
+                date: '',
+                abstract: '',
+                tags: [],
+                attachments: [],
+                attachmentCount: 0,
+                pdfCount: 0,
+                metadata: {
+                    dateAdded: item.dateAdded || null,
+                    dateModified: item.dateModified || null
+                }
+            };
+
+            // Get item details - try API first, then SQL fallback
+            try {
+                // Try to get full item object if we have one
+                let fullItem = item;
+                if (typeof item.getField === 'function') {
+                    // This is already a full Zotero item
+                    fullItem = item;
+                } else {
+                    // This is a SQL result, try to get the full item
+                    try {
+                        fullItem = Zotero.Items.get(item.id);
+                    } catch (getError) {
+                        Zotero.debug(`DeepTutorClaudeManagement: Could not get full item ${item.id}: ${getError.message}`);
+                        // Continue with SQL fallback
+                    }
+                }
+
+                // Extract item data using available methods
+                if (fullItem && typeof fullItem.getField === 'function') {
+                    // Use Zotero API methods
+                    itemData.title = fullItem.getField('title') || 'Untitled';
+                    itemData.itemType = fullItem.itemType;
+                    itemData.date = fullItem.getField('date') || '';
+                    itemData.abstract = fullItem.getField('abstractNote') || '';
+                    
+                    try {
+                        const creators = fullItem.getCreators();
+                        itemData.creators = creators.map(creator => ({
+                            firstName: creator.firstName || '',
+                            lastName: creator.lastName || '',
+                            name: creator.name || '',
+                            creatorType: creator.creatorType || 'author'
+                        }));
+                    } catch (creatorError) {
+                        Zotero.debug(`DeepTutorClaudeManagement: Error getting creators: ${creatorError.message}`);
+                    }
+                    
+                    try {
+                        const tags = fullItem.getTags();
+                        itemData.tags = tags.map(tag => tag.tag);
+                    } catch (tagError) {
+                        Zotero.debug(`DeepTutorClaudeManagement: Error getting tags: ${tagError.message}`);
+                    }
+                } else {
+                    // SQL fallback for item details
+                    try {
+                        const itemDetailsQuery = `
+                            SELECT 
+                                i.itemTypeID,
+                                id.title,
+                                id.date,
+                                id.abstractNote
+                            FROM items i
+                            LEFT JOIN itemData id ON i.itemID = id.itemID
+                            WHERE i.itemID = ? AND i.deleted = 0
+                        `;
+                        
+                        const itemDetails = await Zotero.DB.rowQueryAsync(itemDetailsQuery, [item.id]);
+                        if (itemDetails) {
+                            itemData.title = itemDetails.title || 'Untitled';
+                            itemData.date = itemDetails.date || '';
+                            itemData.abstract = itemDetails.abstractNote || '';
+                            
+                            // Get item type name
+                            if (itemDetails.itemTypeID) {
+                                try {
+                                    const itemTypeQuery = "SELECT typeName FROM itemTypes WHERE itemTypeID = ?";
+                                    const itemTypeResult = await Zotero.DB.rowQueryAsync(itemTypeQuery, [itemDetails.itemTypeID]);
+                                    if (itemTypeResult) {
+                                        itemData.itemType = itemTypeResult.typeName;
+                                    }
+                                } catch (typeError) {
+                                    Zotero.debug(`DeepTutorClaudeManagement: Error getting item type: ${typeError.message}`);
+                                    itemData.itemType = 'unknown';
+                                }
+                            }
+                        }
+                    } catch (detailsError) {
+                        Zotero.debug(`DeepTutorClaudeManagement: Error getting item details via SQL: ${detailsError.message}`);
+                    }
+                }
+
+                // Enhanced attachment retrieval with SQL fallback
+                try {
+                    let attachments = [];
+                    
+                    if (fullItem && typeof fullItem.getAttachments === 'function') {
+                        // Use Zotero API method
+                        const attachmentIDs = fullItem.getAttachments();
+                        attachments = attachmentIDs.map(id => Zotero.Items.get(id)).filter(att => att);
+                    } else {
+                        // SQL fallback for attachments
+                        try {
+                            const attachmentsQuery = `
+                                SELECT 
+                                    a.itemID,
+                                    a.key,
+                                    a.attachmentFilename,
+                                    a.attachmentContentType,
+                                    a.attachmentFileSize,
+                                    a.dateAdded,
+                                    a.dateModified
+                                FROM items a
+                                WHERE a.parentItemID = ? AND a.deleted = 0
+                                ORDER BY a.dateAdded
+                            `;
+                            
+                            const attachmentResults = await Zotero.DB.queryAsync(attachmentsQuery, [item.id]);
+                            Zotero.debug(`DeepTutorClaudeManagement: SQL query returned ${attachmentResults.length} attachments for item ${item.id}`);
+                            
+                            // Convert SQL results to attachment objects
+                            attachments = attachmentResults.map(row => ({
+                                id: row.itemID,
+                                key: row.key,
+                                attachmentFilename: row.attachmentFilename,
+                                attachmentContentType: row.attachmentContentType,
+                                attachmentFileSize: row.attachmentFileSize,
+                                dateAdded: row.dateAdded,
+                                dateModified: row.dateModified
+                            }));
+                        } catch (sqlError) {
+                            Zotero.debug(`DeepTutorClaudeManagement: SQL fallback for attachments failed: ${sqlError.message}`);
+                        }
+                    }
+                    
+                    // Process attachments
+                    for (const attachment of attachments) {
+                        try {
+                            const attachmentData = {
+                                id: attachment.id,
+                                filename: attachment.attachmentFilename || '',
+                                contentType: attachment.attachmentContentType || '',
+                                isPDF: this.isPDFAttachment(attachment),
+                                fileSize: attachment.attachmentFileSize || 0,
+                                metadata: {
+                                    dateAdded: attachment.dateAdded || null,
+                                    dateModified: attachment.dateModified || null
+                                }
+                            };
+                            
+                            itemData.attachments.push(attachmentData);
+                            itemData.attachmentCount++;
+                            
+                            if (attachmentData.isPDF) {
+                                itemData.pdfCount++;
+                            }
+                        } catch (attachError) {
+                            Zotero.debug(`DeepTutorClaudeManagement: Error processing attachment ${attachment.id}: ${attachError.message}`);
+                        }
+                    }
+                } catch (attachError) {
+                    Zotero.debug(`DeepTutorClaudeManagement: Error getting attachments for item ${item.id}: ${attachError.message}`);
+                }
+
+            } catch (error) {
+                Zotero.debug(`DeepTutorClaudeManagement: Error building enhanced item data: ${error.message}`);
+            }
+
+            return itemData;
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error in buildItemDataEnhanced: ${error.message}`);
+            return {
+                id: item.id,
+                title: 'Error loading item',
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Get uncategorized items with enhanced SQL fallback
+     * @param {number} libraryID - Library ID for SQL queries
+     * @returns {Array} Array of uncategorized items
+     */
+    async getUncategorizedItemsEnhanced(libraryID) {
+        try {
+            Zotero.debug("DeepTutorClaudeManagement: Getting uncategorized items with enhanced method...");
+            
+            let allItems = [];
+            
+            // Primary method: Use Zotero API
+            try {
+                allItems = await Zotero.Items.getAll(libraryID);
+                Zotero.debug(`DeepTutorClaudeManagement: Found ${allItems.length} items using getAll API`);
+            } catch (error) {
+                Zotero.debug(`DeepTutorClaudeManagement: Error getting items with getAll, trying search fallback: ${error.message}`);
+                
+                // Fallback 1: Use search approach
+                try {
+                    const search = new Zotero.Search();
+                    search.libraryID = libraryID;
+                    search.addCondition('itemType', 'isNot', 'note');
+                    search.addCondition('itemType', 'isNot', 'annotation');
+                    const itemIDs = await search.search();
+                    allItems = itemIDs.map(id => Zotero.Items.get(id)).filter(item => item);
+                    Zotero.debug(`DeepTutorClaudeManagement: Found ${allItems.length} items using search fallback`);
+                } catch (searchError) {
+                    Zotero.debug(`DeepTutorClaudeManagement: Search fallback failed, trying SQL fallback: ${searchError.message}`);
+                    
+                    // Fallback 2: Direct SQL query for items
+                    try {
+                        const itemsQuery = `
+                            SELECT 
+                                i.itemID,
+                                i.key,
+                                i.itemTypeID,
+                                i.dateAdded,
+                                i.dateModified
+                            FROM items i
+                            WHERE i.libraryID = ? 
+                                AND i.deleted = 0 
+                                AND i.itemTypeID NOT IN (
+                                    SELECT itemTypeID FROM itemTypes WHERE typeName IN ('note', 'annotation')
+                                )
+                            ORDER BY i.dateAdded DESC
+                        `;
+                        
+                        const itemResults = await Zotero.DB.queryAsync(itemsQuery, [libraryID]);
+                        Zotero.debug(`DeepTutorClaudeManagement: SQL query returned ${itemResults.length} items`);
+                        
+                        // Convert SQL results to item objects
+                        allItems = itemResults.map(row => ({
+                            id: row.itemID,
+                            key: row.key,
+                            itemTypeID: row.itemTypeID,
+                            dateAdded: row.dateAdded,
+                            dateModified: row.dateModified
+                        }));
+                    } catch (sqlError) {
+                        Zotero.debug(`DeepTutorClaudeManagement: SQL fallback for items failed: ${sqlError.message}`);
+                        allItems = [];
+                    }
+                }
+            }
+            
+            if (!allItems || !Array.isArray(allItems)) {
+                Zotero.debug("DeepTutorClaudeManagement: No items found, returning empty array");
+                return [];
+            }
+            
+            const uncategorizedItems = [];
+            
+            for (const item of allItems) {
+                try {
+                    // Check if item is in any collection
+                    let isInCollection = false;
+                    
+                    try {
+                        if (typeof item.getCollections === 'function') {
+                            // Use Zotero API method
+                            const collections = item.getCollections();
+                            isInCollection = collections.length > 0;
+                        } else {
+                            // SQL fallback: Check collection membership
+                            try {
+                                const collectionCheckQuery = `
+                                    SELECT COUNT(*) as count 
+                                    FROM collectionItems 
+                                    WHERE itemID = ? AND collectionID IN (
+                                        SELECT collectionID FROM collections WHERE libraryID = ? AND deleted = 0
+                                    )
+                                `;
+                                
+                                const result = await Zotero.DB.rowQueryAsync(collectionCheckQuery, [item.id, libraryID]);
+                                isInCollection = result && result.count > 0;
+                            } catch (checkError) {
+                                Zotero.debug(`DeepTutorClaudeManagement: Error checking collection membership for item ${item.id}: ${checkError.message}`);
+                                // Assume not in collection if we can't check
+                                isInCollection = false;
+                            }
+                        }
+                    } catch (collectionError) {
+                        Zotero.debug(`DeepTutorClaudeManagement: Error checking collections for item ${item.id}: ${collectionError.message}`);
+                        isInCollection = false;
+                    }
+                    
+                    if (!isInCollection) {
+                        const itemData = await this.buildItemDataEnhanced(item, libraryID);
+                        if (itemData) {
+                            uncategorizedItems.push(itemData);
+                        }
+                    }
+                } catch (itemError) {
+                    Zotero.debug(`DeepTutorClaudeManagement: Error processing uncategorized item ${item.id}: ${itemError.message}`);
+                }
+            }
+            
+            Zotero.debug(`DeepTutorClaudeManagement: Found ${uncategorizedItems.length} uncategorized items`);
+            return uncategorizedItems;
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error getting enhanced uncategorized items: ${error.message}`);
+            return [];
         }
     }
 }
