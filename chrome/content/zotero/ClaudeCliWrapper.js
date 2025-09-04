@@ -11,7 +11,9 @@ const ClaudeCliWrapper = {
 	// - stdinText: optional string piped to the process via shell (printf/echo)
 	// - noteContainer: optional Zotero item ID for saving response as note
 	// - saveClaudeResponse: boolean flag to save response to note
-	runClaude: async function(args = [], workingDirOverride = null, stdinText = null, noteContainer = null, saveClaudeResponse = false, systemPrompt = null) {
+	// - systemPrompt: optional system prompt to append to the command
+	// - modifyUserPrompt: boolean flag to prepend professor instruction to user message
+	runClaude: async function(args = [], workingDirOverride = null, stdinText = null, noteContainer = null, saveClaudeResponse = false, systemPrompt = null, modifyUserPrompt = false) {
 		Zotero.debug("ClaudeCliWrapper.runClaude: start");
 		const timeout = 15000;
 
@@ -31,11 +33,20 @@ const ClaudeCliWrapper = {
 		let safeArgs = Array.isArray(args) ? args.map(a => String(a)) : [];
 		Zotero.debug(`ClaudeCliWrapper.runClaude: safeArgs=${JSON.stringify(safeArgs)}`);
 		Zotero.debug(`ClaudeCliWrapper.runClaude: systemPrompt=${systemPrompt}`);
+		Zotero.debug(`ClaudeCliWrapper.runClaude: modifyUserPrompt=${modifyUserPrompt}`);
 		
 		// Add system prompt if provided (while preserving old piping logic)
 		if (systemPrompt && typeof systemPrompt === 'string' && systemPrompt.trim()) {
 			safeArgs.push('--append-system-prompt', systemPrompt.trim());
 			Zotero.debug(`ClaudeCliWrapper.runClaude: Added system prompt: ${systemPrompt.trim()}`);
+		}
+
+		// Modify user prompt if requested
+		let finalStdinText = stdinText;
+		if (modifyUserPrompt && stdinText && typeof stdinText === 'string' && stdinText.trim()) {
+			const professorInstruction = "You are a kind professor who is flexible to utilizing local resources and can provide deep and understandable answers. Please start by reviewing the summary in \"General\" folder and the File_Hierarchy_SQL_REAL md file in \"FileTree\" folder to get an overview of the local data, then based on user question, you can decide on what data to focus on reviewing and how you can utilize local resources to answer questions. We expect the user to ask question based on at least one of the three focuses: file content, library file structure, and user usage. For question focusing on content of some files, please try to selectively read files relevant to the question in RawDocData folder and integrate with learning from summary file to answer question. For question focusing on filebase structure, please base on the File_Hierarchy_SQL_REAL md file to capture the right files that we need to focus on, and then answer question base on your focus. Please provide detailed, accurate, and passionate answer. Please take ownership on selective what files you need to review, based on the above instruction, and how you can organize the plan to find solution. The user's question is: ";
+			finalStdinText = professorInstruction + stdinText.trim();
+			Zotero.debug(`ClaudeCliWrapper.runClaude: Modified user prompt with professor instruction`);
 		}
 
 		// Helper: build a space-joined args string without shell interpolation (best-effort quoting per shell below if needed)
@@ -67,8 +78,8 @@ const ClaudeCliWrapper = {
 				// Execute inside WSL bash, optionally cd to linuxDir
 				command = "C:\\Windows\\System32\\wsl.exe";
 				const joined = joinArgs(safeArgs);
-				const shBody = (stdinText != null)
-					? `printf "%s" "${escapeForBashDoubleQuoted(stdinText)}" | claude${joined}`
+				const shBody = (finalStdinText != null)
+					? `printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | claude${joined}`
 					: `claude${joined}`;
 				// Inject API key for immediate use (one-time command approach)
 				const envClaudeCmd = storedApiKey ? `ANTHROPIC_API_KEY="${storedApiKey}" ${shBody}` : shBody;
@@ -79,8 +90,8 @@ const ClaudeCliWrapper = {
 				// Native Windows CMD
 				command = "C:\\Windows\\System32\\cmd.exe";
 				const joined = joinArgs(safeArgs);
-				const body = (stdinText != null)
-					? `echo ${escapeForCmdEcho(stdinText)} | claude${joined}`
+				const body = (finalStdinText != null)
+					? `echo ${escapeForCmdEcho(finalStdinText)} | claude${joined}`
 					: `claude${joined}`;
 				// Inject API key for immediate use (set for command session)
 				const envBody = storedApiKey ? `set ANTHROPIC_API_KEY=${storedApiKey} && ${body}` : body;
@@ -92,11 +103,11 @@ const ClaudeCliWrapper = {
 				command = "/bin/sh";
 				const joined = joinArgs(safeArgs);
 				const baseCmd = workingDirPath
-					? (stdinText != null
-						? `cd "${workingDirPath}" && printf "%s" "${escapeForBashDoubleQuoted(stdinText)}" | claude${joined}`
+					? (finalStdinText != null
+						? `cd "${workingDirPath}" && printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | claude${joined}`
 						: `cd "${workingDirPath}" && claude${joined}`)
-					: (stdinText != null
-						? `printf "%s" "${escapeForBashDoubleQuoted(stdinText)}" | claude${joined}`
+					: (finalStdinText != null
+						? `printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | claude${joined}`
 						: `claude${joined}`);
 				// Inject API key for immediate use (one-time command approach)
 				const line = storedApiKey ? `ANTHROPIC_API_KEY="${storedApiKey}" ${baseCmd}` : baseCmd;
