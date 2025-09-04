@@ -700,10 +700,8 @@ const DeepTutorMain = (props) => {
 						onClose={props.toggleSubscriptionPopup}
 						onAction={(plan) => {
 							// Open different URLs based on selected plan
-							let url = `http://localhost:3000/dzSubscription?plan=premium`;
-							//let url = `https://${DT_BASE_URL}/dzSubscription?plan=premium`;
+							let url = `https://${DT_BASE_URL}/dzSubscription?plan=premium`;
 							if (plan === 'pro') {
-								//url = `http://localhost:3000/dzSubscription?plan=pro`;
 								url = `https://${DT_BASE_URL}/dzSubscription?plan=pro`;
 							}
 							else if (plan === 'free') {

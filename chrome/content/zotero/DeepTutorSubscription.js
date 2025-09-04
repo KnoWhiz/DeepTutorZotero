@@ -29,7 +29,7 @@ import DeepTutorUpgradePremium from "./DeepTutorUpgradePremium.js";
 import DeepTutorSubscriptionConfirm from "./DeepTutorSubscriptionConfirm.js";
 import DeepTutorManageSubscription from "./DeepTutorManageSubscription.js";
 import DeepTutorProcessingSubscription from "./DeepTutorProcessingSubscription.js";
-import { getActiveUserSubscriptionByUserId } from "./api/libs/api.js";
+import { getActiveUserSubscriptionByUserId, DT_BASE_URL } from "./api/libs/api.js";
 import { getUserEmail } from "./auth/userUtils.js";
 
 const PopupClosePath = "chrome://zotero/content/DeepTutorMaterials/Cross.png";
@@ -75,8 +75,7 @@ class DeepTutorSubscription extends React.Component {
 	 */
 	handleUpgradeSuccess = () => {
 		// Append email and userId params if available
-		let url = `http://localhost:3000/dzSubscription`;
-		//let url = `https://${DT_BASE_URL}/dzSubscription`;
+		let url = `https://${DT_BASE_URL}/dzSubscription`;
 		const emailParam = this.props.currentUser ? `?email=${encodeURIComponent(getUserEmail(this.props.currentUser))}` : '';
 		const userIdParam = this.props.userData && this.props.userData.id ? `${emailParam ? '&' : '?'}userId=${encodeURIComponent(this.props.userData.id)}` : '';
 		url = `${url}${emailParam}${userIdParam}`;
@@ -98,8 +97,7 @@ class DeepTutorSubscription extends React.Component {
 	 */
 	handleManageSubscription = () => {
 		this.setState({ currentPanel: "main" });
-		//let manageUrl = `https://${DT_BASE_URL}/dzSubscription?manage=true`;
-		let manageUrl = `http://localhost:3000/dzSubscription?manage=true`;
+		let manageUrl = `https://${DT_BASE_URL}/dzSubscription?manage=true`;
 		const stripeCustomerIdParam = this.props.activeSubscription && this.props.activeSubscription.stripeCustomerId ? `&stripeCustomerId=${encodeURIComponent(this.props.activeSubscription.stripeCustomerId)}` : '';
 		manageUrl = `${manageUrl}${stripeCustomerIdParam}`;
 		Zotero.launchURL(manageUrl);
@@ -122,8 +120,7 @@ class DeepTutorSubscription extends React.Component {
 
 	handleShowProcessing = () => {
 		//let url = `https://${DT_BASE_URL}/dzSubscription`;
-		let url = `http://localhost:3000/dzSubscription`;
-
+		let url = `https://${DT_BASE_URL}/dzSubscription`;
 
 		const emailParam = this.props.currentUser ? `?email=${encodeURIComponent(getUserEmail(this.props.currentUser))}` : '';
 		const userIdParam = this.props.userData && this.props.userData.id ? `${emailParam ? '&' : '?'}userId=${encodeURIComponent(this.props.userData.id)}` : '';
