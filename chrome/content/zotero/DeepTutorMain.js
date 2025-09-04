@@ -19,6 +19,7 @@ import DeepTutorFileSizeWarning from './DeepTutorFileSizeWarning.js';
 import DeepTutorNoteSave from './DeepTutorNoteSave.js';
 import DeepTutorSubscriptionPopup from './DeepTutorSubscriptionPopup.js';
 import { DT_BASE_URL } from './api/libs/api.js';
+import { getUserEmail } from './auth/userUtils.js';
 
 
 // Icon paths for popup close buttons
@@ -712,7 +713,7 @@ const DeepTutorMain = (props) => {
 							}
 
 							// Append email and userId if available
-							const emailParam = props.currentUser && props.currentUser.email ? `&email=${encodeURIComponent(props.currentUser.email)}` : '';
+							const emailParam = props.currentUser ? `&email=${encodeURIComponent(getUserEmail(props.currentUser))}` : '';
 							const userIdParam = props.userData && props.userData.id ? `&userId=${encodeURIComponent(props.userData.id)}` : '';
 							url = `${url}${emailParam}${userIdParam}`;
 

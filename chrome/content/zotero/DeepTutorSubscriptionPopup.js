@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react"; // eslint-disable-line no-unused-vars
 import PropTypes from "prop-types";
 import { useDeepTutorTheme } from "./theme/useDeepTutorTheme.js";
-import { getActiveUserSubscriptionByUserId, DT_BASE_URL } from "./api/libs/api.js";
+import { getActiveUserSubscriptionByUserId } from "./api/libs/api.js";
 import DeepTutorProcessingSubscription from "./DeepTutorProcessingSubscription.js";
 import DeepTutorSubscriptionConfirm from "./DeepTutorSubscriptionConfirm.js";
+import { getUserEmail } from "./auth/userUtils.js";
 
 // Close icon paths (match other popups)
 const PopupClosePath = "chrome://zotero/content/DeepTutorMaterials/Main/MAIN_CLOSE.svg";
@@ -515,10 +516,9 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction: _onActio
 				// Downgrade - redirect to manage subscription page
 				let manageUrl = `http://localhost:3000/dzSubscription?manage=true`;
 				//let manageUrl = `https://${DT_BASE_URL}/dzSubscription?manage=true`;
-				// Append email and userId if available
-				const emailParam = currentUser && currentUser.email ? `&email=${encodeURIComponent(currentUser.email)}` : '';
-				const userIdParam = userData && userData.id ? `&userId=${encodeURIComponent(userData.id)}` : '';
-				manageUrl = `${manageUrl}${emailParam}${userIdParam}`;
+				// Append stripeCustomerId if available
+				const stripeCustomerIdParam = activeSubscription && activeSubscription.stripeCustomerId ? `&stripeCustomerId=${encodeURIComponent(activeSubscription.stripeCustomerId)}` : '';
+				manageUrl = `${manageUrl}${stripeCustomerIdParam}`;
 				try {
 					Zotero.launchURL(manageUrl);
 				}
@@ -548,7 +548,7 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction: _onActio
 			}
 			// Append email and userId if available
 			console.log("currentUser", currentUser);
-			const emailParam = currentUser && currentUser.email ? `&email=${encodeURIComponent(currentUser.email)}` : '';
+			const emailParam = currentUser ? `&email=${encodeURIComponent(getUserEmail(currentUser))}` : '';
 			const userIdParam = userData && userData.id ? `&userId=${encodeURIComponent(userData.id)}` : '';
 			url = `${url}${emailParam}${userIdParam}`;
 			openSubscriptionUrl(url);

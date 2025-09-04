@@ -67,7 +67,7 @@ function DeepTutorProfilePopup({
 		}
 		if (currentUser) {
 			// Cognito user object may expose username/email differently - prioritizing email first
-			return (currentUser.email
+			return (getUserEmail(currentUser)
 				|| currentUser.username
 				|| (typeof currentUser.getUsername === "function" && currentUser.getUsername())
 				|| "User");
@@ -101,19 +101,17 @@ function DeepTutorProfilePopup({
 	 */
 	const handleManageSubscription = () => {
 		try {
-			// Launch the manage subscription URL directly, append email and userId if available
+			// Launch the manage subscription URL directly, append stripeCustomerId if available
 			let manageUrl = `https://${DT_BASE_URL}/dzSubscription?manage=true`;
-			const emailParam = currentUser && currentUser.email ? `&email=${encodeURIComponent(currentUser.email)}` : '';
-			const userIdParam = userData && userData.id ? `&userId=${encodeURIComponent(userData.id)}` : '';
-			manageUrl = `${manageUrl}${emailParam}${userIdParam}`;
+			const stripeCustomerIdParam = activeSubscription && activeSubscription.stripeCustomerId ? `&stripeCustomerId=${encodeURIComponent(activeSubscription.stripeCustomerId)}` : '';
+			manageUrl = `${manageUrl}${stripeCustomerIdParam}`;
 			Zotero.launchURL(manageUrl);
 		} catch (error) {
 			Zotero.debug(`DeepTutor: Error opening manage subscription URL: ${error.message}`);
 			// Fallback to clipboard if URL opening fails
 			let manageUrl = `https://${DT_BASE_URL}/dzSubscription?manage=true`;
-			const emailParam = currentUser && currentUser.email ? `&email=${encodeURIComponent(currentUser.email)}` : '';
-			const userIdParam = userData && userData.id ? `&userId=${encodeURIComponent(userData.id)}` : '';
-			manageUrl = `${manageUrl}${emailParam}${userIdParam}`;
+			const stripeCustomerIdParam = activeSubscription && activeSubscription.stripeCustomerId ? `&stripeCustomerId=${encodeURIComponent(activeSubscription.stripeCustomerId)}` : '';
+			manageUrl = `${manageUrl}${stripeCustomerIdParam}`;
 			if (navigator.clipboard) {
 				navigator.clipboard.writeText(manageUrl).then(() => {
 					Zotero.alert(null, "DeepTutor", "Manage subscription URL copied to clipboard!");
