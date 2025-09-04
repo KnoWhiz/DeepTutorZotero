@@ -414,6 +414,7 @@ function modify_omni {
 	mv omni.ja ..
 	cd ..
 	python3 "$APP_ROOT_DIR/scripts/optimizejars.py" --optimize ./ ./ ./
+	# FIXME
 	rm -rf omni
 	
 	# Unzip browser/omni.ja and leave unzipped
@@ -443,16 +444,79 @@ function modify_omni {
     ' modules/BrowserContentHandler.sys.mjs
 }
 
+#
+# Make various modifications to the stock Firefox app
+#
+function modify_omni_modified {
+	platform=$1
+
+	# mkdir omni
+	# mv omni.ja omni
+	cd omni
+	# omni.ja is an "optimized" ZIP file, so use a script from Mozilla to avoid a warning from unzip
+	# here and to make it work after rezipping below
+	# python3 "$APP_ROOT_DIR/scripts/optimizejars.py" --deoptimize ./ ./ ./
+	# rm -f omni.ja.log
+	# unzip omni.ja
+	# rm omni.ja
+
+	# rm -r chrome/pdfjs
+
+	# rm -r modules/narrate
+	# rm -r modules/translation
+
+	# rm actors/AboutTranslations{Parent,Child}.sys.mjs
+	# rm actors/CookieBanner{Parent,Child}.sys.mjs
+	# rm actors/PictureInPictureChild.sys.mjs
+	# rm actors/ThumbnailsChild.sys.mjs
+	# rm actors/Translations{Engine,}{Parent,Child}.sys.mjs
+
+	rm -rf omni.ja ../omni.ja
+	zip -qr9XD omni.ja *
+	mv omni.ja ..
+	cd ..
+	python3 "$APP_ROOT_DIR/scripts/optimizejars.py" --optimize ./ ./ ./
+	# rm -rf omni
+
+	# # Unzip browser/omni.ja and leave unzipped
+	# cd browser
+	# mkdir omni
+	# mv omni.ja omni
+	# cd omni
+	# ls -la
+	# set +e
+	# unzip omni.ja
+	# set -e
+	# rm omni.ja
+
+	# # Remove Firefox update URLs
+	# remove_line 'pref\("app.update.url.(manual|details)' defaults/preferences/firefox-branding.js
+
+	# # Remove Firefox overrides (e.g., to use Firefox-specific strings for connection errors)
+	# remove_line '(override)' chrome/chrome.manifest
+
+	# # Remove WebExtension APIs
+	# remove_line ext-browser.json components/components.manifest
+
+	# # Don't open a second window if app is already open when launching .exe (Windows) or running via
+	# # command line (macOS)
+	# replace_line 'function dch_handle\(cmdLine\) \{' 'function dch_handle(cmdLine) {
+    # if (cmdLine.state == Ci.nsICommandLine.STATE_REMOTE_AUTO) { return; }
+    # ' modules/BrowserContentHandler.sys.mjs
+}
+
 mkdir -p xulrunner
 cd xulrunner
 
 if [ $BUILD_MAC == 1 ]; then
 	GECKO_VERSION="$GECKO_VERSION_MAC"
 	DOWNLOAD_URL="https://ftp.mozilla.org/pub/firefox/releases/$GECKO_VERSION"
+	# FIXME
 	rm -rf Firefox.app
-	
+
 	if [ -e "Firefox $GECKO_VERSION.app.zip" ]; then
 		echo "Using Firefox $GECKO_VERSION.app.zip"
+		# FIXME
 		unzip "Firefox $GECKO_VERSION.app.zip"
 	else
 		curl -o Firefox.dmg "$DOWNLOAD_URL/mac/en-US/Firefox%20$GECKO_VERSION.dmg"
@@ -495,7 +559,9 @@ if [ $BUILD_MAC == 1 ]; then
 	fi
 	
 	pushd Firefox.app/Contents/Resources
+	# FIXME
 	modify_omni mac
+	# modify_omni_modified mac
 	popd
 	
 	# Replace "FirefoxCP" with "ZoteroCP" for subprocesses ("Isolated Web Content", "Socket Process", "Web Content", etc.)
