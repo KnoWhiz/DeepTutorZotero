@@ -4156,6 +4156,739 @@ The system will automatically:
     }
 
     /**
+     * ============================================================================
+     * USAGE TRACKING BACKUP SYSTEM - DO NOT USE IN PRODUCTION
+     * ============================================================================
+     * This is a backup implementation of user behavior tracking for DeepTutor.
+     * Contains all necessary methods for tracking user interactions, preferences,
+     * and usage patterns. This system is designed to be integrated with Claude
+     * requests to provide personalized responses based on user behavior.
+     * 
+     * WARNING: This is a backup/reference implementation. Do not activate without
+     * proper user consent and privacy considerations.
+     * ============================================================================
+     */
+
+    /**
+     * Initialize usage tracking system (BACKUP - DO NOT USE)
+     * Sets up data structures and loads existing tracking data
+     */
+    initializeUsageTracking() {
+        // DO NOT USE - BACKUP IMPLEMENTATION ONLY
+        if (this.usageTrackingEnabled) {
+            Zotero.debug("DeepTutorClaudeManagement: Usage tracking is DISABLED - this is backup code only");
+            return;
+        }
+
+        this.usageTrackingData = {
+            // Collection access tracking
+            collectionAccess: new Map(),
+            // Item view tracking  
+            itemViews: new Map(),
+            // Tag usage tracking
+            tagUsage: new Map(),
+            // Search query tracking
+            searchQueries: new Map(),
+            // DeepTutor feature usage
+            deepTutorInteractions: new Map(),
+            // User preferences tracking
+            preferenceChanges: new Map(),
+            // Session tracking
+            sessionData: new Map(),
+            // Document analysis tracking
+            documentAnalysis: new Map(),
+            // Last updated timestamp
+            lastUpdated: new Date().toISOString()
+        };
+
+        // Load existing tracking data from preferences
+        this.loadUsageTrackingFromPrefs();
+        
+        // Set up periodic cleanup and export
+        this.setupUsageTrackingMaintenance();
+        
+        Zotero.debug("DeepTutorClaudeManagement: Usage tracking system initialized (BACKUP MODE)");
+    }
+
+    /**
+     * Load usage tracking data from Zotero preferences (BACKUP - DO NOT USE)
+     */
+    loadUsageTrackingFromPrefs() {
+        // DO NOT USE - BACKUP IMPLEMENTATION ONLY
+        try {
+            const savedData = Zotero.Prefs.get('deeptutor.usage.tracking.backup');
+            if (savedData) {
+                const parsed = JSON.parse(savedData);
+                
+                // Restore Maps from serialized objects
+                this.usageTrackingData.collectionAccess = new Map(Object.entries(parsed.collectionAccess || {}));
+                this.usageTrackingData.itemViews = new Map(Object.entries(parsed.itemViews || {}));
+                this.usageTrackingData.tagUsage = new Map(Object.entries(parsed.tagUsage || {}));
+                this.usageTrackingData.searchQueries = new Map(Object.entries(parsed.searchQueries || {}));
+                this.usageTrackingData.deepTutorInteractions = new Map(Object.entries(parsed.deepTutorInteractions || {}));
+                this.usageTrackingData.preferenceChanges = new Map(Object.entries(parsed.preferenceChanges || {}));
+                this.usageTrackingData.sessionData = new Map(Object.entries(parsed.sessionData || {}));
+                this.usageTrackingData.documentAnalysis = new Map(Object.entries(parsed.documentAnalysis || {}));
+                
+                Zotero.debug("DeepTutorClaudeManagement: Loaded usage tracking data from preferences (BACKUP)");
+            }
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error loading usage tracking data: ${error.message}`);
+        }
+    }
+
+    /**
+     * Save usage tracking data to Zotero preferences (BACKUP - DO NOT USE)
+     */
+    saveUsageTrackingToPrefs() {
+        // DO NOT USE - BACKUP IMPLEMENTATION ONLY
+        try {
+            this.usageTrackingData.lastUpdated = new Date().toISOString();
+            
+            const serializedData = JSON.stringify({
+                collectionAccess: Object.fromEntries(this.usageTrackingData.collectionAccess),
+                itemViews: Object.fromEntries(this.usageTrackingData.itemViews),
+                tagUsage: Object.fromEntries(this.usageTrackingData.tagUsage),
+                searchQueries: Object.fromEntries(this.usageTrackingData.searchQueries),
+                deepTutorInteractions: Object.fromEntries(this.usageTrackingData.deepTutorInteractions),
+                preferenceChanges: Object.fromEntries(this.usageTrackingData.preferenceChanges),
+                sessionData: Object.fromEntries(this.usageTrackingData.sessionData),
+                documentAnalysis: Object.fromEntries(this.usageTrackingData.documentAnalysis),
+                lastUpdated: this.usageTrackingData.lastUpdated
+            });
+            
+            Zotero.Prefs.set('deeptutor.usage.tracking.backup', serializedData);
+            Zotero.debug("DeepTutorClaudeManagement: Saved usage tracking data to preferences (BACKUP)");
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error saving usage tracking data: ${error.message}`);
+        }
+    }
+
+    /**
+     * Track collection access (BACKUP - DO NOT USE)
+     * @param {number} collectionID - ID of the collection
+     * @param {string} collectionName - Name of the collection
+     * @param {string} action - Type of action (select, browse, etc.)
+     */
+    trackCollectionAccess(collectionID, collectionName, action = 'select') {
+        // DO NOT USE - BACKUP IMPLEMENTATION ONLY
+        if (!this.usageTrackingEnabled) return;
+        
+        const key = `collection_${collectionID}`;
+        const current = this.usageTrackingData.collectionAccess.get(key) || {
+            id: collectionID,
+            name: collectionName,
+            accessCount: 0,
+            lastAccess: null,
+            actions: []
+        };
+        
+        current.accessCount++;
+        current.lastAccess = new Date().toISOString();
+        current.actions.push({
+            action: action,
+            timestamp: new Date().toISOString()
+        });
+        
+        // Keep only last 50 actions to prevent data bloat
+        if (current.actions.length > 50) {
+            current.actions = current.actions.slice(-50);
+        }
+        
+        this.usageTrackingData.collectionAccess.set(key, current);
+        this.saveUsageTrackingToPrefs();
+    }
+
+    /**
+     * Track item view/interaction (BACKUP - DO NOT USE)
+     * @param {number} itemID - ID of the item
+     * @param {string} itemTitle - Title of the item
+     * @param {string} itemType - Type of item (journalArticle, book, etc.)
+     * @param {string} action - Type of action (view, select, open, etc.)
+     */
+    trackItemView(itemID, itemTitle, itemType, action = 'view') {
+        // DO NOT USE - BACKUP IMPLEMENTATION ONLY
+        if (!this.usageTrackingEnabled) return;
+        
+        const key = `item_${itemID}`;
+        const current = this.usageTrackingData.itemViews.get(key) || {
+            id: itemID,
+            title: itemTitle,
+            type: itemType,
+            viewCount: 0,
+            lastView: null,
+            actions: []
+        };
+        
+        current.viewCount++;
+        current.lastView = new Date().toISOString();
+        current.actions.push({
+            action: action,
+            timestamp: new Date().toISOString()
+        });
+        
+        // Keep only last 30 actions per item
+        if (current.actions.length > 30) {
+            current.actions = current.actions.slice(-30);
+        }
+        
+        this.usageTrackingData.itemViews.set(key, current);
+        this.saveUsageTrackingToPrefs();
+    }
+
+    /**
+     * Track tag usage (BACKUP - DO NOT USE)
+     * @param {string} tagName - Name of the tag
+     * @param {number} itemID - ID of the item being tagged
+     * @param {string} action - Type of action (add, remove, search)
+     */
+    trackTagUsage(tagName, itemID, action = 'add') {
+        // DO NOT USE - BACKUP IMPLEMENTATION ONLY
+        if (!this.usageTrackingEnabled) return;
+        
+        const key = `tag_${tagName}`;
+        const current = this.usageTrackingData.tagUsage.get(key) || {
+            name: tagName,
+            usageCount: 0,
+            lastUsed: null,
+            items: new Set(),
+            actions: []
+        };
+        
+        current.usageCount++;
+        current.lastUsed = new Date().toISOString();
+        current.items.add(itemID);
+        current.actions.push({
+            action: action,
+            itemID: itemID,
+            timestamp: new Date().toISOString()
+        });
+        
+        // Keep only last 100 actions per tag
+        if (current.actions.length > 100) {
+            current.actions = current.actions.slice(-100);
+        }
+        
+        this.usageTrackingData.tagUsage.set(key, current);
+        this.saveUsageTrackingToPrefs();
+    }
+
+    /**
+     * Track DeepTutor feature usage (BACKUP - DO NOT USE)
+     * @param {string} feature - Name of the feature used
+     * @param {Object} metadata - Additional metadata about the usage
+     */
+    trackDeepTutorInteraction(feature, metadata = {}) {
+        // DO NOT USE - BACKUP IMPLEMENTATION ONLY
+        if (!this.usageTrackingEnabled) return;
+        
+        const key = `feature_${feature}`;
+        const current = this.usageTrackingData.deepTutorInteractions.get(key) || {
+            feature: feature,
+            usageCount: 0,
+            lastUsed: null,
+            sessions: new Set(),
+            metadata: []
+        };
+        
+        current.usageCount++;
+        current.lastUsed = new Date().toISOString();
+        current.sessions.add(metadata.sessionId || 'unknown');
+        current.metadata.push({
+            ...metadata,
+            timestamp: new Date().toISOString()
+        });
+        
+        // Keep only last 200 interactions per feature
+        if (current.metadata.length > 200) {
+            current.metadata = current.metadata.slice(-200);
+        }
+        
+        this.usageTrackingData.deepTutorInteractions.set(key, current);
+        this.saveUsageTrackingToPrefs();
+    }
+
+    /**
+     * Track document analysis (BACKUP - DO NOT USE)
+     * @param {number} itemID - ID of the document analyzed
+     * @param {string} analysisType - Type of analysis performed
+     * @param {Object} results - Analysis results metadata
+     */
+    trackDocumentAnalysis(itemID, analysisType, results = {}) {
+        // DO NOT USE - BACKUP IMPLEMENTATION ONLY
+        if (!this.usageTrackingEnabled) return;
+        
+        const key = `analysis_${itemID}_${analysisType}`;
+        const current = this.usageTrackingData.documentAnalysis.get(key) || {
+            itemID: itemID,
+            analysisType: analysisType,
+            analysisCount: 0,
+            lastAnalysis: null,
+            results: []
+        };
+        
+        current.analysisCount++;
+        current.lastAnalysis = new Date().toISOString();
+        current.results.push({
+            ...results,
+            timestamp: new Date().toISOString()
+        });
+        
+        // Keep only last 50 analyses per document/type combination
+        if (current.results.length > 50) {
+            current.results = current.results.slice(-50);
+        }
+        
+        this.usageTrackingData.documentAnalysis.set(key, current);
+        this.saveUsageTrackingToPrefs();
+    }
+
+    /**
+     * Generate usage statistics report (BACKUP - DO NOT USE)
+     * @returns {Object} Comprehensive usage statistics
+     */
+    generateUsageStatistics() {
+        // DO NOT USE - BACKUP IMPLEMENTATION ONLY
+        if (!this.usageTrackingEnabled) return null;
+        
+        const stats = {
+            timestamp: new Date().toISOString(),
+            summary: {
+                totalCollectionAccesses: 0,
+                totalItemViews: 0,
+                totalTagUsages: 0,
+                totalDeepTutorInteractions: 0,
+                totalDocumentAnalyses: 0
+            },
+            topCollections: [],
+            topItems: [],
+            topTags: [],
+            topFeatures: [],
+            recentActivity: []
+        };
+        
+        // Calculate collection statistics
+        for (const [key, data] of this.usageTrackingData.collectionAccess) {
+            stats.summary.totalCollectionAccesses += data.accessCount;
+            stats.topCollections.push({
+                id: data.id,
+                name: data.name,
+                accessCount: data.accessCount,
+                lastAccess: data.lastAccess
+            });
+        }
+        
+        // Calculate item statistics
+        for (const [key, data] of this.usageTrackingData.itemViews) {
+            stats.summary.totalItemViews += data.viewCount;
+            stats.topItems.push({
+                id: data.id,
+                title: data.title,
+                type: data.type,
+                viewCount: data.viewCount,
+                lastView: data.lastView
+            });
+        }
+        
+        // Calculate tag statistics
+        for (const [key, data] of this.usageTrackingData.tagUsage) {
+            stats.summary.totalTagUsages += data.usageCount;
+            stats.topTags.push({
+                name: data.name,
+                usageCount: data.usageCount,
+                lastUsed: data.lastUsed,
+                uniqueItems: data.items.size
+            });
+        }
+        
+        // Calculate feature statistics
+        for (const [key, data] of this.usageTrackingData.deepTutorInteractions) {
+            stats.summary.totalDeepTutorInteractions += data.usageCount;
+            stats.topFeatures.push({
+                feature: data.feature,
+                usageCount: data.usageCount,
+                lastUsed: data.lastUsed,
+                uniqueSessions: data.sessions.size
+            });
+        }
+        
+        // Calculate analysis statistics
+        for (const [key, data] of this.usageTrackingData.documentAnalysis) {
+            stats.summary.totalDocumentAnalyses += data.analysisCount;
+        }
+        
+        // Sort top lists
+        stats.topCollections.sort((a, b) => b.accessCount - a.accessCount);
+        stats.topItems.sort((a, b) => b.viewCount - a.viewCount);
+        stats.topTags.sort((a, b) => b.usageCount - a.usageCount);
+        stats.topFeatures.sort((a, b) => b.usageCount - a.usageCount);
+        
+        // Keep only top 10 of each
+        stats.topCollections = stats.topCollections.slice(0, 10);
+        stats.topItems = stats.topItems.slice(0, 10);
+        stats.topTags = stats.topTags.slice(0, 10);
+        stats.topFeatures = stats.topFeatures.slice(0, 10);
+        
+        return stats;
+    }
+
+    /**
+     * Export usage data to markdown file (BACKUP - DO NOT USE)
+     * @param {string} filePath - Path to save the markdown file
+     */
+    async exportUsageDataToMarkdown(filePath) {
+        // DO NOT USE - BACKUP IMPLEMENTATION ONLY
+        if (!this.usageTrackingEnabled) return;
+        
+        try {
+            const stats = this.generateUsageStatistics();
+            if (!stats) return;
+            
+            const markdown = this.formatUsageDataAsMarkdown(stats);
+            await this.writeTextFile(filePath, markdown);
+            Zotero.debug(`DeepTutorClaudeManagement: Exported usage data to ${filePath} (BACKUP)`);
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error exporting usage data: ${error.message}`);
+        }
+    }
+
+    /**
+     * Format usage data as markdown (BACKUP - DO NOT USE)
+     * @param {Object} stats - Usage statistics object
+     * @returns {string} Formatted markdown content
+     */
+    formatUsageDataAsMarkdown(stats) {
+        // DO NOT USE - BACKUP IMPLEMENTATION ONLY
+        const markdown = `# DeepTutor Usage Report (BACKUP)
+
+Generated: ${stats.timestamp}
+
+## Summary
+- Total Collection Accesses: ${stats.summary.totalCollectionAccesses}
+- Total Item Views: ${stats.summary.totalItemViews}
+- Total Tag Usages: ${stats.summary.totalTagUsages}
+- Total DeepTutor Interactions: ${stats.summary.totalDeepTutorInteractions}
+- Total Document Analyses: ${stats.summary.totalDocumentAnalyses}
+
+## Top Collections
+${stats.topCollections.map(col => `- **${col.name}**: ${col.accessCount} accesses (last: ${col.lastAccess})`).join('\n')}
+
+## Top Items
+${stats.topItems.map(item => `- **${item.title}** (${item.type}): ${item.viewCount} views (last: ${item.lastView})`).join('\n')}
+
+## Top Tags
+${stats.topTags.map(tag => `- **${tag.name}**: ${tag.usageCount} uses, ${tag.uniqueItems} unique items (last: ${tag.lastUsed})`).join('\n')}
+
+## Top DeepTutor Features
+${stats.topFeatures.map(feature => `- **${feature.feature}**: ${feature.usageCount} uses, ${feature.uniqueSessions} sessions (last: ${feature.lastUsed})`).join('\n')}
+
+---
+*This is a backup usage tracking report. Data collection is disabled by default.*
+`;
+
+        return markdown;
+    }
+
+    /**
+     * Setup maintenance tasks for usage tracking (BACKUP - DO NOT USE)
+     */
+    setupUsageTrackingMaintenance() {
+        // DO NOT USE - BACKUP IMPLEMENTATION ONLY
+        if (!this.usageTrackingEnabled) return;
+        
+        // Clean up old data every 24 hours
+        setInterval(() => {
+            this.cleanupOldUsageData();
+        }, 24 * 60 * 60 * 1000);
+        
+        // Export data every 7 days
+        setInterval(async () => {
+            const exportPath = this.getUserDataPath() + '/usage_report_backup.md';
+            await this.exportUsageDataToMarkdown(exportPath);
+        }, 7 * 24 * 60 * 60 * 1000);
+    }
+
+    /**
+     * Clean up old usage data (BACKUP - DO NOT USE)
+     */
+    cleanupOldUsageData() {
+        // DO NOT USE - BACKUP IMPLEMENTATION ONLY
+        if (!this.usageTrackingEnabled) return;
+        
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - 90); // Keep 90 days of data
+        
+        // Clean up old collection access data
+        for (const [key, data] of this.usageTrackingData.collectionAccess) {
+            if (new Date(data.lastAccess) < cutoffDate) {
+                this.usageTrackingData.collectionAccess.delete(key);
+            }
+        }
+        
+        // Clean up old item view data
+        for (const [key, data] of this.usageTrackingData.itemViews) {
+            if (new Date(data.lastView) < cutoffDate) {
+                this.usageTrackingData.itemViews.delete(key);
+            }
+        }
+        
+        this.saveUsageTrackingToPrefs();
+        Zotero.debug("DeepTutorClaudeManagement: Cleaned up old usage data (BACKUP)");
+    }
+
+    /**
+     * Get usage data for Claude integration (BACKUP - DO NOT USE)
+     * @returns {Object} Formatted usage data for Claude requests
+     */
+    getUserUsageDataForClaude() {
+        // DO NOT USE - BACKUP IMPLEMENTATION ONLY
+        if (!this.usageTrackingEnabled) return null;
+        
+        const stats = this.generateUsageStatistics();
+        if (!stats) return null;
+        
+        return {
+            userProfile: {
+                researchPatterns: {
+                    mostUsedCollections: stats.topCollections.slice(0, 5),
+                    mostViewedItems: stats.topItems.slice(0, 5),
+                    mostUsedTags: stats.topTags.slice(0, 5),
+                    preferredItemTypes: this.getPreferredItemTypes()
+                },
+                deepTutorUsage: {
+                    mostUsedFeatures: stats.topFeatures.slice(0, 5),
+                    totalInteractions: stats.summary.totalDeepTutorInteractions,
+                    analysisPatterns: this.getAnalysisPatterns()
+                },
+                activityLevel: this.getActivityLevel(stats),
+                lastUpdated: stats.timestamp
+            }
+        };
+    }
+
+    /**
+     * Get preferred item types from usage data (BACKUP - DO NOT USE)
+     * @returns {Array} Array of preferred item types
+     */
+    getPreferredItemTypes() {
+        // DO NOT USE - BACKUP IMPLEMENTATION ONLY
+        const typeCounts = {};
+        
+        for (const [key, data] of this.usageTrackingData.itemViews) {
+            typeCounts[data.type] = (typeCounts[data.type] || 0) + data.viewCount;
+        }
+        
+        return Object.entries(typeCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([type, count]) => ({ type, count }));
+    }
+
+    /**
+     * Get analysis patterns from usage data (BACKUP - DO NOT USE)
+     * @returns {Array} Array of analysis patterns
+     */
+    getAnalysisPatterns() {
+        // DO NOT USE - BACKUP IMPLEMENTATION ONLY
+        const analysisCounts = {};
+        
+        for (const [key, data] of this.usageTrackingData.documentAnalysis) {
+            analysisCounts[data.analysisType] = (analysisCounts[data.analysisType] || 0) + data.analysisCount;
+        }
+        
+        return Object.entries(analysisCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([type, count]) => ({ type, count }));
+    }
+
+    /**
+     * Get user activity level (BACKUP - DO NOT USE)
+     * @param {Object} stats - Usage statistics
+     * @returns {string} Activity level (low, medium, high)
+     */
+    getActivityLevel(stats) {
+        // DO NOT USE - BACKUP IMPLEMENTATION ONLY
+        const totalActivity = stats.summary.totalCollectionAccesses + 
+                            stats.summary.totalItemViews + 
+                            stats.summary.totalDeepTutorInteractions;
+        
+        if (totalActivity < 50) return 'low';
+        if (totalActivity < 200) return 'medium';
+        return 'high';
+    }
+
+    /**
+     * ============================================================================
+     * EVENT TRACKING ENDPOINT EXAMPLES (COMMENTED OUT - DO NOT USE)
+     * ============================================================================
+     * 
+     * These are examples of where to place tracking endpoints in the existing
+     * Zotero codebase. DO NOT uncomment or use these without proper implementation.
+     * ============================================================================
+     */
+
+    /*
+    // EXAMPLE 1: Collection Selection Tracking
+    // Location: chrome/content/zotero/zoteroPane.js, line ~1913
+    // In the onCollectionSelected function:
+    
+    this.onCollectionSelected = Zotero.serial(async function () {
+        var collectionTreeRow = this.getCollectionTreeRow();
+        if (!collectionTreeRow) {
+            Zotero.debug('ZoteroPane.onCollectionSelected: No selected collection found');
+            return;
+        }
+        
+        // ... existing Zotero logic ...
+        
+        // ADD TRACKING ENDPOINT HERE:
+        // if (window.DeepTutorClaudeManagement && window.DeepTutorClaudeManagement.usageTrackingEnabled) {
+        //     window.DeepTutorClaudeManagement.trackCollectionAccess(
+        //         collectionTreeRow.id, 
+        //         collectionTreeRow.getName(), 
+        //         'select'
+        //     );
+        // }
+        
+        this.itemsView.changeCollectionTreeRow(collectionTreeRow);
+    });
+    */
+
+    /*
+    // EXAMPLE 2: Item Selection Tracking
+    // Location: chrome/content/zotero/zoteroPane.js, line ~2041
+    // In the itemSelected function:
+    
+    this.itemSelected = function () {
+        return Zotero.Promise.coroutine(function* () {
+            // ... existing logic ...
+            
+            var selectedItems = this.itemsView.getSelectedObjects();
+            
+            // ADD TRACKING ENDPOINT HERE:
+            // if (window.DeepTutorClaudeManagement && window.DeepTutorClaudeManagement.usageTrackingEnabled) {
+            //     selectedItems.forEach(item => {
+            //         window.DeepTutorClaudeManagement.trackItemView(
+            //             item.id, 
+            //             item.getField('title'), 
+            //             item.itemTypeID, 
+            //             'select'
+            //     );
+            //     });
+            // }
+            
+            return this.itemPane.render();
+        }.bind(this))()
+    }
+    */
+
+    /*
+    // EXAMPLE 3: Tag Addition Tracking
+    // Location: chrome/content/zotero/xpcom/data/items.js
+    // In the addTag function:
+    
+    addTag: function (tag, type) {
+        // ... existing logic ...
+        
+        // ADD TRACKING ENDPOINT HERE:
+        // if (window.DeepTutorClaudeManagement && window.DeepTutorClaudeManagement.usageTrackingEnabled) {
+        //     window.DeepTutorClaudeManagement.trackTagUsage(tag, this.id, 'add');
+        // }
+        
+        return this.save();
+    }
+    */
+
+    /*
+    // EXAMPLE 4: DeepTutor Feature Usage Tracking
+    // Location: chrome/content/zotero/DeepTutorChatBox.js
+    // In the sendToAPI function:
+    
+    const sendToAPI = async (userMessage, context) => {
+        // ADD TRACKING ENDPOINT HERE:
+        // if (window.DeepTutorClaudeManagement && window.DeepTutorClaudeManagement.usageTrackingEnabled) {
+        //     window.DeepTutorClaudeManagement.trackDeepTutorInteraction('claude_query', {
+        //         messageLength: userMessage.length,
+        //         contextDocuments: context.length,
+        //         sessionId: sessionId,
+        //         timestamp: new Date().toISOString()
+        //     });
+        // }
+        
+        // ... existing API call logic ...
+    }
+    */
+
+    /*
+    // EXAMPLE 5: Document Analysis Tracking
+    // Location: chrome/content/zotero/DeepTutorClaudeManagement.js
+    // In the convertPDFToMarkdown function:
+    
+    async convertPDFToMarkdown(pdfFilePath) {
+        // ... existing logic ...
+        
+        // ADD TRACKING ENDPOINT HERE:
+        // if (this.usageTrackingEnabled) {
+        //     this.trackDocumentAnalysis(
+        //         attachmentItem.id, 
+        //         'pdf_conversion', 
+        //         {
+        //             fileSize: fileSize,
+        //             totalPages: totalPages,
+        //             extractedPages: extractedPages,
+        //             processingTime: Date.now() - startTime
+        //         }
+        //     );
+        // }
+        
+        return markdownContent;
+    }
+    */
+
+    /*
+    // EXAMPLE 6: Search Query Tracking
+    // Location: chrome/content/zotero/zoteroPane.js
+    // In search-related functions:
+    
+    this.performSearch = function(query) {
+        // ... existing search logic ...
+        
+        // ADD TRACKING ENDPOINT HERE:
+        // if (window.DeepTutorClaudeManagement && window.DeepTutorClaudeManagement.usageTrackingEnabled) {
+        //     window.DeepTutorClaudeManagement.trackSearchQuery(query, {
+        //         resultCount: results.length,
+        //         searchType: 'quick_search',
+        //         timestamp: new Date().toISOString()
+        //     });
+        // }
+        
+        return results;
+    }
+    */
+
+    /*
+    // EXAMPLE 7: Preference Change Tracking
+    // Location: chrome/content/zotero/preferences/
+    // In preference change handlers:
+    
+    onPreferenceChange = function(prefName, newValue, oldValue) {
+        // ... existing logic ...
+        
+        // ADD TRACKING ENDPOINT HERE:
+        // if (window.DeepTutorClaudeManagement && window.DeepTutorClaudeManagement.usageTrackingEnabled) {
+        //     window.DeepTutorClaudeManagement.trackPreferenceChange(prefName, newValue, oldValue);
+        // }
+    }
+    */
+
+    /**
+     * ============================================================================
+     * END OF USAGE TRACKING BACKUP SYSTEM
+     * ============================================================================
+     */
+
+    /**
      * Generate file hierarchy using direct SQL queries for better performance and reliability
      * Creates a hierarchical map structure based on parent/child relationships
      * @returns {Object} Complete hierarchy mapping object
