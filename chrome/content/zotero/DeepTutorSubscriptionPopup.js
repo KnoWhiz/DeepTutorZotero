@@ -18,7 +18,7 @@ const SubscriptionConfirmBookPath = "chrome://zotero/content/DeepTutorMaterials/
  * DeepTutorSubscriptionPopup
  * Popup to select plan: Free, Pro, Premium. Each tab shows different content and action.
  */
-export default function DeepTutorSubscriptionPopup({ onClose, onAction: _onAction, userId, activeSubscription, onRefreshSubscription }) {
+export default function DeepTutorSubscriptionPopup({ onClose, onAction: _onAction, userId, activeSubscription, onRefreshSubscription, currentUser, userData }) {
 	const { colors, isDark } = useDeepTutorTheme();
 	const closePath = isDark ? PopupCloseDarkPath : PopupClosePath;
 	const [currentPlan, setCurrentPlan] = useState(null); // 'free' | 'pro' | 'premium' | null
@@ -513,8 +513,12 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction: _onActio
 			
 			if (selectedLevel < currentLevel) {
 				// Downgrade - redirect to manage subscription page
-				//const manageUrl = `http://localhost:3000/dzSubscription?manage=true`;
-				const manageUrl = `https://${DT_BASE_URL}/dzSubscription?manage=true`;
+				let manageUrl = `http://localhost:3000/dzSubscription?manage=true`;
+				//let manageUrl = `https://${DT_BASE_URL}/dzSubscription?manage=true`;
+				// Append email and userId if available
+				const emailParam = currentUser && currentUser.email ? `&email=${encodeURIComponent(currentUser.email)}` : '';
+				const userIdParam = userData && userData.id ? `&userId=${encodeURIComponent(userData.id)}` : '';
+				manageUrl = `${manageUrl}${emailParam}${userIdParam}`;
 				try {
 					Zotero.launchURL(manageUrl);
 				}
@@ -536,12 +540,17 @@ export default function DeepTutorSubscriptionPopup({ onClose, onAction: _onActio
 			}
 			
 			// Regular upgrade action: open URL and show processing panel (do not delegate to parent)
-			//let url = `http://localhost:3000/dzSubscription?plan=premium`;
-			let url = `https://${DT_BASE_URL}/dzSubscription?plan=premium`;
+			let url = `http://localhost:3000/dzSubscription?plan=premium`;
+			//let url = `https://${DT_BASE_URL}/dzSubscription?plan=premium`;
 			if (activeTab === "pro") {
-				//url = `http://localhost:3000/dzSubscription?plan=pro`;
-				url = `https://${DT_BASE_URL}/dzSubscription?plan=pro`;
+				url = `http://localhost:3000/dzSubscription?plan=pro`;
+				//url = `https://${DT_BASE_URL}/dzSubscription?plan=pro`;
 			}
+			// Append email and userId if available
+			console.log("currentUser", currentUser);
+			const emailParam = currentUser && currentUser.email ? `&email=${encodeURIComponent(currentUser.email)}` : '';
+			const userIdParam = userData && userData.id ? `&userId=${encodeURIComponent(userData.id)}` : '';
+			url = `${url}${emailParam}${userIdParam}`;
 			openSubscriptionUrl(url);
 			setCurrentPanel("processing");
 		}
@@ -629,7 +638,13 @@ DeepTutorSubscriptionPopup.propTypes = {
 	activeSubscription: PropTypes.object,
 
 	/** Centralized refresh function to reload the user's active subscription from the server */
-	onRefreshSubscription: PropTypes.func
+	onRefreshSubscription: PropTypes.func,
+
+	/** Current authenticated user object (for email param) */
+	currentUser: PropTypes.object,
+
+	/** Full user data object (for userId param) */
+	userData: PropTypes.object
 };
 
 DeepTutorSubscriptionPopup.defaultProps = {

@@ -675,6 +675,8 @@ const DeepTutorMain = (props) => {
 						<DeepTutorSubscription
 							onClose={props.toggleSubscriptionConfirmPopup}
 							onSubscriptionStatusChange={props.handleSubscriptionStatusChange}
+							currentUser={props.currentUser}
+							userData={props.userData}
 						/>
 					</div>
 				</div>
@@ -697,8 +699,8 @@ const DeepTutorMain = (props) => {
 						onClose={props.toggleSubscriptionPopup}
 						onAction={(plan) => {
 							// Open different URLs based on selected plan
-							//let url = `http://localhost:3000/dzSubscription?plan=premium`;
-							let url = `https://${DT_BASE_URL}/dzSubscription?plan=premium`;
+							let url = `http://localhost:3000/dzSubscription?plan=premium`;
+							//let url = `https://${DT_BASE_URL}/dzSubscription?plan=premium`;
 							if (plan === 'pro') {
 								//url = `http://localhost:3000/dzSubscription?plan=pro`;
 								url = `https://${DT_BASE_URL}/dzSubscription?plan=pro`;
@@ -708,6 +710,11 @@ const DeepTutorMain = (props) => {
 								props.toggleSubscriptionPopup();
 								return;
 							}
+
+							// Append email and userId if available
+							const emailParam = props.currentUser && props.currentUser.email ? `&email=${encodeURIComponent(props.currentUser.email)}` : '';
+							const userIdParam = props.userData && props.userData.id ? `&userId=${encodeURIComponent(props.userData.id)}` : '';
+							url = `${url}${emailParam}${userIdParam}`;
 
 							try {
 								Zotero.launchURL(url);
@@ -741,6 +748,8 @@ const DeepTutorMain = (props) => {
 						userId={props.userData && props.userData.id}
 						activeSubscription={props.activeSubscription}
 						onRefreshSubscription={props.refreshActiveSubscription}
+						currentUser={props.currentUser}
+						userData={props.userData}
 					/>
 				</div>
 			)}
@@ -790,6 +799,8 @@ const DeepTutorMain = (props) => {
 							onClose={props.toggleManageSubscriptionPopup}
 							onSubscriptionStatusChange={props.handleSubscriptionStatusChange}
 							isManageMode={true}
+							currentUser={props.currentUser}
+							userData={props.userData}
 						/>
 					</div>
 				</div>

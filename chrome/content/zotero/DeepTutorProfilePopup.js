@@ -101,13 +101,19 @@ function DeepTutorProfilePopup({
 	 */
 	const handleManageSubscription = () => {
 		try {
-			// Launch the manage subscription URL directly
-			const manageUrl = `https://${DT_BASE_URL}/dzSubscription?manage=true`;
+			// Launch the manage subscription URL directly, append email and userId if available
+			let manageUrl = `https://${DT_BASE_URL}/dzSubscription?manage=true`;
+			const emailParam = currentUser && currentUser.email ? `&email=${encodeURIComponent(currentUser.email)}` : '';
+			const userIdParam = userData && userData.id ? `&userId=${encodeURIComponent(userData.id)}` : '';
+			manageUrl = `${manageUrl}${emailParam}${userIdParam}`;
 			Zotero.launchURL(manageUrl);
 		} catch (error) {
 			Zotero.debug(`DeepTutor: Error opening manage subscription URL: ${error.message}`);
 			// Fallback to clipboard if URL opening fails
-			const manageUrl = `https://${DT_BASE_URL}/dzSubscription?manage=true`;
+			let manageUrl = `https://${DT_BASE_URL}/dzSubscription?manage=true`;
+			const emailParam = currentUser && currentUser.email ? `&email=${encodeURIComponent(currentUser.email)}` : '';
+			const userIdParam = userData && userData.id ? `&userId=${encodeURIComponent(userData.id)}` : '';
+			manageUrl = `${manageUrl}${emailParam}${userIdParam}`;
 			if (navigator.clipboard) {
 				navigator.clipboard.writeText(manageUrl).then(() => {
 					Zotero.alert(null, "DeepTutor", "Manage subscription URL copied to clipboard!");

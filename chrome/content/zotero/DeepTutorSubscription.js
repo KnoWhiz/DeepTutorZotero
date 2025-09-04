@@ -47,7 +47,9 @@ class DeepTutorSubscription extends React.Component {
 		userId: PropTypes.string,
 		activeSubscription: PropTypes.object,
 		toggleSubscriptionPopup: PropTypes.func,
-		onSubscriptionStatusChange: PropTypes.func
+		onSubscriptionStatusChange: PropTypes.func,
+		currentUser: PropTypes.object,
+		userData: PropTypes.object
 	};
 
 	static defaultProps = {
@@ -71,7 +73,13 @@ class DeepTutorSubscription extends React.Component {
 	 * Handles upgrade success and shows confirmation panel
 	 */
 	handleUpgradeSuccess = () => {
-		Zotero.launchURL(`https://${DT_BASE_URL}/dzSubscription`);
+		// Append email and userId params if available
+		let url = `http://localhost:3000/dzSubscription`;
+		//let url = `https://${DT_BASE_URL}/dzSubscription`;
+		const emailParam = this.props.currentUser && this.props.currentUser.email ? `?email=${encodeURIComponent(this.props.currentUser.email)}` : '';
+		const userIdParam = this.props.userData && this.props.userData.id ? `${emailParam ? '&' : '?'}userId=${encodeURIComponent(this.props.userData.id)}` : '';
+		url = `${url}${emailParam}${userIdParam}`;
+		Zotero.launchURL(url);
 		this.setState({ currentPanel: "confirm" });
 	};
 
@@ -89,7 +97,12 @@ class DeepTutorSubscription extends React.Component {
 	 */
 	handleManageSubscription = () => {
 		this.setState({ currentPanel: "main" });
-		Zotero.launchURL(`https://${DT_BASE_URL}/dzSubscription?manage=true`);
+		//let manageUrl = `https://${DT_BASE_URL}/dzSubscription?manage=true`;
+		let manageUrl = `http://localhost:3000/dzSubscription?manage=true`;
+		const emailParam = this.props.currentUser && this.props.currentUser.email ? `&email=${encodeURIComponent(this.props.currentUser.email)}` : '';
+		const userIdParam = this.props.userData && this.props.userData.id ? `&userId=${encodeURIComponent(this.props.userData.id)}` : '';
+		manageUrl = `${manageUrl}${emailParam}${userIdParam}`;
+		Zotero.launchURL(manageUrl);
 		this.props.toggleSubscriptionPopup();
 	};
 
@@ -108,7 +121,13 @@ class DeepTutorSubscription extends React.Component {
 	};
 
 	handleShowProcessing = () => {
-		const url = `https://${DT_BASE_URL}/dzSubscription`;
+		//let url = `https://${DT_BASE_URL}/dzSubscription`;
+		let url = `http://localhost:3000/dzSubscription`;
+
+
+		const emailParam = this.props.currentUser && this.props.currentUser.email ? `?email=${encodeURIComponent(this.props.currentUser.email)}` : '';
+		const userIdParam = this.props.userData && this.props.userData.id ? `${emailParam ? '&' : '?'}userId=${encodeURIComponent(this.props.userData.id)}` : '';
+		url = `${url}${emailParam}${userIdParam}`;
 		
 		try {
 			// Primary: Use Zotero's proper API for opening external URLs
