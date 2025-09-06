@@ -174,6 +174,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 			showRenamePopup: false,
 			showNoPDFWarningPopup: false,
 			showFileSizeWarningPopup: false,
+			showPageLimitWarningPopup: false,
 			showNoteSavePopup: false,
 			sessionToDelete: null,
 			sessionNameToDelete: '',
@@ -667,6 +668,23 @@ var DeepTutor = class DeepTutor extends React.Component {
 		catch (e) {
 			Zotero.debug(`DeepTutor: Error opening file size warning popup: ${e.message}`);
 		}
+	};
+
+	openPageLimitWarningPopup = () => {
+		try {
+			this.setState({
+				showPageLimitWarningPopup: true
+			});
+		}
+		catch (e) {
+			Zotero.debug(`DeepTutor: Error opening page limit warning popup: ${e.message}`);
+		}
+	};
+
+	closePageLimitWarningPopup = () => {
+		this.setState({
+			showPageLimitWarningPopup: false,
+		});
 	};
 
 	closeFileSizeWarningPopup = () => {
@@ -1674,6 +1692,11 @@ var DeepTutor = class DeepTutor extends React.Component {
 				showFileSizeWarningPopup={this.state.showFileSizeWarningPopup}
 				openFileSizeWarningPopup={this.openFileSizeWarningPopup}
 				closeFileSizeWarningPopup={this.closeFileSizeWarningPopup}
+
+				// Page limit warning popup
+				showPageLimitWarningPopup={this.state.showPageLimitWarningPopup}
+				openPageLimitWarningPopup={this.openPageLimitWarningPopup}
+				closePageLimitWarningPopup={this.closePageLimitWarningPopup}
 				
 				// Note save popup handlers
 				handleShowNoteSavePopup={this.showNoteSavePopup}

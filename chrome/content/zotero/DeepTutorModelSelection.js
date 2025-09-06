@@ -36,7 +36,7 @@ const SessionType = {
 };
 
 
-const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, onShowNoPDFWarning, subscriptionType, onShowFileSizeWarning, usageSummary, hasActiveSubscription, onShowSubscriptionPopup, refreshUsageSummary }, ref) => {
+const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, onShowNoPDFWarning, subscriptionType, onShowFileSizeWarning, onShowPageLimitWarning, usageSummary, hasActiveSubscription, onShowSubscriptionPopup, refreshUsageSummary }, ref) => {
 	const { colors, theme, isDark } = useDeepTutorTheme();
 	
 	// Theme-aware styles
@@ -652,6 +652,38 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 		}
 	};
 
+	// Temporary testing page limit; set to 500 for production
+	const getPageLimit = () => {
+		// For testing now, return 20; actual number should be 500
+		return 500;
+	};
+
+	// Validate page count using PDFWorker.getFullText to access totalPages
+	const validatePageCount = async (pdf, fileName = null) => {
+		try {
+			// Extract minimal metadata by requesting 1 page; totalPages is included in response
+			const { totalPages } = await Zotero.PDFWorker.getFullText(pdf.id, 1);
+			if (typeof totalPages === 'number') {
+				const limit = getPageLimit();
+				if (totalPages > limit) {
+					const displayName = fileName || pdf.name || 'PDF';
+					Zotero.debug(`ModelSelection: File ${displayName} exceeds page limit: ${totalPages} > ${limit}`);
+					if (typeof onShowPageLimitWarning === 'function') {
+						onShowPageLimitWarning({ fileName: displayName, pageCount: totalPages, pageLimit: limit });
+					}
+					return false; // Page count validation failed
+				}
+			}
+			return true;
+		}
+		catch (e) {
+			const displayName = fileName || pdf.name || 'PDF';
+			Zotero.debug(`ModelSelection: Could not check page count for ${displayName}: ${e.message}`);
+			// Continue processing if we can't check pages
+			return true;
+		}
+	};
+
 	// Note: getFileSizeLimitBytes helper removed (unused)
 	// Check if adding more files would exceed the limit
 	const canAddMoreFiles = () => {
@@ -838,6 +870,12 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 				// Check file size before adding (after resolving fileName)
 				const isFileSizeValid = await validateFileSize(item, fileName);
 				if (!isFileSizeValid) {
+					return;
+				}
+
+				// Check page count limit
+				const isPageCountValid = await validatePageCount(item, fileName);
+				if (!isPageCountValid) {
 					return;
 				}
 
@@ -1029,6 +1067,12 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 				const isFileSizeValid = await validateFileSize(pdf);
 				if (!isFileSizeValid) {
 					continue; // Skip this file and try the next one
+				}
+
+				// Check page count limit
+				const isPageCountValid = await validatePageCount(pdf);
+				if (!isPageCountValid) {
+					continue;
 				}
 
 				// Safe filename resolution with error handling
@@ -1429,6 +1473,12 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 						if (!isFileSizeValid) {
 							return null;
 						}
+
+						// Check page count limit
+						const isPageCountValid = await validatePageCount(pdf);
+						if (!isPageCountValid) {
+							return null;
+						}
 						
 						const { text } = await Zotero.PDFWorker.getFullText(pdf.id);
 						if (text) {
@@ -1777,7 +1827,7 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 				{isEffectivelyFrozen ? 'Initializing...' : 'Create'}
 			</button>
 
-			{/* File size warning handled by DeepTutorMain overlay */}
+			{/* File size and page limit warnings handled by DeepTutorMain overlay */}
 		</div>
 	);
 });
@@ -1801,6 +1851,9 @@ ModelSelection.propTypes = {
 	/** Callback to show file size warning popup in parent */
 	onShowFileSizeWarning: PropTypes.func,
 
+	/** Callback to show page limit warning popup in parent */
+	onShowPageLimitWarning: PropTypes.func,
+
 	/** User's subscription type (BASIC, PLUS, PREMIUM) */
 	subscriptionType: PropTypes.string,
 
@@ -1821,6 +1874,7 @@ ModelSelection.defaultProps = {
 	externallyFrozen: false,
 	onShowNoPDFWarning: undefined,
 	onShowFileSizeWarning: undefined,
+	onShowPageLimitWarning: undefined,
 
 	// Default to BASIC (free) if not provided
 	subscriptionType: "BASIC",
