@@ -1035,7 +1035,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange }) => {
 				}
 
 				Zotero.debug(`DeepTutorChatBox: Calling ClaudeCliWrapper.runClaude with cwd="${workingDir}"`);
-				const res = await ClaudeCliWrapper.runClaude([], workingDir, composedText, noteContainer, SaveClaudeResponse, ClaudeSysPrompt);
+				const res = await ClaudeCliWrapper.runClaude([], workingDir, composedText, noteContainer, SaveClaudeResponse, ClaudeSysPrompt, true);
 				Zotero.debug(`DeepTutorChatBox: Claude CLI result: ${JSON.stringify(res)}`);
 				if (!res) {
 					Zotero.debug(`DeepTutorChatBox: Claude CLI result is null`);

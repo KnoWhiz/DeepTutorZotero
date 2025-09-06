@@ -617,6 +617,22 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			return '';
 		}
 	});
+	const [openaiApiKey, setOpenaiApiKey] = useState(() => {
+		try {
+			return Zotero.Prefs.get('deeptutor.openai.apiKey') || '';
+		} catch (e) {
+			Zotero.debug(e);
+			return '';
+		}
+	});
+	const [cliChoice, setCliChoice] = useState(() => {
+		try {
+			return Zotero.Prefs.get('deeptutor.cli.choice') || 'claude';
+		} catch (e) {
+			Zotero.debug(e);
+			return 'claude';
+		}
+	});
 	const [agenticSystemPrompt, setAgenticSystemPrompt] = useState(DEFAULT_SYS_QA_PROMPT);
 	// Comment out Zotero.Prefs fetching - prioritize default prompt and rely on component state
 	// const [agenticSystemPrompt, setAgenticSystemPrompt] = useState(() => {
@@ -1090,7 +1106,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 				setWaitingStreaming(true);
 			}
 		}, 100); // Small delay to ensure state updates are processed
-	}, [currentSession, messages, checkTime]);
+	}, [currentSession, checkTime]);
 
 
 	// Handle message updates
@@ -1411,7 +1427,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 				}
 
 				Zotero.debug(`DeepTutorChatBox: Calling Claude CLI for agentic mode with working directory: ${workingDir}`);
-				const claudeResult = await ClaudeCliWrapper.runClaude([], workingDir, messageText, null, false, systemPrompt);
+				const claudeResult = await ClaudeCliWrapper.runClaude([], workingDir, messageText, null, false, systemPrompt, true, cliChoice);
 				
 				let responseText = '';
 				if (claudeResult && !claudeResult.error) {
@@ -1889,11 +1905,21 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		setShowClaudeInstallPopup(false);
 	};
 
-	const handleSettingsConfirm = (newApiKey, newPrompt) => {
+	const handleSettingsConfirm = (newApiKey, newPrompt, newCliChoice, newOpenaiApiKey) => {
 		try {
 			if (newApiKey && newApiKey.trim()) {
 				setAgenticApiKey(newApiKey.trim());
 				Zotero.Prefs.set('deeptutor.claude.apiKey', newApiKey.trim());
+			}
+			
+			if (newOpenaiApiKey && newOpenaiApiKey.trim()) {
+				setOpenaiApiKey(newOpenaiApiKey.trim());
+				Zotero.Prefs.set('deeptutor.openai.apiKey', newOpenaiApiKey.trim());
+			}
+			
+			if (newCliChoice) {
+				setCliChoice(newCliChoice);
+				Zotero.Prefs.set('deeptutor.cli.choice', newCliChoice);
 			}
 			
 			if (newPrompt && newPrompt.trim()) {
@@ -2461,14 +2487,22 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 	}, []);
 
 	// Settings popup component
-	const SettingsPopup = ({ onConfirm, onCancel, initialApiKey, initialPrompt, styles }) => {
+	const SettingsPopup = ({ onConfirm, onCancel, initialApiKey, initialPrompt, initialCliChoice, initialOpenaiApiKey, styles }) => {
 		const [tempApiKey, setTempApiKey] = useState(initialApiKey || '');
 		const [tempPrompt, setTempPrompt] = useState(initialPrompt || '');
+		const [tempCliChoice, setTempCliChoice] = useState(initialCliChoice || 'claude');
+		const [tempOpenaiApiKey, setTempOpenaiApiKey] = useState(initialOpenaiApiKey || '');
 		const [isProcessingPDFs, setIsProcessingPDFs] = useState(false);
 		const [pdfProcessingStatus, setPdfProcessingStatus] = useState('');
 
 		const handleConfirm = () => {
-			onConfirm(tempApiKey, tempPrompt);
+			onConfirm(tempApiKey, tempPrompt, tempCliChoice, tempOpenaiApiKey);
+		};
+		
+		const handleCliChoiceChange = (choice) => {
+			setTempCliChoice(choice);
+			// Immediately save to preferences and update parent state
+			onConfirm(tempApiKey, tempPrompt, choice, tempOpenaiApiKey);
 		};
 
 		const handleProcessPDFs = async () => {
@@ -2509,13 +2543,53 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 
 		return (
 			<div style={styles.settingsPopup}>
-				<label style={styles.settingsLabel}>New API Key</label>
+				{/* CLI Choice Section */}
+				<label style={styles.settingsLabel}>CLI Choice</label>
+				<div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+					<button
+						onClick={() => handleCliChoiceChange('claude')}
+						style={{
+							...styles.settingsButton,
+							backgroundColor: tempCliChoice === 'claude' ? colors.button.primary : colors.background.secondary,
+							color: tempCliChoice === 'claude' ? colors.text.primary : colors.text.secondary,
+							border: `1px solid ${tempCliChoice === 'claude' ? colors.button.primary : colors.border.primary}`,
+							flex: 1
+						}}
+					>
+						Claude
+					</button>
+					<button
+						onClick={() => handleCliChoiceChange('codex')}
+						style={{
+							...styles.settingsButton,
+							backgroundColor: tempCliChoice === 'codex' ? colors.button.primary : colors.background.secondary,
+							color: tempCliChoice === 'codex' ? colors.text.primary : colors.text.secondary,
+							border: `1px solid ${tempCliChoice === 'codex' ? colors.button.primary : colors.border.primary}`,
+							flex: 1
+						}}
+					>
+						Codex
+					</button>
+				</div>
+
+				{/* Anthropic API Key */}
+				<label style={styles.settingsLabel}>Anthropic API Key</label>
 				<input
 					type="text"
 					value={tempApiKey}
 					onChange={(e) => setTempApiKey(e.target.value)}
 					style={styles.settingsInput}
-					placeholder="Enter new API key..."
+					placeholder="Enter Anthropic API key..."
+				/>
+				
+				{/* OpenAI API Key */}
+				<label style={styles.settingsLabel}>OpenAI API Key</label>
+				<input
+					type="text"
+					value={tempOpenaiApiKey}
+					onChange={(e) => setTempOpenaiApiKey(e.target.value)}
+					style={styles.settingsInput}
+					placeholder="Enter OpenAI API key..."
 				/>
 				
 				<label style={styles.settingsLabel}>Custom Prompt</label>
@@ -3128,6 +3202,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 							onCancel={() => setShowSettingsPopup(false)}
 							initialApiKey={agenticApiKey}
 							initialPrompt={agenticSystemPrompt}
+							initialCliChoice={cliChoice}
+							initialOpenaiApiKey={openaiApiKey}
 							styles={styles}
 						/>
 					)}

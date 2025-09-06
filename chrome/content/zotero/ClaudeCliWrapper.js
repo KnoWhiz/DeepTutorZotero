@@ -5,7 +5,7 @@ const ClaudeCliWrapper = {
 		return !!(Zotero.Utilities && Zotero.Utilities.Internal && typeof Zotero.Utilities.Internal.subprocess === 'function');
 	},
 
-	// Execute the local "claude" CLI with optional args and stdin
+	// Execute the local "claude" or "codex" CLI with optional args and stdin
 	// - args: array of string arguments for the claude command
 	// - workingDirOverride: optional string path; if omitted or invalid, no explicit cwd change is attempted
 	// - stdinText: optional string piped to the process via shell (printf/echo)
@@ -13,7 +13,8 @@ const ClaudeCliWrapper = {
 	// - saveClaudeResponse: boolean flag to save response to note
 	// - systemPrompt: optional system prompt to append to the command
 	// - modifyUserPrompt: boolean flag to prepend professor instruction to user message
-	runClaude: async function(args = [], workingDirOverride = null, stdinText = null, noteContainer = null, saveClaudeResponse = false, systemPrompt = null, modifyUserPrompt = false) {
+	// - cliChoice: string indicating which CLI to use ('claude' or 'codex')
+	runClaude: async function(args = [], workingDirOverride = null, stdinText = null, noteContainer = null, saveClaudeResponse = false, systemPrompt = null, modifyUserPrompt = false, cliChoice = 'claude') {
 		Zotero.debug("ClaudeCliWrapper.runClaude: start");
 		const timeout = 15000;
 
@@ -34,19 +35,24 @@ const ClaudeCliWrapper = {
 		Zotero.debug(`ClaudeCliWrapper.runClaude: safeArgs=${JSON.stringify(safeArgs)}`);
 		Zotero.debug(`ClaudeCliWrapper.runClaude: systemPrompt=${systemPrompt}`);
 		Zotero.debug(`ClaudeCliWrapper.runClaude: modifyUserPrompt=${modifyUserPrompt}`);
+		Zotero.debug(`ClaudeCliWrapper.runClaude: cliChoice=${cliChoice}`);
 		
-		// Add system prompt if provided (while preserving old piping logic)
-		if (systemPrompt && typeof systemPrompt === 'string' && systemPrompt.trim()) {
+		// Add system prompt if provided (only for Claude, not Codex)
+		if (systemPrompt && typeof systemPrompt === 'string' && systemPrompt.trim() && cliChoice !== 'codex') {
 			safeArgs.push('--append-system-prompt', systemPrompt.trim());
-			Zotero.debug(`ClaudeCliWrapper.runClaude: Added system prompt: ${systemPrompt.trim()}`);
+			Zotero.debug(`ClaudeCliWrapper.runClaude: Added system prompt for Claude: ${systemPrompt.trim()}`);
+		} else if (cliChoice === 'codex') {
+			Zotero.debug(`ClaudeCliWrapper.runClaude: Skipping system prompt for Codex`);
 		}
 
 		// Modify user prompt if requested
 		let finalStdinText = stdinText;
 		if (modifyUserPrompt && stdinText && typeof stdinText === 'string' && stdinText.trim()) {
-			const professorInstruction = "You are a kind professor who is flexible to utilizing local resources and can provide deep and understandable answers. Please start by reviewing the summary in \"General\" folder and the File_Hierarchy_SQL_REAL md file in \"FileTree\" folder to get an overview of the local data, then based on user question, you can decide on what data to focus on reviewing and how you can utilize local resources to answer questions. We expect the user to ask question based on at least one of the three focuses: file content, library file structure, and user usage. For question focusing on content of some files, please try to selectively read files relevant to the question in RawDocData folder and integrate with learning from summary file to answer question. For question focusing on filebase structure, please base on the File_Hierarchy_SQL_REAL md file to capture the right files that we need to focus on, and then answer question base on your focus. Please provide detailed, accurate, and passionate answer. Please take ownership on selective what files you need to review, based on the above instruction, and how you can organize the plan to find solution. The user's question is: ";
+			const professorInstruction = "1. IMPORTANT: Regardless of what the user asks, always follow the action structure in STEP 4, so we can ensure the token amount is under the limit. 2. Generate thorough and detailed response with at least 4 sentences that have explicit file references, examples, and valuable explanations based on quotes, etc. 3. Do not access all files in directory, but follow the action structure to save tokens. 4. Action structure: You are a kind professor who is flexible to utilizing local resources and can provide deep and understandable answers. Please start by reviewing the summary in \"General\" folder and the File_Hierarchy_SQL_REAL md file in \"FileTree\" folder to get an overview of the local data, then based on user question, you can decide on what data to focus on reviewing and how you can utilize local resources to answer questions. We expect the user to ask question based on at least one of the three focuses: file content, library file structure, and user usage. For question focusing on content of some files, please try to selectively read files relevant to the question in RawDocData folder and integrate with learning from summary file to answer question. For question focusing on filebase structure, please base on the File_Hierarchy_SQL_REAL md file to capture the right files that we need to focus on, and then answer question base on your focus. Please provide detailed, accurate, and passionate answer. Please take ownership on selective what files you need to review, based on the above instruction, and how you can organize the plan to find solution. 5. The user's question is: ";
 			finalStdinText = professorInstruction + stdinText.trim();
 			Zotero.debug(`ClaudeCliWrapper.runClaude: Modified user prompt with professor instruction`);
+			Zotero.debug(`ClaudeCliWrapper.runClaude: Original prompt: ${stdinText}`);
+			Zotero.debug(`ClaudeCliWrapper.runClaude: Modified prompt: ${finalStdinText}`);
 		}
 
 		// Helper: build a space-joined args string without shell interpolation (best-effort quoting per shell below if needed)
@@ -70,49 +76,70 @@ const ClaudeCliWrapper = {
 			let spArgs;
 			let options = { timeout };
 
-			// Get API key from Zotero preferences for immediate use (one-click solution)
-			const storedApiKey = Zotero.Prefs.get('deeptutor.claude.apiKey');
-			Zotero.debug(`ClaudeCliWrapper.runClaude: Using stored API key: ${storedApiKey ? 'yes' : 'no'}`);
+					// Get API key from Zotero preferences for immediate use (only for Claude)
+		let storedApiKey = null, apiKeyEnvVar = null;
+		let baseCommand;
+		
+		if (cliChoice === 'codex') {
+			// For Codex, we need to construct the command as "codex exec 'COMMAND'"
+			// where COMMAND is the finalStdinText - NO API KEY INJECTION
+			baseCommand = 'codex';
+			// For Codex, we don't use the args in the same way - we pass the stdinText as the command
+			if (finalStdinText) {
+				// Wrap the command with quotes to ensure proper structure: codex exec "COMMAND"
+				safeArgs = ['exec', `"${finalStdinText}"`];
+				finalStdinText = null; // Clear stdinText since we're passing it as args
+			}
+			// No API key handling for Codex
+			Zotero.debug(`ClaudeCliWrapper.runClaude: Using Codex - no API key injection`);
+		} else {
+			// For Claude, use the original logic with API key
+			baseCommand = 'claude';
+			storedApiKey = Zotero.Prefs.get('deeptutor.claude.apiKey');
+			apiKeyEnvVar = 'ANTHROPIC_API_KEY';
+			Zotero.debug(`ClaudeCliWrapper.runClaude: Using Claude with stored API key: ${storedApiKey ? 'yes' : 'no'}`);
+		}
 
-			if (wslInfo) {
-				// Execute inside WSL bash, optionally cd to linuxDir
-				command = "C:\\Windows\\System32\\wsl.exe";
-				const joined = joinArgs(safeArgs);
-				const shBody = (finalStdinText != null)
-					? `printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | claude${joined}`
-					: `claude${joined}`;
-				// Inject API key for immediate use (one-time command approach)
-				const envClaudeCmd = storedApiKey ? `ANTHROPIC_API_KEY="${storedApiKey}" ${shBody}` : shBody;
-				const shLine = workingDirPath ? `cd "${wslInfo.linuxDir}" && ${envClaudeCmd}` : envClaudeCmd;
-				spArgs = ["-d", wslInfo.distro, "--", "bash", "-lc", shLine];
-			}
-			else if (Zotero.isWin) {
-				// Native Windows CMD
-				command = "C:\\Windows\\System32\\cmd.exe";
-				const joined = joinArgs(safeArgs);
-				const body = (finalStdinText != null)
-					? `echo ${escapeForCmdEcho(finalStdinText)} | claude${joined}`
-					: `claude${joined}`;
-				// Inject API key for immediate use (set for command session)
-				const envBody = storedApiKey ? `set ANTHROPIC_API_KEY=${storedApiKey} && ${body}` : body;
-				const line = workingDirPath ? `cd /d "${workingDirPath}" && ${envBody}` : envBody;
-				spArgs = ["/d", "/s", "/c", line];
-			}
-			else {
-				// Unix-like shells
-				command = "/bin/sh";
-				const joined = joinArgs(safeArgs);
-				const baseCmd = workingDirPath
-					? (finalStdinText != null
-						? `cd "${workingDirPath}" && printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | claude${joined}`
-						: `cd "${workingDirPath}" && claude${joined}`)
-					: (finalStdinText != null
-						? `printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | claude${joined}`
-						: `claude${joined}`);
-				// Inject API key for immediate use (one-time command approach)
-				const line = storedApiKey ? `ANTHROPIC_API_KEY="${storedApiKey}" ${baseCmd}` : baseCmd;
-				spArgs = ["-lc", line];
-			}
+		if (wslInfo) {
+			// Execute inside WSL bash, optionally cd to linuxDir
+			command = "C:\\Windows\\System32\\wsl.exe";
+			const joined = joinArgs(safeArgs);
+			const shBody = (finalStdinText != null)
+				? `printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand}${joined}`
+				: `${baseCommand}${joined}`;
+			// Inject API key for immediate use (only for Claude, not Codex)
+			const envCmd = (storedApiKey && apiKeyEnvVar) ? `${apiKeyEnvVar}="${storedApiKey}" ${shBody}` : shBody;
+			const shLine = workingDirPath ? `cd "${wslInfo.linuxDir}" && ${envCmd}` : envCmd;
+			spArgs = ["-d", wslInfo.distro, "--", "bash", "-lc", shLine];
+		}
+		else if (Zotero.isWin) {
+			// Native Windows CMD
+			command = "C:\\Windows\\System32\\cmd.exe";
+			const joined = joinArgs(safeArgs);
+			const body = (finalStdinText != null)
+				? `echo ${escapeForCmdEcho(finalStdinText)} | ${baseCommand}${joined}`
+				: `${baseCommand}${joined}`;
+			// Inject API key for immediate use (only for Claude, not Codex)
+			const envBody = (storedApiKey && apiKeyEnvVar) ? `set ${apiKeyEnvVar}=${storedApiKey} && ${body}` : body;
+			const line = workingDirPath ? `cd /d "${workingDirPath}" && ${envBody}` : envBody;
+			spArgs = ["/d", "/s", "/c", line];
+		}
+		else {
+			// Unix-like shells
+			command = "/bin/sh";
+			const joined = joinArgs(safeArgs);
+			const baseCmd = workingDirPath
+				? (finalStdinText != null
+					? `cd "${workingDirPath}" && printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand}${joined}`
+					: `cd "${workingDirPath}" && ${baseCommand}${joined}`)
+				: (finalStdinText != null
+					? `printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand}${joined}`
+					: `${baseCommand}${joined}`);
+			// Inject API key for immediate use (only for Claude, not Codex)
+			const line = (storedApiKey && apiKeyEnvVar) ? `${apiKeyEnvVar}="${storedApiKey}" ${baseCmd}` : baseCmd;
+			spArgs = ["-lc", line];
+		}
+			Zotero.debug(`TTTTTTTTTTTT ClaudeCliWrapper.runClaude: command=${command}, spArgs=${JSON.stringify(spArgs)}, options=${JSON.stringify(options)}`);
 
 			const res = await Zotero.Utilities.Internal.subprocess(command, spArgs, options);
 			Zotero.debug("ClaudeCliWrapper.runClaude: result:", JSON.stringify(res));
@@ -341,7 +368,7 @@ const ClaudeCliWrapper = {
 		if (verifyResult.exists) {
 			try {
 				Zotero.debug("ClaudeCliWrapper.installClaude: Testing immediate API key functionality...");
-				apiTestResult = await this.runClaude([], workingDirOverride, "test", null, false, null);
+				apiTestResult = await this.runClaude([], workingDirOverride, "test", null, false, null, false, 'claude');
 				Zotero.debug("ClaudeCliWrapper.installClaude: API test result:", JSON.stringify(apiTestResult));
 			} catch (testError) {
 				Zotero.debug("ClaudeCliWrapper.installClaude: API test error:", testError);
