@@ -209,21 +209,80 @@ function modify_omni {
       manifest.web_accessible_resources = undefined;
       manifest.experiment_apis = {};
     }' modules/Extension.sys.mjs
-	
+
 	# Use applications.zotero instead of applications.gecko
 	replace_line 'let bss = manifest.applications\?.gecko' 'let bss = manifest.applications?.zotero' modules/addons/XPIInstall.sys.mjs
 	replace_line 'manifest.applications\?.gecko' 'manifest.applications?.zotero' modules/Extension.sys.mjs
-	
+
 	# When installing addon, use app version instead of toolkit version for targetApplication
 	replace_line "id: TOOLKIT_ID," "id: '$APP_ID'," modules/addons/XPIInstall.sys.mjs
-	
+
+	# Add host application ID to targetApplications for broader compatibility
+	replace_line 'addon.adminInstallOnly = bss.admin_install_only;' \
+'\/\/ Add host application ID to targetApplications so compatibility checks use
+  \/\/ Deeptutor app ID as well (broadening Zotero 7-targeted addons to work on 8.*).
+  try {
+    let hostId = Services.appinfo.ID;
+    addon.targetApplications.push({
+      id: hostId,
+      minVersion: bss.strict_min_version,
+      maxVersion: bss.strict_max_version,
+    });
+    logger.warn(
+      `Added host app targetApplication for ${addon.id}: id=${hostId}, min=${bss.strict_min_version}, max=${bss.strict_max_version}`
+    );
+  } catch (e) {
+    logger.warn(`Failed adding host app targetApplication for ${addon.id}`);
+  }
+
+  addon.adminInstallOnly = bss.admin_install_only;' \
+modules/addons/XPIInstall.sys.mjs
+
 	# Accept zotero@chnm.gmu.edu for target application to allow Zotero 6 plugins to remain
 	# installed in Zotero 7
-	replace_line "if \(targetApp.id == Services.appinfo.ID\) \{" "if (targetApp.id == 'zotero\@chnm.gmu.edu') targetApp.id = '$APP_ID'; if (targetApp.id == Services.appinfo.ID) {" modules/addons/XPIDatabase.sys.mjs
-	
+	replace_line 'if \(targetApp.id == Services.appinfo.ID\) \{' 'if (targetApp.id == Services.appinfo.ID || targetApp.id == '\''zotero@zotero.org'\'') {' modules/addons/XPIDatabase.sys.mjs
+
 	# TEMP: Skip addons without ids until we figure out what's going on with the default theme.
 	# This fixes plugin updating and other things.
 	replace_line 'return addons;' 'return addons.filter(addon => addon.id);' modules/addons/XPIDatabase.sys.mjs
+
+	# Add compatibility override for Zotero 7.* plugins on DeepTutor 8.* versions
+	replace_line 'version = aPlatformVersion;' \
+'version = aPlatformVersion;
+
+    \/\/ Deeptutor override: allow Zotero 7-targeted add-ons on app version 8.*.
+    \/\/ This relaxes the maxVersion check while still enforcing minVersion.
+    try {
+      const getMajor = v => { let m = String(v).match(\/^(\\d+)\/); return m ? parseInt(m[1], 10) : NaN; };
+      const appMajor = getMajor(aAppVersion);
+      const maxMajor = getMajor(maxVersion);
+      const shouldRelaxMax = Number.isFinite(appMajor) && appMajor >= 8 && Number.isFinite(maxMajor) && maxMajor === 7;
+      if (shouldRelaxMax) {
+        const minOk = Services.vc.compare(aAppVersion, minVersion) >= 0;
+        logger.warn(`Compat override applied for ${this.id}: app ${aAppVersion}, min=${minVersion}, max=${maxVersion}, result=${minOk}`);
+        return minOk;
+      }
+    } catch (e) {
+      logger.warn(`Compat override check failed for ${this.id}`);
+    }' \
+modules/addons/XPIDatabase.sys.mjs
+
+
+	# Add enhanced compatibility logging
+# 	replace_line 'logger.warn\(' \
+# 'try {
+#           let tap = (aAddon.targetApplications || []).map(t => `${t.id}:${t.minVersion}-${t.maxVersion}`).join(", ");
+#           logger.warn(' \
+# modules/addons/XPIDatabase.sys.mjs
+	replace_line '\`Add-on \$\{aAddon.id\} is not compatible with application version.\`' \
+'`XPIDatabase lazy.AddonManager.checkCompatibility: Add-on ${aAddon.id} is not compatible with application version. appId=${Services.appinfo.ID} appVer=${Services.appinfo.version} targets=[${tap}]`' \
+modules/addons/XPIDatabase.sys.mjs
+# 	replace_line '\);' \
+# ');
+#         } catch (e) {
+#           logger.warn(`XPIDatabase lazy.AddonManager.checkCompatibility: Add-on ${aAddon.id} is not compatible with application version. appId=${Services.appinfo.ID} appVer=${Services.appinfo.version}`);
+#         }' \
+# modules/addons/XPIDatabase.sys.mjs
 	
 	# For updates, look for applications.zotero instead of applications.gecko in manifest.json and
 	# use the app id and version for strict_min_version/strict_max_version comparisons
@@ -233,7 +292,34 @@ function modify_omni {
 	replace_line 'let app = getProperty\(applications, "gecko", "object"\);' 'let app = getProperty(applications, "zotero", "object");' modules/addons/AddonUpdateChecker.sys.mjs
 	replace_line "id: TOOLKIT_ID," "id: '$APP_ID'," modules/addons/AddonUpdateChecker.sys.mjs
 	replace_line 'lazy.AddonManagerPrivate.webExtensionsMinPlatformVersion' '"7.0"' modules/addons/AddonUpdateChecker.sys.mjs
-	replace_line 'result.targetApplications.push' 'false && result.targetApplications.push' modules/addons/AddonUpdateChecker.sys.mjs
+	# Enable adding host app ID entry for update targetApplications
+	replace_line 'result.targetApplications.push' \
+'try {
+      logger.warn(`Adding host app ID entry for update targetApplications: id=${Services.appinfo.ID}`);
+    } catch (e) {}
+    result.targetApplications.push' \
+modules/addons/AddonUpdateChecker.sys.mjs
+
+	# Add update compatibility override for Zotero 7.* plugins on DeepTutor 8.* versions
+	replace_line 'return \(' \
+'\/\/ Deeptutor override: If host app is 8.* and update targets Zotero 7.* max,
+        \/\/ allow as long as minVersion is satisfied. Add debug logging to trace.
+        try {
+          const getMajor = v => { let m = String(v).match(\/^(\\d+)\/); return m ? parseInt(m[1], 10) : NaN; };
+          const hostMajor = getMajor(aAppVersion);
+          const maxMajor = getMajor(app.maxVersion);
+          const relax = !aIgnoreMaxVersion && Number.isFinite(hostMajor) && hostMajor >= 8 && Number.isFinite(maxMajor) && maxMajor === 7;
+          if (relax) {
+            let ok = Services.vc.compare(aAppVersion, app.minVersion) >= 0;
+            logger.warn(`Update compat override for ${aUpdate.id}@${aUpdate.version}: host=${aAppVersion}, min=${app.minVersion}, max=${app.maxVersion}, result=${ok}`);
+            return ok;
+          }
+        } catch (e) {
+          logger.warn(`Update compat override check failed for ${aUpdate.id}@${aUpdate.version}`);
+        }
+
+        return (' \
+modules/addons/AddonUpdateChecker.sys.mjs
 	
 	# Prevent automatic installation of default theme
 	# (chrome/toolkit/content/mozapps/extensions/default-theme, removed above)
