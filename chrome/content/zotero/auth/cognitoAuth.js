@@ -214,6 +214,10 @@ class AuthState {
 
 	// Set unauthenticated state
 	setUnauthenticated() {
+		// DEBUG: Log when authentication is being cleared
+		Zotero.debug(`DeepTutor Auth: Clearing authentication state - was authenticated: ${this.isAuthenticated}`);
+		Zotero.debug(`DeepTutor Auth: Stack trace for setUnauthenticated call:`, new Error().stack);
+		
 		this.isAuthenticated = false;
 		this.user = null;
 		this.accessToken = null;

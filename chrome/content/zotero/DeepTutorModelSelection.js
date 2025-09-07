@@ -1090,6 +1090,10 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 					fileName = 'Untitled';
 				}
 
+				// DEBUG: Log filename encoding for drag-and-drop files
+				Zotero.debug(`BBBBB: Original filename: ${fileName}`);
+				Zotero.debug(`BBBBB: Contains special chars: ${/[;:&<>]/.test(fileName)}`);
+
 				newFileItems.push({ id: pdf.id, name: fileName });
 				newOriginalItems.push(pdf);
 				Zotero.debug(`BBBBB: Prepared PDF for addition: ${fileName}`);
@@ -1165,6 +1169,10 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 		// Clear any existing error message and start initializing
 		setErrorMessage('');
 		setIsInitializing(true);
+		
+		// DEBUG: Log authentication state before starting the process
+		Zotero.debug(`ModelSelection: Starting file upload process - user authenticated: ${!!user}, user.id: ${user?.id}`);
+		Zotero.debug(`ModelSelection: Component state - frozen: ${isEffectivelyFrozen}, initializing: ${isInitializing}`);
 
 		// Determine the final session name
 		const finalSessionName = modelName.trim() || backupModelName || "Default Session";
@@ -1176,6 +1184,11 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 			const successfulUploads = []; // Track successfully uploaded files with their info
 			Zotero.debug(`ModelSelection: fileList length: ${fileList.length}`);
 			Zotero.debug(`ModelSelection: originalFileList length: ${originalFileList.length}`);
+			
+			// DEBUG: Log user authentication state before processing
+			Zotero.debug(`ModelSelection: User authentication state - isAuthenticated: ${!!user}, user.id: ${user?.id}`);
+			Zotero.debug(`ModelSelection: User object: ${JSON.stringify(user, null, 2)}`);
+			
 			if (fileList.length > 0) {
 				for (let fileIndex = 0; fileIndex < originalFileList.length; fileIndex++) {
 					const file = originalFileList[fileIndex];
@@ -1184,6 +1197,28 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 						const fileListEntry = fileList.find(f => f.id === file.id);
 						const fileName = fileListEntry ? fileListEntry.name : 'Untitled';
 						Zotero.debug('ModelSelection: Processing file:', fileName);
+						
+						// DEBUG: Log PDF type and metadata
+						Zotero.debug(`ModelSelection: File metadata - ID: ${file.id}, Name: ${fileName}`);
+						Zotero.debug(`ModelSelection: File type check - isPDFAttachment: ${file.isPDFAttachment()}`);
+						
+						// Check if this is a book PDF by examining the parent item
+						try {
+							const parentItem = file.parentItem;
+							if (parentItem) {
+								const itemType = parentItem.itemType;
+								const title = parentItem.getField('title') || 'Unknown';
+								Zotero.debug(`ModelSelection: Parent item - Type: ${itemType}, Title: ${title}`);
+								
+								// Log if this is a book
+								if (itemType === 'book') {
+									Zotero.debug(`ModelSelection: BOOK PDF DETECTED - ${fileName} (Parent: ${title})`);
+								}
+							}
+						}
+						catch (parentError) {
+							Zotero.debug(`ModelSelection: Could not get parent item info: ${parentError.message}`);
+						}
 
 						// Direct file reading approach (more memory-efficient than dataURI + fetch)
 						Zotero.debug(`ModelSelection: ========== Starting direct file reading for: ${fileName} ==========`);
@@ -1275,8 +1310,53 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 						}
 
 						// 1. Get pre-signed URL for the file
-						const preSignedUrlData = await getPreSignedUrl(user.id, fileName);
-						Zotero.debug('ModelSelection: Got pre-signed URL:', preSignedUrlData);
+						Zotero.debug(`ModelSelection: About to call getPreSignedUrl for: ${fileName}`);
+						Zotero.debug(`ModelSelection: Current user context - ID: ${user.id}, authenticated: ${!!user}`);
+						Zotero.debug(`ModelSelection: Current component state - frozen: ${isEffectivelyFrozen}, initializing: ${isInitializing}`);
+						
+						// DEBUG: Log timing and filename details
+						const apiCallStartTime = Date.now();
+						Zotero.debug(`ModelSelection: API call start time: ${apiCallStartTime}`);
+						Zotero.debug(`ModelSelection: Filename length: ${fileName.length}, contains special chars: ${/[;:&<>]/.test(fileName)}`);
+						
+						// URL-encode the filename to handle special characters
+						const encodedFileName = encodeURIComponent(fileName);
+						Zotero.debug(`ModelSelection: Original filename: ${fileName}`);
+						Zotero.debug(`ModelSelection: Encoded filename: ${encodedFileName}`);
+						
+						// DEBUG: Try to refresh token proactively before API call
+						try {
+							const { refreshSession } = await import('../auth/cognitoAuth.js');
+							Zotero.debug(`ModelSelection: Proactively refreshing token before API call`);
+							await refreshSession();
+							Zotero.debug(`ModelSelection: Token refresh successful`);
+						}
+						catch (refreshError) {
+							Zotero.debug(`ModelSelection: Proactive token refresh failed: ${refreshError.message}`);
+							// Continue with the API call anyway
+						}
+						
+						let preSignedUrlData;
+						try {
+							preSignedUrlData = await getPreSignedUrl(user.id, encodedFileName);
+							Zotero.debug('ModelSelection: Got pre-signed URL with encoded filename:', preSignedUrlData);
+						}
+						catch (apiError) {
+							Zotero.debug(`ModelSelection: API call failed with encoded filename: ${apiError.message}`);
+							
+							// Try with a sanitized filename as fallback
+							const sanitizedFileName = fileName.replace(/[;:&<>]/g, '_');
+							Zotero.debug(`ModelSelection: Trying with sanitized filename: ${sanitizedFileName}`);
+							
+							try {
+								preSignedUrlData = await getPreSignedUrl(user.id, sanitizedFileName);
+								Zotero.debug('ModelSelection: Got pre-signed URL with sanitized filename:', preSignedUrlData);
+							}
+							catch (fallbackError) {
+								Zotero.debug(`ModelSelection: Fallback API call also failed: ${fallbackError.message}`);
+								throw apiError; // Throw the original error
+							}
+						}
 
 						// 2. Upload file to Azure Blob Storage
 						const uploadResponse = await window.fetch(preSignedUrlData.preSignedUrl, {
@@ -1304,10 +1384,28 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 					}
 					catch (fileError) {
 						Zotero.debug('ModelSelection: Error uploading file:', fileError);
-						// Don't add failed uploads to successfulUploads array
+						Zotero.debug(`ModelSelection: File upload error details - message: ${fileError.message}`);
+						
+						// Check if this is a technical error that shouldn't cause complete failure
+						if (fileError.message && fileError.message.includes('technical issue')) {
+							Zotero.debug('ModelSelection: Technical error detected, continuing with other files');
+							// Don't add failed uploads to successfulUploads array
+							continue;
+						}
+						
+						// For other errors, also continue but log them
+						Zotero.debug('ModelSelection: File upload failed, continuing with other files');
 						continue;
 					}
 				}
+			}
+
+			// Check if we have any successfully uploaded files
+			if (uploadedDocumentIds.length === 0) {
+				Zotero.debug('ModelSelection: No files were successfully uploaded');
+				setErrorMessage('Failed to upload any files. Please check your connection and try again.');
+				setIsInitializing(false);
+				return;
 			}
 
 			// Create session data
@@ -1324,6 +1422,10 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 			};
 
 			Zotero.debug(`ModelSelection0521: Creating session with data: ${JSON.stringify(sessionData, null, 2)}`);
+			
+			// DEBUG: Log authentication state before API call
+			Zotero.debug(`ModelSelection: About to call createSession API - user.id: ${user.id}`);
+			Zotero.debug(`ModelSelection: Document IDs to upload: ${JSON.stringify(uploadedDocumentIds)}`);
 
 			// Create session with uploaded files
 			const createdSession = await createSession(sessionData);
@@ -1369,7 +1471,21 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 		}
 		catch (error) {
 			Zotero.debug('ModelSelection: Error creating session:', error);
-			setErrorMessage('Failed to create session. Please try again.');
+			Zotero.debug(`ModelSelection: Error details - message: ${error.message}, stack: ${error.stack}`);
+			
+			// DEBUG: Check if this is an authentication error
+			if (error.message && error.message.includes('Authentication required')) {
+				Zotero.debug('ModelSelection: Authentication error detected - user may have been signed out');
+				setErrorMessage('Authentication error. Please sign in again.');
+			}
+			else if (error.message && error.message.includes('technical issue')) {
+				Zotero.debug('ModelSelection: Technical error detected - this may be a temporary issue');
+				setErrorMessage('Temporary technical issue. Please try again in a moment.');
+			}
+			else {
+				setErrorMessage('Failed to create session. Please try again.');
+			}
+			
 			setIsInitializing(false);
 		}
 	};
@@ -1496,6 +1612,10 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 							if (!fileName || typeof fileName !== 'string' || fileName.trim() === '') {
 								fileName = 'Untitled';
 							}
+							
+							// DEBUG: Log filename encoding for drag-and-drop processing
+							Zotero.debug(`BBBBBF: Original filename: ${fileName}`);
+							Zotero.debug(`BBBBBF: Contains special chars: ${/[;:&<>]/.test(fileName)}`);
               
 							Zotero.debug(`BBBBBF: Successfully extracted text from PDF: ${fileName}`);
 							return {
