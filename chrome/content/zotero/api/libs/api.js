@@ -17,33 +17,8 @@ const getAuthHeaders = () => {
 
 	// Add Bearer token if user is authenticated
 	const accessToken = authState.getAccessToken();
-	Zotero.debug(`DeepTutor API: Getting auth headers - accessToken exists: ${!!accessToken}, authState.isAuthenticated: ${authState.isAuthenticated}`);
-	
 	if (accessToken) {
 		headers['Authorization'] = `Bearer ${accessToken}`;
-		Zotero.debug(`DeepTutor API: Added Authorization header (length: ${accessToken.length})`);
-		
-		// DEBUG: Try to decode the JWT token to check expiration
-		try {
-			const tokenParts = accessToken.split('.');
-			if (tokenParts.length === 3) {
-				const payload = JSON.parse(atob(tokenParts[1]));
-				const exp = payload.exp;
-				const now = Math.floor(Date.now() / 1000);
-				const timeUntilExpiry = exp - now;
-				Zotero.debug(`DeepTutor API: Token expires in ${timeUntilExpiry} seconds (${timeUntilExpiry / 60} minutes)`);
-				
-				if (timeUntilExpiry < 60) {
-					Zotero.debug(`DeepTutor API: WARNING - Token expires in less than 1 minute!`);
-				}
-			}
-		}
-		catch (tokenError) {
-			Zotero.debug(`DeepTutor API: Could not decode token: ${tokenError.message}`);
-		}
-	}
-	else {
-		Zotero.debug(`DeepTutor API: No access token available - user may not be authenticated`);
 	}
 
 	return headers;
@@ -67,11 +42,7 @@ export const createBackendUser = ({ name, email, providerUserId }) => {
 
 // Helper function to handle API responses with token refresh
 const handleApiResponse = async (response, originalRequest) => {
-	// DEBUG: Log API response details
-	Zotero.debug(`DeepTutor API: Response status: ${response.status}, URL: ${originalRequest.url}`);
-	
 	if (response.status === 401) {
-		Zotero.debug('DeepTutor API: 401 Unauthorized - attempting token refresh');
 		// Token might be expired, try to refresh
 		try {
 			const { refreshSession } = await import('../../auth/cognitoAuth.js');
@@ -85,16 +56,12 @@ const handleApiResponse = async (response, originalRequest) => {
 			});
 
 			if (!retryResponse.ok) {
-				Zotero.debug(`DeepTutor API: Retry failed with status: ${retryResponse.status}`);
 				throw new Error(`API request failed: ${retryResponse.status}`);
 			}
 
-			Zotero.debug('DeepTutor API: Token refresh and retry successful');
 			return retryResponse;
 		}
 		catch (refreshError) {
-			Zotero.debug(`DeepTutor API: Token refresh failed: ${refreshError.message}`);
-			
 			// Only clear auth state for certain types of refresh errors
 			// Don't sign out for ScriptLoader errors or other technical issues
 			if (refreshError.message && (
@@ -102,11 +69,9 @@ const handleApiResponse = async (response, originalRequest) => {
 				|| refreshError.message.includes('context')
 				|| refreshError.message.includes('import')
 			)) {
-				Zotero.debug(`DeepTutor API: Technical refresh error detected, not signing out user`);
 				throw new Error(`Token refresh failed due to technical issue: ${refreshError.message}`);
 			}
 			
-			Zotero.debug(`DeepTutor API: Clearing authentication state due to refresh failure`);
 			// Clear auth state and redirect to login
 			authState.setUnauthenticated();
 			throw new Error('Authentication required');
@@ -114,7 +79,6 @@ const handleApiResponse = async (response, originalRequest) => {
 	}
 
 	if (!response.ok) {
-		Zotero.debug(`DeepTutor API: Non-401 error - status: ${response.status}, URL: ${originalRequest.url}`);
 		throw new Error(`API request failed: ${response.status}`);
 	}
 
@@ -170,21 +134,11 @@ export const createMessage = async (message) => {
 
 // Session related API calls
 export const createSession = async (sessionData) => {
-	// DEBUG: Log session creation details
-	Zotero.debug(`DeepTutor API: Creating session with data: ${JSON.stringify(sessionData, null, 2)}`);
-	
 	const requestConfig = {
 		method: 'POST',
 		headers: getAuthHeaders(),
 		body: JSON.stringify(sessionData)
 	};
-
-	// DEBUG: Log request headers (excluding sensitive data)
-	const debugHeaders = { ...requestConfig.headers };
-	if (debugHeaders.Authorization) {
-		debugHeaders.Authorization = debugHeaders.Authorization.substring(0, 20) + '...';
-	}
-	Zotero.debug(`DeepTutor API: Request headers: ${JSON.stringify(debugHeaders, null, 2)}`);
 
 	const response = await window.fetch(`${API_BASE_URL}/session/create`, requestConfig);
 	const handledResponse = await handleApiResponse(response, {
@@ -366,18 +320,14 @@ export const getDocumentById = async (documentId) => {
 };
 
 export const getPreSignedUrl = async (userId, fileName) => {
-	// DEBUG: Log the full URL being called
-	const fullUrl = `${API_BASE_URL}/document/preSignedUrl/${userId}/${fileName}`;
-	Zotero.debug(`DeepTutor API: getPreSignedUrl full URL: ${fullUrl}`);
-	
 	const requestConfig = {
 		method: 'GET',
 		headers: getAuthHeaders()
 	};
 
-	const response = await window.fetch(fullUrl, requestConfig);
+	const response = await window.fetch(`${API_BASE_URL}/document/preSignedUrl/${userId}/${fileName}`, requestConfig);
 	const handledResponse = await handleApiResponse(response, {
-		url: fullUrl,
+		url: `${API_BASE_URL}/document/preSignedUrl/${userId}/${fileName}`,
 		...requestConfig
 	});
 
