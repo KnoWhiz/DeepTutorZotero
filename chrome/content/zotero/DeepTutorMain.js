@@ -16,6 +16,7 @@ import DeepTutorSessionDelete from './DeepTutorSessionDelete.js';
 import DeepTutorRenameSession from './DeepTutorRenameSession.js';
 import DeepTutorNoPDFWarning from './DeepTutorNoPDFWarning.js';
 import DeepTutorFileSizeWarning from './DeepTutorFileSizeWarning.js';
+import DeepTutorPageLimitWarning from './DeepTutorPageLimitWarning.js';
 import DeepTutorNoteSave from './DeepTutorNoteSave.js';
 import DeepTutorSubscriptionPopup from './DeepTutorSubscriptionPopup.js';
 import { DT_BASE_URL } from './api/libs/api.js';
@@ -299,6 +300,7 @@ const DeepTutorMain = (props) => {
 							externallyFrozen={props.modelSelectionFrozen}
 							onShowNoPDFWarning={props.openNoPDFWarningPopup}
 							onShowFileSizeWarning={props.openFileSizeWarningPopup}
+							onShowPageLimitWarning={props.openPageLimitWarningPopup}
 							subscriptionType={props.activeSubscription?.type || "BASIC"}
 							usageSummary={props.usageSummary}
 							hasActiveSubscription={Boolean(props.activeSubscription && props.activeSubscription.id)}
@@ -576,6 +578,52 @@ const DeepTutorMain = (props) => {
 						<DeepTutorFileSizeWarning
 							onClose={props.closeFileSizeWarningPopup}
 						/>
+					</div>
+				</div>
+			)}
+
+			{props.showPageLimitWarningPopup && (
+				<div style={{
+					position: 'absolute',
+					top: 0,
+					left: 0,
+					right: 0,
+					bottom: 0,
+					background: 'rgba(0, 0, 0, 0.5)',
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+					zIndex: 2000,
+				}}>
+					<div style={{
+						background: colors.background.primary,
+						borderRadius: '0.5rem',
+						padding: '2rem',
+						maxWidth: '24rem',
+						width: '100%',
+						position: 'relative',
+						border: isDark ? `1px solid ${colors.popup.border}` : 'none',
+					}}>
+						<button
+							onClick={props.closePageLimitWarningPopup}
+							style={{
+								all: 'revert',
+								background: 'none',
+								border: 'none',
+								cursor: 'pointer',
+								position: 'absolute',
+								right: '1rem',
+								top: '1rem',
+								width: '1rem',
+								height: '1rem',
+								display: 'flex',
+								alignItems: 'center',
+								justifyContent: 'center',
+							}}
+						>
+							<img src={closeButtonPath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
+						</button>
+						<DeepTutorPageLimitWarning onClose={props.closePageLimitWarningPopup} />
 					</div>
 				</div>
 			)}
@@ -873,6 +921,7 @@ const DeepTutorMain = (props) => {
 							externallyFrozen={props.modelSelectionFrozen}
 							onShowNoPDFWarning={props.openNoPDFWarningPopup}
 							onShowFileSizeWarning={props.openFileSizeWarningPopup}
+							onShowPageLimitWarning={props.openPageLimitWarningPopup}
 							subscriptionType={props.activeSubscription?.type || "BASIC"}
 							usageSummary={props.usageSummary}
 							hasActiveSubscription={Boolean(props.activeSubscription && props.activeSubscription.id)}
@@ -970,6 +1019,10 @@ DeepTutorMain.propTypes = {
 	closeNoPDFWarningPopup: PropTypes.func.isRequired,
 	openFileSizeWarningPopup: PropTypes.func.isRequired,
 	closeFileSizeWarningPopup: PropTypes.func.isRequired,
+	// Page limit popup
+	showPageLimitWarningPopup: PropTypes.bool.isRequired,
+	openPageLimitWarningPopup: PropTypes.func.isRequired,
+	closePageLimitWarningPopup: PropTypes.func.isRequired,
 	handleShowNoteSavePopup: PropTypes.func.isRequired,
 	closeNoteSavePopup: PropTypes.func.isRequired,
 	toggleSubscriptionPopup: PropTypes.func.isRequired,

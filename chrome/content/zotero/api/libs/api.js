@@ -1,6 +1,6 @@
 // Access ZOTERO_CONFIG from the global scope
 // export const DT_BASE_URL = 'staging.deeptutor.knowhiz.us';
- export const DT_BASE_URL = 'deeptutor.knowhiz.us';
+export const DT_BASE_URL = 'deeptutor.knowhiz.us';
 // export const DT_BASE_URL = 'localhost:8081';
 
 const API_BASE_URL = DT_BASE_URL.includes('localhost') ? `http://${DT_BASE_URL}/api` : DT_BASE_URL.includes('staging') ? `https://api.${DT_BASE_URL}/api` : `https://api.production.${DT_BASE_URL}/api`;
@@ -60,8 +60,18 @@ const handleApiResponse = async (response, originalRequest) => {
 			}
 
 			return retryResponse;
-		} catch (refreshError) {
-			Zotero.debug(`DeepTutor API: Token refresh failed: ${refreshError.message}`);
+		}
+		catch (refreshError) {
+			// Only clear auth state for certain types of refresh errors
+			// Don't sign out for ScriptLoader errors or other technical issues
+			if (refreshError.message && (
+				refreshError.message.includes('ScriptLoader')
+				|| refreshError.message.includes('context')
+				|| refreshError.message.includes('import')
+			)) {
+				throw new Error(`Token refresh failed due to technical issue: ${refreshError.message}`);
+			}
+			
 			// Clear auth state and redirect to login
 			authState.setUnauthenticated();
 			throw new Error('Authentication required');
@@ -187,18 +197,18 @@ export const getSessionsByUserId = async (userId) => {
 
 // Usage related API calls
 export const getSessionUsageForUser = async (userId) => {
-    const requestConfig = {
-        method: 'GET',
-        headers: getAuthHeaders()
-    };
+	const requestConfig = {
+		method: 'GET',
+		headers: getAuthHeaders()
+	};
 
-    const response = await window.fetch(`${API_BASE_URL}/session/usage/byUser/${userId}`, requestConfig);
-    const handledResponse = await handleApiResponse(response, {
-        url: `${API_BASE_URL}/session/usage/byUser/${userId}`,
-        ...requestConfig
-    });
+	const response = await window.fetch(`${API_BASE_URL}/session/usage/byUser/${userId}`, requestConfig);
+	const handledResponse = await handleApiResponse(response, {
+		url: `${API_BASE_URL}/session/usage/byUser/${userId}`,
+		...requestConfig
+	});
 
-    return handledResponse.json();
+	return handledResponse.json();
 };
 
 export const deleteSessionById = async (sessionId) => {
