@@ -1427,7 +1427,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 				}
 
 				Zotero.debug(`DeepTutorChatBox: Calling Claude CLI for agentic mode with working directory: ${workingDir}`);
-				const claudeResult = await ClaudeCliWrapper.runClaude([], workingDir, messageText, null, false, systemPrompt, true, cliChoice);
+				const claudeResult = await ClaudeCliWrapper.runClaudeStreaming([], workingDir, messageText, null, false, systemPrompt, true, cliChoice);
 				
 				let responseText = '';
 				if (claudeResult && !claudeResult.error) {

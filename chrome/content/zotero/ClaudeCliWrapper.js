@@ -163,8 +163,301 @@ const ClaudeCliWrapper = {
 			Zotero.debug("ClaudeCliWrapper.runClaude: error:", e);
 			return { error: e };
 		}
-	}
-,
+	},
+
+	// Streaming version of runClaude that processes output in real-time using --output-format=stream-json
+	// - args: array of string arguments for the claude command
+	// - workingDirOverride: optional string path; if omitted or invalid, no explicit cwd change is attempted
+	// - stdinText: optional string piped to the process via shell (printf/echo)
+	// - noteContainer: optional Zotero item ID for saving response as note
+	// - saveClaudeResponse: boolean flag to save response to note
+	// - systemPrompt: optional system prompt to append to the command
+	// - modifyUserPrompt: boolean flag to prepend professor instruction to user message
+	// - cliChoice: string indicating which CLI to use ('claude' or 'codex')
+	// - onChunk: callback function called for each streaming chunk (chunk, isComplete)
+	// - onError: callback function called for errors
+	runClaudeStreaming: async function(args = [], workingDirOverride = null, stdinText = null, noteContainer = null, saveClaudeResponse = false, systemPrompt = null, modifyUserPrompt = false, cliChoice = 'claude', onChunk = null, onError = null) {
+		Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: start");
+		const timeout = 15000;
+
+		// Only honor explicit string workingDir; avoid accidental cwd usage
+		const workingDirPath = (workingDirOverride && typeof workingDirOverride === 'string') ? workingDirOverride : null;
+
+		// Detect WSL by UNC path like \\wsl.localhost\\<distro>\\<linuxPath>
+		let wslInfo = null;
+		if (Zotero.isWin && workingDirPath) {
+			const m = /^\\wsl\.localhost\\([^\\]+)\\(.+)$/.exec(workingDirPath);
+			if (m) {
+				wslInfo = { distro: m[1], linuxDir: '/' + m[2].replace(/\\/g, '/') };
+			}
+		}
+
+		// Normalize args to strings and add streaming format
+		let safeArgs = Array.isArray(args) ? args.map(a => String(a)) : [];
+		
+		// Add streaming output format for Claude (not for Codex)
+		if (cliChoice === 'claude') {
+			safeArgs.push('--output-format=stream-json');
+		}
+		
+		Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: safeArgs=${JSON.stringify(safeArgs)}`);
+		Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: systemPrompt=${systemPrompt}`);
+		Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: modifyUserPrompt=${modifyUserPrompt}`);
+		Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: cliChoice=${cliChoice}`);
+		
+		// Add system prompt if provided (only for Claude, not Codex)
+		if (systemPrompt && typeof systemPrompt === 'string' && systemPrompt.trim() && cliChoice !== 'codex') {
+			safeArgs.push('--append-system-prompt', systemPrompt.trim());
+			Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: Added system prompt for Claude: ${systemPrompt.trim()}`);
+		} else if (cliChoice === 'codex') {
+			Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: Skipping system prompt for Codex`);
+		}
+
+		// Modify user prompt if requested
+		let finalStdinText = stdinText;
+		if (modifyUserPrompt && stdinText && typeof stdinText === 'string' && stdinText.trim()) {
+			const professorInstruction = "1. IMPORTANT: Regardless of what the user asks, always follow the action structure in STEP 4, so we can ensure the token amount is under the limit. 2. Generate thorough and detailed response with at least 4 sentences that have explicit file references, examples, and valuable explanations based on quotes, etc. 3. Do not access all files in directory, but follow the action structure to save tokens. 4. Action structure: You are a kind professor who is flexible to utilizing local resources and can provide deep and understandable answers. Please start by reviewing the summary in \"General\" folder and the File_Hierarchy_SQL_REAL md file in \"FileTree\" folder to get an overview of the local data, then based on user question, you can decide on what data to focus on reviewing and how you can utilize local resources to answer questions. We expect the user to ask question based on at least one of the three focuses: file content, library file structure, and user usage. For question focusing on content of some files, please try to selectively read files relevant to the question in RawDocData folder and integrate with learning from summary file to answer question. For question focusing on filebase structure, please base on the File_Hierarchy_SQL_REAL md file to capture the right files that we need to focus on, and then answer question base on your focus. Please provide detailed, accurate, and passionate answer. Please take ownership on selective what files you need to review, based on the above instruction, and how you can organize the plan to find solution. 5. The user's question is: ";
+			finalStdinText = professorInstruction + stdinText.trim();
+			Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: Modified user prompt with professor instruction`);
+			Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: Original prompt: ${stdinText}`);
+			Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: Modified prompt: ${finalStdinText}`);
+		}
+
+		// Helper: build a space-joined args string without shell interpolation (best-effort quoting per shell below if needed)
+		const joinArgs = (arr) => (arr && arr.length) ? (' ' + arr.join(' ')) : '';
+
+		// Helper: minimal escape for bash double-quoted string used with printf
+		const escapeForBashDoubleQuoted = (text) => String(text).replace(/["\\`$]/g, ch => '\\' + ch);
+
+		// Helper: minimal escape for cmd.exe echo
+		const escapeForCmdEcho = (text) => String(text)
+			.replace(/%/g, '%%')
+			.replace(/([&|<>^()])/g, '^$1')
+			.replace(/"/g, '^"');
+
+		try {
+			if (!this._subprocessAvailable()) {
+				const error = new Error('Subprocess API not available');
+				if (onError) onError(error);
+				return { error };
+			}
+
+			let command;
+			let spArgs;
+			let options = { timeout };
+
+			// Get API key from Zotero preferences for immediate use (only for Claude)
+			let storedApiKey = null, apiKeyEnvVar = null;
+			let baseCommand;
+			
+			if (cliChoice === 'codex') {
+				// For Codex, we need to construct the command as "codex exec 'COMMAND'"
+				// where COMMAND is the finalStdinText - NO API KEY INJECTION
+				baseCommand = 'codex';
+				// For Codex, we don't use the args in the same way - we pass the stdinText as the command
+				if (finalStdinText) {
+					// Wrap the command with quotes to ensure proper structure: codex exec "COMMAND"
+					safeArgs = ['exec', `"${finalStdinText}"`];
+					finalStdinText = null; // Clear stdinText since we're passing it as args
+				}
+				// No API key handling for Codex
+				Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: Using Codex - no API key injection`);
+			} else {
+				// For Claude, use the original logic with API key
+				baseCommand = 'claude';
+				storedApiKey = Zotero.Prefs.get('deeptutor.claude.apiKey');
+				apiKeyEnvVar = 'ANTHROPIC_API_KEY';
+				Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: Using Claude with stored API key: ${storedApiKey ? 'yes' : 'no'}`);
+			}
+
+			if (wslInfo) {
+				// Execute inside WSL bash, optionally cd to linuxDir
+				command = "C:\\Windows\\System32\\wsl.exe";
+				const joined = joinArgs(safeArgs);
+				const shBody = (finalStdinText != null)
+					? `printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand}${joined}`
+					: `${baseCommand}${joined}`;
+				// Inject API key for immediate use (only for Claude, not Codex)
+				const envCmd = (storedApiKey && apiKeyEnvVar) ? `${apiKeyEnvVar}="${storedApiKey}" ${shBody}` : shBody;
+				const shLine = workingDirPath ? `cd "${wslInfo.linuxDir}" && ${envCmd}` : envCmd;
+				spArgs = ["-d", wslInfo.distro, "--", "bash", "-lc", shLine];
+			}
+			else if (Zotero.isWin) {
+				// Native Windows CMD
+				command = "C:\\Windows\\System32\\cmd.exe";
+				const joined = joinArgs(safeArgs);
+				const body = (finalStdinText != null)
+					? `echo ${escapeForCmdEcho(finalStdinText)} | ${baseCommand}${joined}`
+					: `${baseCommand}${joined}`;
+				// Inject API key for immediate use (only for Claude, not Codex)
+				const envBody = (storedApiKey && apiKeyEnvVar) ? `set ${apiKeyEnvVar}=${storedApiKey} && ${body}` : body;
+				const line = workingDirPath ? `cd /d "${workingDirPath}" && ${envBody}` : envBody;
+				spArgs = ["/d", "/s", "/c", line];
+			}
+			else {
+				// Unix-like shells
+				command = "/bin/sh";
+				const joined = joinArgs(safeArgs);
+				const baseCmd = workingDirPath
+					? (finalStdinText != null
+						? `cd "${workingDirPath}" && printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand}${joined}`
+						: `cd "${workingDirPath}" && ${baseCommand}${joined}`)
+					: (finalStdinText != null
+						? `printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand}${joined}`
+						: `${baseCommand}${joined}`);
+				// Inject API key for immediate use (only for Claude, not Codex)
+				const line = (storedApiKey && apiKeyEnvVar) ? `${apiKeyEnvVar}="${storedApiKey}" ${baseCmd}` : baseCmd;
+				spArgs = ["-lc", line];
+			}
+			
+			Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: command=${command}, spArgs=${JSON.stringify(spArgs)}, options=${JSON.stringify(options)}`);
+
+			// Process the subprocess result
+			const res = await Zotero.Utilities.Internal.subprocess(command, spArgs, options);
+			Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: raw result:", JSON.stringify(res));
+			
+			// Parse streaming JSON output
+			let fullResponse = '';
+			let accumulatedContent = '';
+			let isComplete = false;
+			
+			if (res && typeof res === 'string') {
+				const lines = res.split('\n');
+				Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: Processing ${lines.length} lines`);
+				
+				for (let i = 0; i < lines.length; i++) {
+					const line = lines[i].trim();
+					if (!line) continue;
+					
+					try {
+						// Parse JSON chunk
+						const chunk = JSON.parse(line);
+						Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: Parsed chunk:`, JSON.stringify(chunk));
+						
+						// Extract content from different possible chunk structures
+						let content = '';
+						if (chunk.content) {
+							content = chunk.content;
+						} else if (chunk.delta && chunk.delta.text) {
+							content = chunk.delta.text;
+						} else if (chunk.text) {
+							content = chunk.text;
+						} else if (typeof chunk === 'string') {
+							content = chunk;
+						}
+						
+						if (content) {
+							accumulatedContent += content;
+							fullResponse += content;
+							
+							// Call the chunk callback if provided
+							if (onChunk && typeof onChunk === 'function') {
+								onChunk(content, false, accumulatedContent);
+							}
+						}
+						
+						// Check if this is the final chunk
+						if (chunk.stop_reason || chunk.finish_reason || chunk.done) {
+							isComplete = true;
+							break;
+						}
+						
+					} catch (parseError) {
+						Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: JSON parse error for line: ${line}`, parseError);
+						// If JSON parsing fails, treat the line as plain text content
+						if (line && onChunk && typeof onChunk === 'function') {
+							accumulatedContent += line;
+							fullResponse += line;
+							onChunk(line, false, accumulatedContent);
+						}
+					}
+				}
+			}
+			
+			// Call final chunk callback if provided
+			if (onChunk && typeof onChunk === 'function') {
+				onChunk('', true, accumulatedContent);
+			}
+			
+			// Save response to note if requested and conditions are met
+			Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: saveClaudeResponse=${saveClaudeResponse}, noteContainer=${noteContainer}`);
+			if (saveClaudeResponse && noteContainer && fullResponse) {
+				try {
+					await this.saveClaudeResponseToNote(fullResponse, noteContainer);
+					Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: Response saved to note successfully");
+				}
+				catch (noteError) {
+					Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: Error saving to note:", noteError);
+					// Don't fail the main operation if note saving fails
+				}
+			}
+			
+			return { 
+				success: true, 
+				content: fullResponse, 
+				accumulatedContent: accumulatedContent,
+				isComplete: true 
+			};
+		}
+		catch (e) {
+			Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: error:", e);
+			if (onError && typeof onError === 'function') {
+				onError(e);
+			}
+			return { error: e };
+		}
+	},
+
+	// Example function demonstrating how to use the streaming functionality
+	// This shows how to integrate streaming responses into your current system
+	exampleStreamingUsage: async function(prompt, workingDirOverride = null) {
+		Zotero.debug("ClaudeCliWrapper.exampleStreamingUsage: start");
+		
+		let streamingContent = '';
+		let isComplete = false;
+		
+		// Define callback functions for handling streaming chunks
+		const onChunk = (chunk, isFinal, accumulated) => {
+			Zotero.debug(`ClaudeCliWrapper.exampleStreamingUsage: Received chunk: "${chunk}"`);
+			Zotero.debug(`ClaudeCliWrapper.exampleStreamingUsage: Is final: ${isFinal}`);
+			Zotero.debug(`ClaudeCliWrapper.exampleStreamingUsage: Accumulated content length: ${accumulated.length}`);
+			
+			// Update the streaming content
+			streamingContent = accumulated;
+			isComplete = isFinal;
+			
+			// Here you would typically update your UI with the new chunk
+			// For example, append to a chat message or update a progress indicator
+			if (chunk) {
+				// Example: Update UI with new content
+				// updateChatMessage(streamingContent);
+				// showTypingIndicator(!isFinal);
+			}
+		};
+		
+		const onError = (error) => {
+			Zotero.debug("ClaudeCliWrapper.exampleStreamingUsage: Error occurred:", error);
+			// Handle error in your UI
+			// showErrorMessage(error.message);
+		};
+		
+		// Call the streaming function
+		const result = await this.runClaudeStreaming(
+			[], // args
+			workingDirOverride, // working directory
+			prompt, // stdin text (the prompt)
+			null, // note container (optional)
+			false, // save to note (optional)
+			null, // system prompt (optional)
+			false, // modify user prompt (optional)
+			'claude', // cli choice
+			onChunk, // chunk callback
+			onError // error callback
+		);
+		
+		Zotero.debug("ClaudeCliWrapper.exampleStreamingUsage: Final result:", JSON.stringify(result));
+		return result;
+	},
 
 	// Check if "claude" CLI exists by invoking platform-appropriate locator
 	checkClaude: async function(workingDirOverride = null) {
