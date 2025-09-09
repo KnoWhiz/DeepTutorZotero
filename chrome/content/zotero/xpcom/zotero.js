@@ -441,6 +441,9 @@ Services.scriptloader.loadSubScript("resource://zotero/polyfill.js");
 		Zotero.debug('Initializing Word Processor plugins');
 		Zotero.Integration.init();
 		await Zotero.Plugins.init();
+		
+		// Check for application updates on startup
+		this.checkForUpdatesOnStartup();
 	}
 	
 	
@@ -985,8 +988,56 @@ Services.scriptloader.loadSubScript("resource://zotero/polyfill.js");
 				'updateChecker', flags, null);
 		}
 	};
-	
-	
+
+
+	/**
+	 * Check for application updates on startup and show popup if available
+	 * This function performs a background check and shows the update dialog if updates are found
+	 */
+	this.checkForUpdatesOnStartup = async function () {
+		try {
+			// Check if startup update checking is enabled
+			if (!Zotero.Prefs.get('app.update.checkOnStartup', true)) {
+				Zotero.debug('Startup update checking is disabled');
+				return;
+			}
+			
+			Zotero.debug('Checking for application updates on startup');
+			
+			// Create update checker
+			let checker = Cc["@mozilla.org/updates/update-checker;1"].createInstance(Ci.nsIUpdateChecker);
+			
+			// Perform background check
+			let check = await checker.checkForUpdates(checker.BACKGROUND_CHECK);
+			let result = await check.result;
+			
+			if (!result.checksAllowed || !result.succeeded) {
+				Zotero.debug('Startup update check failed or not allowed');
+				return;
+			}
+			
+			// Get the appropriate update service
+			let aus = Cc["@mozilla.org/updates/update-service;1"].getService(Ci.nsIApplicationUpdateService);
+			let update = await aus.selectUpdate(result.updates);
+			
+			if (update && !update.unsupported) {
+				Zotero.debug(`Update found on startup: ${update.displayVersion} (type: ${update.type})`);
+				
+				// Show update popup for any update (major or minor)
+				// Use a small delay to ensure UI is fully ready
+				setTimeout(() => {
+					this.openCheckForUpdatesWindow({ modal: false });
+				}, 2000);
+			} else {
+				Zotero.debug('No updates found on startup check');
+			}
+			
+		} catch (e) {
+			Zotero.logError('Error during startup update check: ' + e);
+		}
+	};
+
+
 	/**
 	 * Launch a file, the best way we can
 	 */
