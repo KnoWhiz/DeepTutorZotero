@@ -240,7 +240,8 @@ modules/addons/XPIInstall.sys.mjs
 
 	# Accept zotero@chnm.gmu.edu for target application to allow Zotero 6 plugins to remain
 	# installed in Zotero 7
-	replace_line 'if \(targetApp.id == Services.appinfo.ID\) \{' 'if (targetApp.id == Services.appinfo.ID || targetApp.id == '\''zotero@zotero.org'\'') {' modules/addons/XPIDatabase.sys.mjs
+	replace_line 'if \(targetApp.id == Services.appinfo.ID\) \{' 'if (targetApp.id == '\''zotero\@chnm.gmu.edu'\'') targetApp.id = '\''zotero\@zotero.org'\''; if (targetApp.id == Services.appinfo.ID || targetApp.id == '\''zotero\@zotero.org'\'') {' modules/addons/XPIDatabase.sys.mjs
+
 
 	# TEMP: Skip addons without ids until we figure out what's going on with the default theme.
 	# This fixes plugin updating and other things.
@@ -249,6 +250,7 @@ modules/addons/XPIInstall.sys.mjs
 	# Add compatibility override for Zotero 7.* plugins on DeepTutor 8.* versions
 	replace_line 'version = aPlatformVersion;' \
 'version = aPlatformVersion;
+    }
 
     \/\/ Deeptutor override: allow Zotero 7-targeted add-ons on app version 8.*.
     \/\/ This relaxes the maxVersion check while still enforcing minVersion.
@@ -263,9 +265,7 @@ modules/addons/XPIInstall.sys.mjs
         return minOk;
       }
     } catch (e) {
-      logger.warn(`Compat override check failed for ${this.id}`);
-    }' \
-modules/addons/XPIDatabase.sys.mjs
+      logger.warn(`Compat override check failed for ${this.id}`);' modules/addons/XPIDatabase.sys.mjs
 
 
 	# For updates, look for applications.zotero instead of applications.gecko in manifest.json and
