@@ -845,10 +845,11 @@ var gUpdatesFoundBasicPage = {
 	async onPageShow() {
 		gUpdates.wiz.canRewind = false;
 		var update = gUpdates.update;
+		// Use the same button text for all update types to avoid differing behavior
 		gUpdates.setButtons(
 			"askLaterButton",
 			null,
-			"updateButton_" + update.type,
+			"updateButton_major",
 			true
 		);
 		var btn = gUpdates.wiz.getButton("next");
@@ -859,17 +860,11 @@ var gUpdatesFoundBasicPage = {
 		updateNameElement.value = updateName;
 
 		var introElem = document.getElementById("updatesFoundIntro");
-		introElem.setAttribute("severity", update.type);
-		if (update.type == 'major') {
-			let introText = gUpdates.getAUSString("intro_" + update.type, [
-				gUpdates.brandName,
-				update.displayVersion,
-			]);
-			introElem.textContent = introText;
-		}
-		else {
-			document.l10n.setAttributes(introElem, 'update-updates-found-intro-minor');
-		}
+		// Force consistent styling for all update types
+		introElem.setAttribute("severity", "major");
+		// Treat all updates equally - use the same intro message
+		let introText = gUpdates.getAUSString("intro_major", [gUpdates.brandName, update.displayVersion]);
+		introElem.textContent = introText;
 
 		var updateMoreInfoURL = document.getElementById("updateMoreInfoURL");
 		if (update.detailsURL) {
@@ -878,9 +873,8 @@ var gUpdatesFoundBasicPage = {
 			updateMoreInfoURL.hidden = true;
 		}
 
-		var updateTitle = gUpdates.getAUSString(
-			"updatesfound_" + update.type + ".title"
-		);
+		// Use consistent title for all update types
+		var updateTitle = gUpdates.getAUSString("updatesfound_major.title");
 		document
 			.getElementById("updatesFoundBasicHeader")
 			.setAttribute("label", updateTitle);

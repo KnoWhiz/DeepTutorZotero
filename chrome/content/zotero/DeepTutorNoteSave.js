@@ -2,11 +2,11 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 
-export default function DeepTutorNoteSave({ 
-	isSuccessful, 
-	noteName, 
-	containerName, 
-	onClose 
+export default function DeepTutorNoteSave({
+	isSuccessful,
+	noteName,
+	containerName,
+	onClose
 }) {
 	const { colors } = useDeepTutorTheme();
 	const [isButtonHovered, setIsButtonHovered] = React.useState(false);
@@ -87,7 +87,8 @@ export default function DeepTutorNoteSave({
 	const getMessage = () => {
 		if (isSuccessful) {
 			return `Note "${noteName}" created successfully in "${containerName}".`;
-		} else {
+		}
+		else {
 			return 'Error Creating Note';
 		}
 	};

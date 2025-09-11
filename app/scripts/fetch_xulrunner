@@ -5,17 +5,17 @@ set -euo pipefail
 #                     Center for History and New Media
 #                     George Mason University, Fairfax, Virginia, USA
 #                     http://zotero.org
-# 
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -79,7 +79,7 @@ function get_utf16_chars {
 #
 function modify_omni {
 	platform=$1
-	
+
 	mkdir omni
 	mv omni.ja omni
 	cd omni
@@ -89,20 +89,20 @@ function modify_omni {
 	rm -f omni.ja.log
 	unzip omni.ja
 	rm omni.ja
-	
+
 	rm -r chrome/pdfjs
-	
+
 	rm -r modules/narrate
 	rm -r modules/translation
-	
+
 	rm actors/AboutTranslations{Parent,Child}.sys.mjs
 	rm actors/CookieBanner{Parent,Child}.sys.mjs
 	rm actors/PictureInPictureChild.sys.mjs
 	rm actors/ThumbnailsChild.sys.mjs
 	rm actors/Translations{Engine,}{Parent,Child}.sys.mjs
-	
+
 	replace_line 'BROWSER_CHROME_URL:.+' 'BROWSER_CHROME_URL: "chrome:\/\/zotero\/content\/zoteroPane.xhtml",' modules/AppConstants.sys.mjs
-	
+
 	# https://firefox-source-docs.mozilla.org/toolkit/components/telemetry/internals/preferences.html
 	#
 	# It's not clear that most of these do anything anymore when not compiled in, but just in case
@@ -114,12 +114,12 @@ function modify_omni {
 	replace_line 'MOZ_CRASHREPORTER:' 'MOZ_CRASHREPORTER: false \&\&' modules/AppConstants.sys.mjs
 	replace_line 'MOZ_UPDATE_CHANNEL:.+' 'MOZ_UPDATE_CHANNEL: "none",' modules/AppConstants.sys.mjs
 	replace_line '"https:\/\/[^\/]+mozilla.com.+"' '""' modules/AppConstants.sys.mjs
-	
+
 	# Don't use Mozilla Maintenance Service on Windows
 	replace_line 'MOZ_MAINTENANCE_SERVICE:' 'MOZ_MAINTENANCE_SERVICE: false \&\&' modules/AppConstants.sys.mjs
 	# Continue using app.update.auto in prefs.js on Windows
 	replace_line 'PER_INSTALLATION_PREFS_PLATFORMS = \["win"\]' 'PER_INSTALLATION_PREFS_PLATFORMS = []' modules/UpdateUtils.sys.mjs
-	
+
 	# Prompt if major update is available instead of installing automatically on restart
 	replace_line 'if \(!updateAuto\) \{' 'if (update.type == "major") {
       LOG("UpdateService:_selectAndInstallUpdate - prompting because it is a major update");
@@ -128,28 +128,28 @@ function modify_omni {
       return;
     }
     if (!updateAuto) {' modules/UpdateService.sys.mjs
-	
+
 	# Avoid console warning about resource://gre/modules/FxAccountsCommon.js
 	replace_line 'const logins = this._data.logins;' 'const logins = this._data.logins; if (this._data.logins.length != -1) return;' modules/LoginStore.sys.mjs
-	
+
 	# Prevent error during network requests
 	replace_line 'async lazyInit\(\) \{' 'async lazyInit() { if (this.features) return false;' modules/UrlClassifierExceptionListService.sys.mjs
-	
+
 	replace_line 'pref\("network.captive-portal-service.enabled".+' 'pref("network.captive-portal-service.enabled", false);' greprefs.js
 	replace_line 'pref\("network.connectivity-service.enabled".+' 'pref("network.connectivity-service.enabled", false);' greprefs.js
 	replace_line 'pref\("toolkit.telemetry.server".+' 'pref("toolkit.telemetry.server", "");' greprefs.js
 	replace_line 'pref\("toolkit.telemetry.unified".+' 'pref("toolkit.telemetry.unified", false);' greprefs.js
 	replace_line 'pref\("media.gmp-manager.url".+' 'pref("media.gmp-manager.url", "");' greprefs.js
-	
-	#  
+
+	#
 	#  # Disable transaction timeout
 	#  perl -pi -e 's/let timeoutPromise/\/*let timeoutPromise/' modules/Sqlite.jsm
 	#  perl -pi -e 's/return Promise.race\(\[transactionPromise, timeoutPromise\]\);/*\/return transactionPromise;/' modules/Sqlite.jsm
 	#  rm -f jsloader/resource/gre/modules/Sqlite.jsm
-	#  
+	#
 	# Disable unwanted components
 	remove_line '(RemoteSettings|services-|telemetry|Telemetry|URLDecorationAnnotationsService)' components/components.manifest
-	
+
 	file="modules/ActorManagerParent.sys.mjs"
 	# Remove deleted actors
 	remove_between 'AboutTranslations: \{' '^  },' $file
@@ -162,12 +162,12 @@ function modify_omni {
 	remove_between 'TranslationsEngine: \{' '^  },' $file
 	# Do not trigger LoginManager event that logs an error on autocomplete submission
 	remove_line 'DOMInputPasswordAdded: \{\},' $file
-	
+
 	# On Mac/Linux, ignore relative paths in PATH in Subprocess.pathSearch(), used when a bare command is passed to Utilities.Internal.subprocess()
 	if [[ $platform != win* ]]; then
 		replace_line 'let path = PathUtils.join\(dir, bin\);' 'if (!dir.startsWith("\/")) continue; let path = PathUtils.join(dir, bin);' modules/subprocess/subprocess_unix.sys.mjs
 	fi
-	
+
 	# Remove unwanted files
 	pushd modules
 	rm Bookmarks*
@@ -186,10 +186,10 @@ function modify_omni {
 	pushd chrome/toolkit/content/mozapps/extensions
 	rm -rf default-theme
 	popd
-	
+
 	# This file loads remote-settings.sys.mjs, but if it's empty Zotero crashes
 	replace_line 'async #init\(\) \{' 'async #init() { if (true) { return; }' modules/URLQueryStrippingListService.sys.mjs
-	
+
 	# Clear most WebExtension manifest properties
 	replace_line 'manifest = normalized.value;' 'manifest = normalized.value;
     if (this.type == "extension") {
@@ -209,22 +209,65 @@ function modify_omni {
       manifest.web_accessible_resources = undefined;
       manifest.experiment_apis = {};
     }' modules/Extension.sys.mjs
-	
+
 	# Use applications.zotero instead of applications.gecko
 	replace_line 'let bss = manifest.applications\?.gecko' 'let bss = manifest.applications?.zotero' modules/addons/XPIInstall.sys.mjs
 	replace_line 'manifest.applications\?.gecko' 'manifest.applications?.zotero' modules/Extension.sys.mjs
-	
+
 	# When installing addon, use app version instead of toolkit version for targetApplication
 	replace_line "id: TOOLKIT_ID," "id: '$APP_ID'," modules/addons/XPIInstall.sys.mjs
-	
+
+	# Add host application ID to targetApplications for broader compatibility
+	replace_line 'addon.adminInstallOnly = bss.admin_install_only;' \
+'\/\/ Add host application ID to targetApplications so compatibility checks use
+  \/\/ Deeptutor app ID as well (broadening Zotero 7-targeted addons to work on 8.*).
+  try {
+    let hostId = Services.appinfo.ID;
+    addon.targetApplications.push({
+      id: hostId,
+      minVersion: bss.strict_min_version,
+      maxVersion: bss.strict_max_version,
+    });
+    logger.warn(
+      `Added host app targetApplication for ${addon.id}: id=${hostId}, min=${bss.strict_min_version}, max=${bss.strict_max_version}`
+    );
+  } catch (e) {
+    logger.warn(`Failed adding host app targetApplication for ${addon.id}`);
+  }
+
+  addon.adminInstallOnly = bss.admin_install_only;' \
+modules/addons/XPIInstall.sys.mjs
+
 	# Accept zotero@chnm.gmu.edu for target application to allow Zotero 6 plugins to remain
 	# installed in Zotero 7
-	replace_line "if \(targetApp.id == Services.appinfo.ID\) \{" "if (targetApp.id == 'zotero\@chnm.gmu.edu') targetApp.id = '$APP_ID'; if (targetApp.id == Services.appinfo.ID) {" modules/addons/XPIDatabase.sys.mjs
-	
+	replace_line 'if \(targetApp.id == Services.appinfo.ID\) \{' 'if (targetApp.id == '\''zotero\@chnm.gmu.edu'\'') targetApp.id = '\''zotero\@zotero.org'\''; if (targetApp.id == Services.appinfo.ID || targetApp.id == '\''zotero\@zotero.org'\'') {' modules/addons/XPIDatabase.sys.mjs
+
+
 	# TEMP: Skip addons without ids until we figure out what's going on with the default theme.
 	# This fixes plugin updating and other things.
 	replace_line 'return addons;' 'return addons.filter(addon => addon.id);' modules/addons/XPIDatabase.sys.mjs
-	
+
+	# Add compatibility override for Zotero 7.* plugins on DeepTutor 8.* versions
+	replace_line 'version = aPlatformVersion;' \
+'version = aPlatformVersion;
+    }
+
+    \/\/ Deeptutor override: allow Zotero 7-targeted add-ons on app version 8.*.
+    \/\/ This relaxes the maxVersion check while still enforcing minVersion.
+    try {
+      const getMajor = v => { let m = String(v).match(\/^(\\d+)\/); return m ? parseInt(m[1], 10) : NaN; };
+      const appMajor = getMajor(aAppVersion);
+      const maxMajor = getMajor(maxVersion);
+      const shouldRelaxMax = Number.isFinite(appMajor) && appMajor >= 8 && Number.isFinite(maxMajor) && maxMajor === 7;
+      if (shouldRelaxMax) {
+        const minOk = Services.vc.compare(aAppVersion, minVersion) >= 0;
+        logger.warn(`Compat override applied for ${this.id}: app ${aAppVersion}, min=${minVersion}, max=${maxVersion}, result=${minOk}`);
+        return minOk;
+      }
+    } catch (e) {
+      logger.warn(`Compat override check failed for ${this.id}`);' modules/addons/XPIDatabase.sys.mjs
+
+
 	# For updates, look for applications.zotero instead of applications.gecko in manifest.json and
 	# use the app id and version for strict_min_version/strict_max_version comparisons
 	replace_line 'gecko: \{\},' 'zotero: {},' modules/addons/AddonUpdateChecker.sys.mjs
@@ -233,15 +276,42 @@ function modify_omni {
 	replace_line 'let app = getProperty\(applications, "gecko", "object"\);' 'let app = getProperty(applications, "zotero", "object");' modules/addons/AddonUpdateChecker.sys.mjs
 	replace_line "id: TOOLKIT_ID," "id: '$APP_ID'," modules/addons/AddonUpdateChecker.sys.mjs
 	replace_line 'lazy.AddonManagerPrivate.webExtensionsMinPlatformVersion' '"7.0"' modules/addons/AddonUpdateChecker.sys.mjs
-	replace_line 'result.targetApplications.push' 'false && result.targetApplications.push' modules/addons/AddonUpdateChecker.sys.mjs
-	
+	# Enable adding host app ID entry for update targetApplications
+	replace_line 'result.targetApplications.push' \
+'try {
+      logger.warn(`Adding host app ID entry for update targetApplications: id=${Services.appinfo.ID}`);
+    } catch (e) {}
+    result.targetApplications.push' \
+modules/addons/AddonUpdateChecker.sys.mjs
+
+	# Add update compatibility override for Zotero 7.* plugins on DeepTutor 8.* versions
+	replace_line 'return \(' \
+'\/\/ Deeptutor override: If host app is 8.* and update targets Zotero 7.* max,
+        \/\/ allow as long as minVersion is satisfied. Add debug logging to trace.
+        try {
+          const getMajor = v => { let m = String(v).match(\/^(\\d+)\/); return m ? parseInt(m[1], 10) : NaN; };
+          const hostMajor = getMajor(aAppVersion);
+          const maxMajor = getMajor(app.maxVersion);
+          const relax = !aIgnoreMaxVersion && Number.isFinite(hostMajor) && hostMajor >= 8 && Number.isFinite(maxMajor) && maxMajor === 7;
+          if (relax) {
+            let ok = Services.vc.compare(aAppVersion, app.minVersion) >= 0;
+            logger.warn(`Update compat override for ${aUpdate.id}@${aUpdate.version}: host=${aAppVersion}, min=${app.minVersion}, max=${app.maxVersion}, result=${ok}`);
+            return ok;
+          }
+        } catch (e) {
+          logger.warn(`Update compat override check failed for ${aUpdate.id}@${aUpdate.version}`);
+        }
+
+        return (' \
+modules/addons/AddonUpdateChecker.sys.mjs
+
 	# Prevent automatic installation of default theme
 	# (chrome/toolkit/content/mozapps/extensions/default-theme, removed above)
 	replace_line 'this.maybeInstallBuiltinAddon\(' 'if (false) this.maybeInstallBuiltinAddon(' modules/addons/XPIProvider.sys.mjs
-	
+
 	# Don't log a warning when checking 'distribution/extensions' for addons
 	replace_line 'logger.warn\(`Checking' 'logger.debug(`Checking' modules/addons/XPIProvider.sys.mjs
-	
+
 	# Allow addon installation by bypassing confirmation dialogs. If we want a confirmation dialog,
 	# we need to either add gXPInstallObserver from browser-addons.js [1][2] or provide our own with
 	# Ci.amIWebInstallPrompt [3].
@@ -252,7 +322,7 @@ function modify_omni {
 	replace_line 'if \(info.addon.installPermissions\) \{' 'if (false) {' modules/AddonManager.sys.mjs
 	replace_line '\} else if \(info.addon.sitePermissions\) \{' '} else if (false) {' modules/AddonManager.sys.mjs
 	replace_line '\} else if \(requireConfirm\) \{' '} else if (false) {' modules/AddonManager.sys.mjs
-	
+
 	# Make addon listener methods wait for promises, to allow calling asynchronous plugin `shutdown`
 	# and `uninstall` methods in our `onInstalling` handler
 	replace_line 'callAddonListeners\(aMethod' 'async callAddonListeners(aMethod' modules/AddonManager.sys.mjs
@@ -266,35 +336,35 @@ function modify_omni {
 	replace_line 'AddonManagerPrivate.callAddonListeners' 'await AddonManagerPrivate.callAddonListeners' modules/addons/XPIInstall.sys.mjs
 	replace_line 'let uninstall = \(\) => \{' 'let uninstall = async () => {' modules/addons/XPIInstall.sys.mjs
 	replace_line 'cancelUninstallAddon\(aAddon\)' 'async cancelUninstallAddon(aAddon)' modules/addons/XPIInstall.sys.mjs
-	
+
 	# Prevent login manager from trying to load FxAccountsCommon.sys.mjs
 	replace_line 'return login.hostname == lazy.FXA_PWDMGR_HOST;' 'return false;' modules/storage-json.sys.mjs
-	
+
 	# No idea why this is necessary, but without it initialization fails with "TypeError: "constructor" is read-only"
 	replace_line 'LoginStore.prototype.constructor = LoginStore;' '\/\/LoginStore.prototype.constructor = LoginStore;' modules/LoginStore.sys.mjs
-	#  
+	#
 	#  # Allow proxy password saving
 	#  perl -pi -e 's/get _inPrivateBrowsing\(\) \{/get _inPrivateBrowsing() {if (true) { return false; }/' components/nsLoginManagerPrompter.js
-	#  
+	#
 	#  # Change text in update dialog
 	#  perl -pi -e 's/A security and stability update for/A new version of/' chrome/en-US/locale/en-US/mozapps/update/updates.properties
 	#  perl -pi -e 's/updateType_major=New Version/updateType_major=New Major Version/' chrome/en-US/locale/en-US/mozapps/update/updates.properties
 	#  perl -pi -e 's/updateType_minor=Security Update/updateType_minor=New Version/' chrome/en-US/locale/en-US/mozapps/update/updates.properties
 	#  perl -pi -e 's/update for &brandShortName; as soon as possible/update as soon as possible/' chrome/en-US/locale/en-US/mozapps/update/updates.dtd
-	#  
+	#
 	# Set available locales
 	cp "$APP_ROOT_DIR/assets/multilocale.txt" res/multilocale.txt
-	
+
 	# Use Zotero URL opening in Mozilla dialogs (e.g., app update dialog)
 	replace_line 'function openURL\(aURL\) \{' 'function openURL(aURL) {let {Zotero} = ChromeUtils.importESModule("chrome:\/\/zotero\/content\/zotero.mjs"); Zotero.launchURL(aURL); if (true) { return; }' chrome/toolkit/content/global/contentAreaUtils.js
-	
+
 	#
 	# Modify Add-ons window
 	#
-	
+
 	# Prevent display: block from overriding display: none on <hr>s
 	replace_line 'display: block !important;' 'display: block;' chrome/toolkit/content/global/elements/panel-list.css
-	
+
 	file="chrome/toolkit/content/mozapps/extensions/aboutaddons.css"
 	echo >> $file
 	# Hide search bar, Themes and Plugins tabs, and sidebar footer
@@ -313,7 +383,7 @@ function modify_omni {
 	# Show cursor feedback on plugin homepage links
 	echo '.addon-detail-row-homepage .text-link { cursor: pointer; color: LinkText; }' >> $file
 	echo '.addon-detail-row-homepage .text-link:hover { text-decoration: underline; }' >> $file
-	
+
 	file="chrome/toolkit/content/mozapps/extensions/aboutaddons.js"
 	# Hide unsigned-addon warning
 	replace_line 'if \(!isCorrectlySigned\(addon\)\) \{' 'if (!isCorrectlySigned(addon)) {return {};' $file
@@ -323,39 +393,39 @@ function modify_omni {
 	# Use our own strings for the removal prompt
 	replace_line 'let \{ BrowserAddonUI \} = windowRoot.ownerGlobal;' '' $file
 	replace_line 'await BrowserAddonUI.promptRemoveExtension' 'promptRemoveExtension' $file
-	
+
 	# Customize empty-list message
 	replace_line 'createEmptyListMessage\(\) {' 'createEmptyListMessage() {
         var p = document.createElement("p");
         p.id = "empty-list-message";
         return p;' $file
 	# Swap in include.js, which we need for Zotero.getString(), for abuse-reports.js, which we don't need
-	
+
 	# Open plugin links in external browser
 	replace_line 'let homepageURL = homepageRow.querySelector\(\"a\"\);' 'let homepageURL = homepageRow.querySelector(\"\.text-link\");' $file
 	replace_line 'homepageURL.href = addon.homepageURL;' 'homepageURL.setAttribute("href", addon.homepageURL);' $file
 	replace_line '<a target="_blank" dir="ltr"><\/a>' \
 		'<label target="_blank" class="text-link" dir="ltr"><\/label>' \
 		chrome/toolkit/content/mozapps/extensions/aboutaddons.html
-	
+
 	# TODO: Use our own strings, but for now fix the bundled English ones
 	replace_line 'Manage Your Extensions' 'Manage Your Plugins' localization/en-US/toolkit/about/aboutAddons.ftl
 	replace_line '= Extensions' '= Plugins' localization/en-US/toolkit/about/aboutAddons.ftl
 	replace_line 'Add-on' 'Plugin' localization/en-US/toolkit/about/aboutAddons.ftl
 	replace_line 'Select add-on to install' 'Select plugin to install' localization/en-US/toolkit/about/aboutAddons.ftl
-	
+
 	# Hide Recommendations tab in sidebar and recommendations in main pane
 	replace_line 'function isDiscoverEnabled\(\) \{' 'function isDiscoverEnabled() {return false;' chrome/toolkit/content/mozapps/extensions/aboutaddonsCommon.js
 	replace_line 'pref\("extensions.htmlaboutaddons.recommendations.enabled".+' 'pref("extensions.htmlaboutaddons.recommendations.enabled", false);' greprefs.js
-	
+
 	# Hide Report option
 	replace_line 'pref\("extensions.abuseReport.enabled".+' 'pref("extensions.abuseReport.enabled", false);' greprefs.js
-	
+
 	# The first displayed Services.prompt dialog's size jumps around because sizeToContent() is called twice
 	# Fix by preventing the first sizeToContent() call if the icon hasn't been loaded yet
 	replace_line 'window.sizeToContent\(\);' 'if (ui.infoIcon.complete) window.sizeToContent();' chrome/toolkit/content/global/commonDialog.js
 	replace_line 'ui.infoIcon.addEventListener' 'if (!ui.infoIcon.complete) ui.infoIcon.addEventListener' chrome/toolkit/content/global/commonDialog.js
-	
+
 	# Import style into built-in dialogs
 	replace_line 'id=\"commonDialogWindow\"' \
 		'id=\"commonDialogWindow\" class=\"zotero-dialog\" drawintitlebar-platforms=\"mac\"' \
@@ -377,10 +447,10 @@ function modify_omni {
 			Services.scriptloader.loadSubScript(\"chrome:\/\/zotero\/content\/customElements.js\", this);
 		} catch (e) {}' \
 		chrome/toolkit/content/global/commonDialog.xhtml
-	
+
 	# Use native checkbox instead of Firefox-themed version in prompt dialogs
 	replace_line '<xul:checkbox' '<xul:checkbox native=\"true\"' chrome/toolkit/content/global/commonDialog.xhtml
-	
+
 	# The <browser> CE appends its autoscroll <popup> to document.documentElement, which doesn't work in zoteroPane.xhtml
 	# (in Firefox browser.xhtml, document.documentElement is <html>, which can contain <popup>s; in zoteroPane.xhtml, it's
 	# <window>, which can't)
@@ -391,31 +461,32 @@ function modify_omni {
          document.documentElement.appendChild(popupset);
        }
        popupset.appendChild(this._autoScrollPopup);' chrome/toolkit/content/global/elements/browser-custom-element.js
-	
+
 	# Remove aria-autocomplete unnecessarily added to search-textbox to not confuse screen readers
 	remove_line 'this.inputField.setAttribute\("aria-autocomplete' chrome/toolkit/content/global/elements/search-textbox.js
 
 	# Remove non-native text input styles
 	remove_between 'html\|input\:where\(' '^}' chrome/toolkit/skin/classic/global/global-shared.css
-	
+
 	# Provide a mechanism for non-UA stylesheets to override the overflow property
 	# of a text control's anonymous text node child
 	echo '::placeholder, ::-moz-text-control-editing-root, ::-moz-text-control-preview {
 		overflow: var(--moz-text-control-overflow);
 	}' >> chrome/toolkit/res/forms.css
-	
+
 	# By default, an autocomplete popup's width is calculated based on the input that opened it.
 	# Allow an ancestor to designate itself as the width container instead. (For creator inputs.)
 	replace_line 'aElement.getBoundingClientRect\(\).width' \
 		'(aElement.closest(".autocomplete-popup-width-container") || aElement).getBoundingClientRect().width' \
 		chrome/toolkit/content/global/elements/autocomplete-popup.js
-	
+
 	zip -qr9XD omni.ja *
 	mv omni.ja ..
 	cd ..
 	python3 "$APP_ROOT_DIR/scripts/optimizejars.py" --optimize ./ ./ ./
+	# FIXME
 	rm -rf omni
-	
+
 	# Unzip browser/omni.ja and leave unzipped
 	cd browser
 	mkdir omni
@@ -426,21 +497,82 @@ function modify_omni {
 	unzip omni.ja
 	set -e
 	rm omni.ja
-	
+
 	# Remove Firefox update URLs
 	remove_line 'pref\("app.update.url.(manual|details)' defaults/preferences/firefox-branding.js
-	
+
 	# Remove Firefox overrides (e.g., to use Firefox-specific strings for connection errors)
 	remove_line '(override)' chrome/chrome.manifest
-	
+
 	# Remove WebExtension APIs
 	remove_line ext-browser.json components/components.manifest
-	
+
 	# Don't open a second window if app is already open when launching .exe (Windows) or running via
 	# command line (macOS)
 	replace_line 'function dch_handle\(cmdLine\) \{' 'function dch_handle(cmdLine) {
     if (cmdLine.state == Ci.nsICommandLine.STATE_REMOTE_AUTO) { return; }
     ' modules/BrowserContentHandler.sys.mjs
+}
+
+#
+# Make various modifications to the stock Firefox app
+#
+function modify_omni_modified {
+	platform=$1
+
+	# mkdir omni
+	# mv omni.ja omni
+	cd omni
+	# omni.ja is an "optimized" ZIP file, so use a script from Mozilla to avoid a warning from unzip
+	# here and to make it work after rezipping below
+	# python3 "$APP_ROOT_DIR/scripts/optimizejars.py" --deoptimize ./ ./ ./
+	# rm -f omni.ja.log
+	# unzip omni.ja
+	# rm omni.ja
+
+	# rm -r chrome/pdfjs
+
+	# rm -r modules/narrate
+	# rm -r modules/translation
+
+	# rm actors/AboutTranslations{Parent,Child}.sys.mjs
+	# rm actors/CookieBanner{Parent,Child}.sys.mjs
+	# rm actors/PictureInPictureChild.sys.mjs
+	# rm actors/ThumbnailsChild.sys.mjs
+	# rm actors/Translations{Engine,}{Parent,Child}.sys.mjs
+
+	rm -rf omni.ja ../omni.ja
+	zip -qr9XD omni.ja *
+	mv omni.ja ..
+	cd ..
+	python3 "$APP_ROOT_DIR/scripts/optimizejars.py" --optimize ./ ./ ./
+	# rm -rf omni
+
+	# # Unzip browser/omni.ja and leave unzipped
+	# cd browser
+	# mkdir omni
+	# mv omni.ja omni
+	# cd omni
+	# ls -la
+	# set +e
+	# unzip omni.ja
+	# set -e
+	# rm omni.ja
+
+	# # Remove Firefox update URLs
+	# remove_line 'pref\("app.update.url.(manual|details)' defaults/preferences/firefox-branding.js
+
+	# # Remove Firefox overrides (e.g., to use Firefox-specific strings for connection errors)
+	# remove_line '(override)' chrome/chrome.manifest
+
+	# # Remove WebExtension APIs
+	# remove_line ext-browser.json components/components.manifest
+
+	# # Don't open a second window if app is already open when launching .exe (Windows) or running via
+	# # command line (macOS)
+	# replace_line 'function dch_handle\(cmdLine\) \{' 'function dch_handle(cmdLine) {
+    # if (cmdLine.state == Ci.nsICommandLine.STATE_REMOTE_AUTO) { return; }
+    # ' modules/BrowserContentHandler.sys.mjs
 }
 
 mkdir -p xulrunner
@@ -449,10 +581,12 @@ cd xulrunner
 if [ $BUILD_MAC == 1 ]; then
 	GECKO_VERSION="$GECKO_VERSION_MAC"
 	DOWNLOAD_URL="https://ftp.mozilla.org/pub/firefox/releases/$GECKO_VERSION"
+	# FIXME
 	rm -rf Firefox.app
-	
+
 	if [ -e "Firefox $GECKO_VERSION.app.zip" ]; then
 		echo "Using Firefox $GECKO_VERSION.app.zip"
+		# FIXME
 		unzip "Firefox $GECKO_VERSION.app.zip"
 	else
 		curl -o Firefox.dmg "$DOWNLOAD_URL/mac/en-US/Firefox%20$GECKO_VERSION.dmg"
@@ -465,7 +599,7 @@ if [ $BUILD_MAC == 1 ]; then
 		zip -r "Firefox $GECKO_VERSION.app.zip" Firefox.app
 		hdiutil detach -quiet /Volumes/Firefox
 	fi
-	
+
 	# Download custom components (e.g., XUL), as an xz-compressed tarball of the MacOS folder with
 	# custom files in it
 	echo
@@ -478,7 +612,7 @@ if [ $BUILD_MAC == 1 ]; then
 			echo "Downloading custom Firefox components"
 			echo
 			curl -o MacOS.tar.xz "${custom_components_url}mac/$custom_components_hash_mac.tar.xz"
-			
+
 			# Verify hash
 			if [[ "`uname`" = "Darwin" ]]; then
 				shasum=shasum
@@ -488,16 +622,18 @@ if [ $BUILD_MAC == 1 ]; then
 			echo
 			echo "$custom_components_hash_mac  MacOS.tar.xz" | $shasum -c -
 			echo
-			
+
 			tar xvf MacOS.tar.xz
 		fi
 		echo
 	fi
-	
+
 	pushd Firefox.app/Contents/Resources
+	# FIXME
 	modify_omni mac
+	# modify_omni_modified mac
 	popd
-	
+
 	# Replace "FirefoxCP" with "ZoteroCP" for subprocesses ("Isolated Web Content", "Socket Process", "Web Content", etc.)
 	info_plist=Firefox.app/Contents/MacOS/plugin-container.app/Contents/Resources/English.lproj/InfoPlist.strings
 	from=$(get_utf16_chars "FirefoxCP")
@@ -508,22 +644,22 @@ if [ $BUILD_MAC == 1 ]; then
 		echo '"ZoteroCP" not found in InfoPlist.strings after replacement'
 		exit 1
 	fi
-	
+
 	rm -f Firefox.dmg
-	
+
 	echo $("$SCRIPT_DIR/xulrunner_hash" -p m) > hash-mac
 fi
 
 if [ $BUILD_WIN == 1 ]; then
 	GECKO_VERSION="$GECKO_VERSION_WIN"
 	DOWNLOAD_URL="https://ftp.mozilla.org/pub/firefox/releases/$GECKO_VERSION"
-	
+
 	for arch in win32 win-x64 win-arm64; do
 		xdir=firefox-$arch
-		
+
 		rm -rf $xdir
 		mkdir $xdir
-		
+
 		archived_file="Firefox Setup $GECKO_VERSION-$arch.exe"
 		if [ -e "$archived_file" ]; then
 			echo "Using $archived_file"
@@ -540,14 +676,14 @@ if [ $BUILD_WIN == 1 ]; then
 			# Store local copy of unmodified app
 			cp "Firefox%20Setup%20$GECKO_VERSION.exe" "$archived_file"
 		fi
-		
+
 		7z x Firefox%20Setup%20$GECKO_VERSION.exe -o$xdir 'core/*'
 		mv $xdir/core $xdir-core
 		rm -rf $xdir
 		mv $xdir-core $xdir
-		
+
 		pushd $xdir
-		
+
 		# Replace "Mozilla-1de4eec8-1241-4177-a864-e594e8d1fb38" with "Zotero" for C:\ProgramData directory
 		#
 		# Mozilla uses a UUID in the path because they previously used just "Mozilla" and needed to
@@ -561,7 +697,7 @@ if [ $BUILD_WIN == 1 ]; then
 		# We re-sign DLL in build.sh, but presumably this file, which is for the Widevine CDM,
 		# isn't vaid anymore
 		rm xul.dll.sig
-		
+
 		# Check for UTF-16 "Zotero" in DLL
 		#
 		# (The macOS strings command doesn't have an encoding option, so skip on macOS. We could
@@ -572,13 +708,13 @@ if [ $BUILD_WIN == 1 ]; then
 			echo '"Zotero" not found in xul.dll after replacement'
 			exit 1
 		fi
-		
+
 		modify_omni $arch
 		# Disable skeleton UI window
 		# https://forums.zotero.org/discussion/comment/437636/#Comment_437636
 		replace_line 'pref\("browser\.startup\.preXulSkeletonUI", true\);' 'pref("browser.startup.preXulSkeletonUI", false);' defaults/preferences/firefox.js
 		popd
-		
+
 		# Uncomment to create local copies for reuse
 		#cp "Firefox%20Setup%20$GECKO_VERSION.exe" "Firefox Setup $GECKO_VERSION-$arch.exe"
 		rm "Firefox%20Setup%20$GECKO_VERSION.exe"
@@ -602,7 +738,7 @@ if [ $BUILD_LINUX == 1 ]; then
 	for arch in $arches; do
 		xdir="firefox-$arch"
 		rm -rf $xdir
-		
+
 		archived_file="firefox-$GECKO_VERSION-$arch.tar.bz2"
 		if [ -e "$archived_file" ]; then
 			echo "Using $archived_file"

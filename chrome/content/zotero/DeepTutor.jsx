@@ -27,7 +27,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
 import DeepTutorMain from './DeepTutorMain.js';
-import DeepTutorLocalhostServer from './localhostServer.js';
+import DeepTutorLocalhostServer from './DeepTutorLocalhostServer.js';
 import {
 	getMessagesBySessionId,
 	getSessionById,
@@ -174,11 +174,13 @@ var DeepTutor = class DeepTutor extends React.Component {
 			showRenamePopup: false,
 			showNoPDFWarningPopup: false,
 			showFileSizeWarningPopup: false,
+			showPageLimitWarningPopup: false,
 			showNoteSavePopup: false,
 			sessionToDelete: null,
 			sessionNameToDelete: '',
 			sessionToRename: null,
 			sessionNameToRename: '',
+			renameSource: null, // Track where rename was initiated from ('sessionHistory' or 'chat')
 			// Note save popup data
 			noteSaveSuccess: false,
 			noteSaveNoteName: '',
@@ -668,6 +670,23 @@ var DeepTutor = class DeepTutor extends React.Component {
 		}
 	};
 
+	openPageLimitWarningPopup = () => {
+		try {
+			this.setState({
+				showPageLimitWarningPopup: true
+			});
+		}
+		catch (e) {
+			Zotero.debug(`DeepTutor: Error opening page limit warning popup: ${e.message}`);
+		}
+	};
+
+	closePageLimitWarningPopup = () => {
+		this.setState({
+			showPageLimitWarningPopup: false,
+		});
+	};
+
 	closeFileSizeWarningPopup = () => {
 		this.setState({
 			showFileSizeWarningPopup: false,
@@ -720,21 +739,64 @@ var DeepTutor = class DeepTutor extends React.Component {
 		});
 	};
 
-	handleShowRenamePopup = (sessionId) => {
+	handleShowRenamePopup = (sessionId, source = 'chat') => {
 		const session = this.state.sesIdToObj.get(sessionId);
 		const sessionName = session ? session.sessionName || 'Unnamed Session' : 'Unnamed Session';
 
 		this.setState({
 			sessionToRename: sessionId,
 			sessionNameToRename: sessionName,
+			renameSource: source, // Track where rename was initiated from
 			showRenamePopup: true
 		});
 	};
 
-	handleRenameSuccess = async () => {
-		// Reload sessions to get updated session names
+	handleRenameSuccess = async (renamedSessionId, newSessionName) => {
 		try {
-			await this.loadSession();
+			// Store the renameSource before reloading sessions (it might get overwritten)
+			const renameSource = this.state.renameSource;
+			
+			// Update local session data instead of reloading from server (faster, no page refresh)
+			if (renamedSessionId && newSessionName) {
+				// Update the session in sesIdToObj - create a new object to ensure React re-renders
+				const updatedSesIdToObj = new Map(this.state.sesIdToObj);
+				const sessionToUpdate = updatedSesIdToObj.get(renamedSessionId);
+				if (sessionToUpdate) {
+					const updatedSession = { ...sessionToUpdate, sessionName: newSessionName };
+					updatedSesIdToObj.set(renamedSessionId, updatedSession);
+				}
+				
+				// Update the session in the sessions array
+				const updatedSessions = this.state.sessions.map(session => {
+					if (session.id === renamedSessionId) {
+						return { ...session, sessionName: newSessionName };
+					}
+					return session;
+				});
+				
+				// Update state with the modified session data
+				this.setState({
+					sessions: updatedSessions,
+					sesIdToObj: updatedSesIdToObj
+				});
+			}
+
+			// If the renamed session is the one currently open, update it in-place
+			if (renamedSessionId && this.state.currentSession && this.state.currentSession.id === renamedSessionId) {
+				const updated = this.state.sesIdToObj.get(renamedSessionId);
+				if (updated) {
+					this.setState({ currentSession: updated });
+				}
+			}
+
+			// Navigate based on where the rename was initiated from
+			if (renameSource === 'sessionHistory') {
+				// Stay on sessionHistory page if rename was initiated from there
+				this.switchPane('sessionHistory');
+			} else {
+				// Stay on chat page if rename was initiated from there (default behavior)
+				this.switchPane('main');
+			}
 		}
 		catch (error) {
 			Zotero.debug(`DeepTutor: Error reloading sessions after rename: ${error.message}`);
@@ -745,7 +807,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 		this.setState({
 			showRenamePopup: false,
 			sessionToRename: null,
-			sessionNameToRename: ''
+			sessionNameToRename: '',
+			renameSource: null
 		});
 	};
 
@@ -1629,6 +1692,11 @@ var DeepTutor = class DeepTutor extends React.Component {
 				showFileSizeWarningPopup={this.state.showFileSizeWarningPopup}
 				openFileSizeWarningPopup={this.openFileSizeWarningPopup}
 				closeFileSizeWarningPopup={this.closeFileSizeWarningPopup}
+
+				// Page limit warning popup
+				showPageLimitWarningPopup={this.state.showPageLimitWarningPopup}
+				openPageLimitWarningPopup={this.openPageLimitWarningPopup}
+				closePageLimitWarningPopup={this.closePageLimitWarningPopup}
 				
 				// Note save popup handlers
 				handleShowNoteSavePopup={this.showNoteSavePopup}

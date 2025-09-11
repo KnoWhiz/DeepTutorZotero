@@ -130,6 +130,12 @@ pref("app.update.timerMinimumDelay", 120);
 // update channel for this build
 pref("app.update.channel", "default");
 
+// Enable startup update checks
+pref("app.update.checkInstallTime", true);
+
+// Enable automatic update check on startup
+pref("app.update.checkOnStartup", true);
+
 // This should probably not be a preference that's used in toolkit....
 pref("browser.preferences.instantApply", false);
 

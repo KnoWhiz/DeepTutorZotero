@@ -8,7 +8,6 @@ import {
 	subscribeToChat
 } from './api/libs/api';
 import DeepTutorChatBoxMessage from './DeepTutorChatBoxMessage';
-import DeepTutorRenameSession from './DeepTutorRenameSession.js';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 import ClaudeAutoInstall from './ClaudeAutoInstall';
 
@@ -160,8 +159,7 @@ Format requirement:
 
 const RenameIconPath = 'chrome://zotero/content/DeepTutorMaterials/History/RENAME_SESSION.svg';
 const RenameIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/History/RENAME_SESSION_DARK.svg';
-const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSavePopup }) => {
-
+const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSavePopup, onShowRenamePopup }) => {
 	const { colors, theme, isDark } = useDeepTutorTheme();
 	
 	// Theme-aware styles
@@ -177,7 +175,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			fontFamily: 'Roboto, sans-serif',
 			position: 'relative',
 			overflow: 'hidden',
-			padding: '1.875rem 0.75rem 0 0.75rem',
+			padding: '1.875rem 1.25rem 0 1.25rem',
 			boxSizing: 'border-box',
 			userSelect: 'text', // Ensure text is selectable
 			WebkitUserSelect: 'text',
@@ -189,7 +187,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			marginBottom: '1.25rem',
 			display: 'flex',
 			alignItems: 'center',
-			justifyContent: 'space-between',
+			justifyContent: 'flex-start',
 			gap: '10px',
 		},
 		sessionNameText: {
@@ -206,8 +204,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			flex: 1,
 		},
 		renameIconButton: {
-			width: '1.0625rem',
-			height: '1.0625rem',
+			width: '1rem',
+			height: '1rem',
 			background: 'transparent',
 			border: 'none',
 			cursor: 'pointer',
@@ -216,10 +214,11 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			justifyContent: 'center',
 			padding: 0,
 			flexShrink: 0,
+			marginRight: '0.75rem',
 		},
 		renameIcon: {
-			width: '1.0625rem',
-			height: '1.0625rem',
+			width: '1rem',
+			height: '1rem',
 			objectFit: 'contain',
 		},
 		sessionInfo: {
@@ -496,63 +495,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			cursor: 'pointer',
 			marginRight: '1rem',
 		},
-		settingsPopup: {
-			position: 'absolute',
-			bottom: '100%',
-			right: 0,
-			background: theme === 'light' ? '#FFFFFF' : colors.background.tertiary,
-			border: `0.0625rem solid ${colors.border.primary}`,
-			borderRadius: '0.5rem',
-			boxShadow: '0 0.125rem 0.25rem rgba(0,0,0,0.1)',
-			zIndex: 1000,
-			width: '20rem',
-			padding: '1rem',
-			marginBottom: '0.5rem',
-			boxSizing: 'border-box',
-		},
-		settingsLabel: {
-			fontSize: '0.875rem',
-			fontWeight: 500,
-			color: colors.text.allText,
-			marginBottom: '0.5rem',
-			display: 'block',
-		},
-		settingsInput: {
-			width: '100%',
-			padding: '0.5rem',
-			border: `0.0625rem solid ${colors.border.primary}`,
-			borderRadius: '0.25rem',
-			background: colors.background.secondary,
-			color: colors.text.allText,
-			fontSize: '0.875rem',
-			marginBottom: '1rem',
-			boxSizing: 'border-box',
-			outline: 'none',
-		},
-		settingsButton: {
-			background: colors.button.primary,
-			color: colors.button.primaryText,
-			border: 'none',
-			borderRadius: '0.25rem',
-			padding: '0.5rem 1rem',
-			fontSize: '0.875rem',
-			fontWeight: 500,
-			cursor: 'pointer',
-			width: '100%',
-			boxSizing: 'border-box',
-		},
-		renamePopupOverlay: {
-			position: 'fixed',
-			top: 0,
-			left: 0,
-			right: 0,
-			bottom: 0,
-			background: 'rgba(0, 0, 0, 0.5)',
-			display: 'flex',
-			alignItems: 'center',
-			justifyContent: 'center',
-			zIndex: 9999,
-		}
+		// renamePopupOverlay is managed by parent in DeepTutorMain
 	};
 	const [messages, setMessages] = useState([]);
 	const [inputValue, setInputValue] = useState('');
@@ -586,7 +529,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 
 	// Add state to track streaming component visibility for each message
 	const [streamingComponentVisibility, setStreamingComponentVisibility] = useState({});
-	const [showRenamePopup, setShowRenamePopup] = useState(false);
+	// const [showRenamePopup, setShowRenamePopup] = useState(false); // deprecated - managed by parent
 	
 	// Choose rename icon based on theme
 	const renameIconPath = isDark ? RenameIconDarkPath : RenameIconPath;
@@ -773,7 +716,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 						setHasActiveStream(false);
 						// Stop waiting since we got a response
 						setWaitingStreaming(false);
-					} else {
+					}
+					else {
 						Zotero.debug(`DeepTutorChatBox: No new messages, keeping waitingStreaming true`);
 					}
 					// If no new messages but we're still checking, keep waiting state true
@@ -782,7 +726,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 					// Stop waiting state on error
 					setWaitingStreaming(false);
 				});
-			} else {
+			}
+			else {
 				// Not waiting for response
 				Zotero.debug(`DeepTutorChatBox: Not in waiting condition, setting waitingStreaming to false`);
 				setWaitingStreaming(false);
@@ -1251,17 +1196,9 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 
 	// Handle rename functionality
 	const handleRenameClick = () => {
-		setShowRenamePopup(true);
-	};
-
-	const handleRenameCancel = () => {
-		setShowRenamePopup(false);
-	};
-
-	const handleRenameConfirm = async (_sessionId) => {
-		setShowRenamePopup(false);
-		// The session should be refreshed after renaming, which will happen through the API
-		// and the parent component should handle updating the current session
+		if (onShowRenamePopup && currentSession?.id) {
+			onShowRenamePopup(currentSession.id, 'chat');
+		}
 	};
 
 	// Handle scroll to detect if user scrolled back to bottom
@@ -3245,19 +3182,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 					/>
 				</div>
 			)}
-			{/* Rename popup */}
-			{showRenamePopup && currentSession && (
-				<div style={styles.renamePopupOverlay} onClick={handleRenameCancel}>
-					<div onClick={e => e.stopPropagation()}>
-						<DeepTutorRenameSession
-							sessionId={currentSession.id}
-							currentSessionName={currentSession.sessionName || "New Session"}
-							onConfirmRename={handleRenameConfirm}
-							onCancelRename={handleRenameCancel}
-						/>
-					</div>
-				</div>
-			)}
+			{/* Rename popup managed by parent (DeepTutorMain) */}
 		</div>
 	);
 };
@@ -3266,7 +3191,8 @@ DeepTutorChatBox.propTypes = {
 	currentSession: PropTypes.object,
 	onSessionSelect: PropTypes.func,
 	onInitWaitChange: PropTypes.func,
-	handleShowNoteSavePopup: PropTypes.func
+	handleShowNoteSavePopup: PropTypes.func,
+	onShowRenamePopup: PropTypes.func
 };
 
 export default DeepTutorChatBox;

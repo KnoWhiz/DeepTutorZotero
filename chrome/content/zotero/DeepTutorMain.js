@@ -16,9 +16,11 @@ import DeepTutorSessionDelete from './DeepTutorSessionDelete.js';
 import DeepTutorRenameSession from './DeepTutorRenameSession.js';
 import DeepTutorNoPDFWarning from './DeepTutorNoPDFWarning.js';
 import DeepTutorFileSizeWarning from './DeepTutorFileSizeWarning.js';
+import DeepTutorPageLimitWarning from './DeepTutorPageLimitWarning.js';
 import DeepTutorNoteSave from './DeepTutorNoteSave.js';
 import DeepTutorSubscriptionPopup from './DeepTutorSubscriptionPopup.js';
 import { DT_BASE_URL } from './api/libs/api.js';
+import { getUserEmail } from './auth/userUtils.js';
 
 
 // Icon paths for popup close buttons
@@ -203,6 +205,18 @@ const DeepTutorMain = (props) => {
 			background: colors.button.primary,
 			color: colors.button.primaryText,
 		},
+		renamePopupOverlay: {
+			position: 'absolute',
+			top: 0,
+			left: 0,
+			right: 0,
+			bottom: 0,
+			background: 'rgba(0, 0, 0, 0.5)',
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'center',
+			zIndex: 9999,
+		},
 	};
 
 	// Dynamic close button path based on theme
@@ -262,6 +276,7 @@ const DeepTutorMain = (props) => {
 							onSessionSelect={props.handleSessionSelect}
 							onInitWaitChange={props.handleInitWaitChange}
 							handleShowNoteSavePopup={props.handleShowNoteSavePopup}
+							onShowRenamePopup={props.handleShowRenamePopup}
 						/>
 					)}
 					{props.currentPane === 'sessionHistory'
@@ -285,6 +300,7 @@ const DeepTutorMain = (props) => {
 							externallyFrozen={props.modelSelectionFrozen}
 							onShowNoPDFWarning={props.openNoPDFWarningPopup}
 							onShowFileSizeWarning={props.openFileSizeWarningPopup}
+							onShowPageLimitWarning={props.openPageLimitWarningPopup}
 							subscriptionType={props.activeSubscription?.type || "BASIC"}
 							usageSummary={props.usageSummary}
 							hasActiveSubscription={Boolean(props.activeSubscription && props.activeSubscription.id)}
@@ -460,8 +476,8 @@ const DeepTutorMain = (props) => {
 						<DeepTutorRenameSession
 							sessionId={props.sessionToRename}
 							currentSessionName={props.sessionNameToRename}
-							onConfirmRename={(_sessionId) => {
-								props.handleRenameSuccess();
+							onConfirmRename={(_sessionId, _newSessionName) => {
+								props.handleRenameSuccess(_sessionId, _newSessionName);
 								props.handleCancelRename();
 							}}
 							onCancelRename={props.handleCancelRename}
@@ -566,6 +582,52 @@ const DeepTutorMain = (props) => {
 				</div>
 			)}
 
+			{props.showPageLimitWarningPopup && (
+				<div style={{
+					position: 'absolute',
+					top: 0,
+					left: 0,
+					right: 0,
+					bottom: 0,
+					background: 'rgba(0, 0, 0, 0.5)',
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+					zIndex: 2000,
+				}}>
+					<div style={{
+						background: colors.background.primary,
+						borderRadius: '0.5rem',
+						padding: '2rem',
+						maxWidth: '24rem',
+						width: '100%',
+						position: 'relative',
+						border: isDark ? `1px solid ${colors.popup.border}` : 'none',
+					}}>
+						<button
+							onClick={props.closePageLimitWarningPopup}
+							style={{
+								all: 'revert',
+								background: 'none',
+								border: 'none',
+								cursor: 'pointer',
+								position: 'absolute',
+								right: '1rem',
+								top: '1rem',
+								width: '1rem',
+								height: '1rem',
+								display: 'flex',
+								alignItems: 'center',
+								justifyContent: 'center',
+							}}
+						>
+							<img src={closeButtonPath} alt="Close" style={{ width: '1rem', height: '1rem' }} />
+						</button>
+						<DeepTutorPageLimitWarning onClose={props.closePageLimitWarningPopup} />
+					</div>
+				</div>
+			)}
+
 			{props.showNoteSavePopup && (
 				<div style={{
 					position: 'absolute',
@@ -662,6 +724,8 @@ const DeepTutorMain = (props) => {
 						<DeepTutorSubscription
 							onClose={props.toggleSubscriptionConfirmPopup}
 							onSubscriptionStatusChange={props.handleSubscriptionStatusChange}
+							currentUser={props.currentUser}
+							userData={props.userData}
 						/>
 					</div>
 				</div>
@@ -684,10 +748,8 @@ const DeepTutorMain = (props) => {
 						onClose={props.toggleSubscriptionPopup}
 						onAction={(plan) => {
 							// Open different URLs based on selected plan
-							//let url = `http://localhost:3000/dzSubscription?plan=premium`;
 							let url = `https://${DT_BASE_URL}/dzSubscription?plan=premium`;
 							if (plan === 'pro') {
-								//url = `http://localhost:3000/dzSubscription?plan=pro`;
 								url = `https://${DT_BASE_URL}/dzSubscription?plan=pro`;
 							}
 							else if (plan === 'free') {
@@ -695,6 +757,11 @@ const DeepTutorMain = (props) => {
 								props.toggleSubscriptionPopup();
 								return;
 							}
+
+							// Append email and userId if available
+							const emailParam = props.currentUser ? `&email=${encodeURIComponent(getUserEmail(props.currentUser))}` : '';
+							const userIdParam = props.userData && props.userData.id ? `&userId=${encodeURIComponent(props.userData.id)}` : '';
+							url = `${url}${emailParam}${userIdParam}`;
 
 							try {
 								Zotero.launchURL(url);
@@ -728,6 +795,8 @@ const DeepTutorMain = (props) => {
 						userId={props.userData && props.userData.id}
 						activeSubscription={props.activeSubscription}
 						onRefreshSubscription={props.refreshActiveSubscription}
+						currentUser={props.currentUser}
+						userData={props.userData}
 					/>
 				</div>
 			)}
@@ -777,6 +846,8 @@ const DeepTutorMain = (props) => {
 							onClose={props.toggleManageSubscriptionPopup}
 							onSubscriptionStatusChange={props.handleSubscriptionStatusChange}
 							isManageMode={true}
+							currentUser={props.currentUser}
+							userData={props.userData}
 						/>
 					</div>
 				</div>
@@ -850,6 +921,7 @@ const DeepTutorMain = (props) => {
 							externallyFrozen={props.modelSelectionFrozen}
 							onShowNoPDFWarning={props.openNoPDFWarningPopup}
 							onShowFileSizeWarning={props.openFileSizeWarningPopup}
+							onShowPageLimitWarning={props.openPageLimitWarningPopup}
 							subscriptionType={props.activeSubscription?.type || "BASIC"}
 							usageSummary={props.usageSummary}
 							hasActiveSubscription={Boolean(props.activeSubscription && props.activeSubscription.id)}
@@ -947,6 +1019,10 @@ DeepTutorMain.propTypes = {
 	closeNoPDFWarningPopup: PropTypes.func.isRequired,
 	openFileSizeWarningPopup: PropTypes.func.isRequired,
 	closeFileSizeWarningPopup: PropTypes.func.isRequired,
+	// Page limit popup
+	showPageLimitWarningPopup: PropTypes.bool.isRequired,
+	openPageLimitWarningPopup: PropTypes.func.isRequired,
+	closePageLimitWarningPopup: PropTypes.func.isRequired,
 	handleShowNoteSavePopup: PropTypes.func.isRequired,
 	closeNoteSavePopup: PropTypes.func.isRequired,
 	toggleSubscriptionPopup: PropTypes.func.isRequired,
