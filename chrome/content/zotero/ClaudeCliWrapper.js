@@ -313,17 +313,71 @@ const ClaudeCliWrapper = {
 			Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: command=${command}, spArgs=${JSON.stringify(spArgs)}, options=${JSON.stringify(options)}`);
 
 			// Process the subprocess result
+			Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: About to execute subprocess with command: ${command}`);
+			Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: subprocess args: ${JSON.stringify(spArgs)}`);
+			
 			const res = await Zotero.Utilities.Internal.subprocess(command, spArgs, options);
+			
+			Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: raw result type:", typeof res);
 			Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: raw result:", JSON.stringify(res));
+			Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: raw result length:", res ? String(res).length : 'null/undefined');
+			
+			// Check if res is an object with error information
+			if (res && typeof res === 'object') {
+				if (res.exitCode !== undefined) {
+					Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: subprocess exitCode:", res.exitCode);
+				}
+				if (res.stderr) {
+					Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: subprocess stderr:", res.stderr);
+				}
+				if (res.stdout !== undefined) {
+					Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: subprocess stdout length:", res.stdout ? res.stdout.length : 'empty');
+				}
+			}
 			
 			// Parse streaming JSON output
 			let fullResponse = '';
 			let accumulatedContent = '';
 			let isComplete = false;
 			
-			if (res && typeof res === 'string') {
-				const lines = res.split('\n');
-				Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: Processing ${lines.length} lines`);
+			// Handle different response formats from subprocess
+			let responseText = '';
+			if (res) {
+				if (typeof res === 'string') {
+					Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: res is string, length: ${res.length}`);
+					if (res.trim()) {
+						Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: res content preview: ${res.substring(0, 200)}...`);
+					}
+					responseText = res;
+				} else if (res.stdout !== undefined) {
+					Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: res has stdout, length: ${res.stdout ? res.stdout.length : 'null'}`);
+					if (res.stdout && res.stdout.trim()) {
+						Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: stdout content preview: ${res.stdout.substring(0, 200)}...`);
+					}
+					responseText = res.stdout || '';
+				} else if (res.output !== undefined) {
+					Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: res has output, length: ${res.output ? res.output.length : 'null'}`);
+					if (res.output && res.output.trim()) {
+						Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: output content preview: ${res.output.substring(0, 200)}...`);
+					}
+					responseText = res.output || '';
+				} else {
+					// Fallback: convert to string if it's an object
+					Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: res is object, converting to string`);
+					responseText = String(res);
+				}
+			} else {
+				Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: res is null/undefined");
+			}
+			
+			Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: Final responseText length: ${responseText.length}`);
+			if (responseText && responseText.trim()) {
+				Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: responseText preview: ${responseText.substring(0, 200)}...`);
+			}
+			
+			if (responseText && responseText.trim()) {
+				const lines = responseText.split('\n');
+				Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: Processing ${lines.length} lines from responseText`);
 				
 				for (let i = 0; i < lines.length; i++) {
 					const line = lines[i].trim();
@@ -336,17 +390,48 @@ const ClaudeCliWrapper = {
 						
 						// Extract content from different possible chunk structures
 						let content = '';
+						
+						// Handle different Claude CLI streaming formats
 						if (chunk.content) {
-							content = chunk.content;
+							Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: chunk.content: ${chunk.content}`);
+							// Format: {"content": "text"}
+							if (typeof chunk.content === 'string') {
+								content = chunk.content;
+							} else if (chunk.content.text) {
+								content = chunk.content.text;
+							}
 						} else if (chunk.delta && chunk.delta.text) {
+							Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: chunk.delta.text: ${chunk.delta.text}`);
+							// Format: {"delta": {"text": "content"}}
 							content = chunk.delta.text;
-						} else if (chunk.text) {
+						} else if (chunk.delta && typeof chunk.delta === 'string') {
+							Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: chunk.delta: ${chunk.delta}`);
+							// Format: {"delta": "content"}
+							content = chunk.delta;
+						} else if (chunk.text) {	
+							Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: chunk.text: ${chunk.text}`);
+							// Format: {"text": "content"}
 							content = chunk.text;
+						} else if (chunk.message && chunk.message.content) {
+							// Format: {"message": {"content": "text"}}
+							if (typeof chunk.message.content === 'string') {
+								content = chunk.message.content;
+							} else if (Array.isArray(chunk.message.content)) {
+								// Handle array of content blocks
+								content = chunk.message.content
+									.filter(block => block.type === 'text' && block.text)
+									.map(block => block.text)
+									.join('');
+							}
 						} else if (typeof chunk === 'string') {
+							// Format: direct string
 							content = chunk;
+						} else {
+							// Log unrecognized chunk format for debugging
+							Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: Unrecognized chunk format:`, JSON.stringify(chunk));
 						}
 						
-						if (content) {
+						if (content && typeof content === 'string') {
 							accumulatedContent += content;
 							fullResponse += content;
 							
@@ -354,10 +439,13 @@ const ClaudeCliWrapper = {
 							if (onChunk && typeof onChunk === 'function') {
 								onChunk(content, false, accumulatedContent);
 							}
+						} else if (chunk && !content) {
+							// Log when we have a chunk but couldn't extract content
+							Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: Could not extract content from chunk:`, JSON.stringify(chunk));
 						}
 						
 						// Check if this is the final chunk
-						if (chunk.stop_reason || chunk.finish_reason || chunk.done) {
+						if (chunk.stop_reason || chunk.finish_reason || chunk.done || chunk.type === 'message_stop') {
 							isComplete = true;
 							break;
 						}
@@ -365,12 +453,81 @@ const ClaudeCliWrapper = {
 					} catch (parseError) {
 						Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: JSON parse error for line: ${line}`, parseError);
 						// If JSON parsing fails, treat the line as plain text content
-						if (line && onChunk && typeof onChunk === 'function') {
-							accumulatedContent += line;
-							fullResponse += line;
-							onChunk(line, false, accumulatedContent);
+						if (line) {
+							// Only add non-JSON lines if they seem to contain actual content
+							if (!line.startsWith('{') && !line.startsWith('data:') && line.length > 0) {
+								accumulatedContent += line + '\n';
+								fullResponse += line + '\n';
+								
+								if (onChunk && typeof onChunk === 'function') {
+									onChunk(line + '\n', false, accumulatedContent);
+								}
+							}
 						}
 					}
+				}
+			} else {
+				Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: No valid response text found");
+				
+				// Check for potential command execution issues
+				if (res && typeof res === 'object') {
+					if (res.exitCode && res.exitCode !== 0) {
+						const errorMsg = `Claude CLI command failed with exit code ${res.exitCode}`;
+						Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: ${errorMsg}`);
+						if (res.stderr) {
+							Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: stderr: ${res.stderr}`);
+						}
+						
+						if (onError && typeof onError === 'function') {
+							onError(new Error(`${errorMsg}${res.stderr ? ': ' + res.stderr : ''}`));
+						}
+						
+						return { 
+							error: new Error(`${errorMsg}${res.stderr ? ': ' + res.stderr : ''}`),
+							exitCode: res.exitCode,
+							stderr: res.stderr 
+						};
+					}
+				}
+				
+				// If no streaming content was found but we have a response, try to use it as-is
+				if (res) {
+					let fallbackContent = '';
+					if (typeof res === 'string') {
+						fallbackContent = res;
+					} else if (res.stdout !== undefined) {
+						fallbackContent = res.stdout || '';
+					} else if (res.output !== undefined) {
+						fallbackContent = res.output || '';
+					}
+					
+					if (fallbackContent && fallbackContent.trim()) {
+						Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: Using fallback content");
+						fullResponse = fallbackContent;
+						accumulatedContent = fallbackContent;
+						
+						if (onChunk && typeof onChunk === 'function') {
+							onChunk(fallbackContent, true, accumulatedContent);
+						}
+					} else {
+						// No content at all - might be a command issue
+						const warningMsg = "Claude CLI command executed but returned no content. Check if Claude CLI is properly installed and configured.";
+						Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: ${warningMsg}`);
+						
+						if (onError && typeof onError === 'function') {
+							onError(new Error(warningMsg));
+						}
+					}
+				} else {
+					// Completely null response
+					const errorMsg = "Claude CLI command failed to execute - no response received";
+					Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: ${errorMsg}`);
+					
+					if (onError && typeof onError === 'function') {
+						onError(new Error(errorMsg));
+					}
+					
+					return { error: new Error(errorMsg) };
 				}
 			}
 			
@@ -392,12 +549,20 @@ const ClaudeCliWrapper = {
 				}
 			}
 			
-			return { 
+			// Return result that's compatible with both object usage and direct string usage
+			const result = { 
 				success: true, 
 				content: fullResponse, 
 				accumulatedContent: accumulatedContent,
 				isComplete: true 
 			};
+			
+			// Add toString method to prevent [object Object] when used as string
+			result.toString = function() {
+				return this.content || '';
+			};
+			
+			return result;
 		}
 		catch (e) {
 			Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: error:", e);
