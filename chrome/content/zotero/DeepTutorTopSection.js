@@ -7,6 +7,8 @@ const LOGO_PATH = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_DPTLOGO.sv
 const LOGO_DARK_PATH = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_DPTLOGO_DARK.svg';
 const HISTORY_ICON_PATH = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_HISTORY_NEW.svg';
 const HISTORY_ICON_DARK_PATH = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_HISTORY_DARK.svg';
+const SETTINGS_ICON_PATH = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_SETTINGS.svg';
+const SETTINGS_ICON_DARK_PATH = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_SETTINGS_DARK.svg';
 const PLUS_ICON_PATH = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_NEW.svg';
 const PLUS_ICON_DARK_PATH = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_NEW_DARK.svg';
 
@@ -85,6 +87,7 @@ const DeepTutorTopSection = (props) => {
 	// Choose icons based on theme
 	const historyIconPath = isDark ? HISTORY_ICON_DARK_PATH : HISTORY_ICON_PATH;
 	const plusIconPath = isDark ? PLUS_ICON_DARK_PATH : PLUS_ICON_PATH;
+	const settingsIconPath = isDark ? SETTINGS_ICON_DARK_PATH : SETTINGS_ICON_PATH;
 	
 	// Theme-aware styles
 	const themeStyles = {
@@ -130,6 +133,17 @@ const DeepTutorTopSection = (props) => {
 						<img
 							src={historyIconPath}
 							alt="History"
+							style={styles.iconImage}
+						/>
+					</button>
+					<button
+						style={getIconButtonStyle(false)}
+						onClick={props.onToggleSettingsPopup}
+						title="Settings"
+					>
+						<img
+							src={settingsIconPath}
+							alt="Settings"
 							style={styles.iconImage}
 						/>
 					</button>
@@ -191,6 +205,7 @@ DeepTutorTopSection.propTypes = {
 	currentPane: PropTypes.string.isRequired,
 	onSwitchPane: PropTypes.func.isRequired,
 	onToggleModelSelectionPopup: PropTypes.func.isRequired,
+	onToggleSettingsPopup: PropTypes.func.isRequired,
 };
 
 export default DeepTutorTopSection;

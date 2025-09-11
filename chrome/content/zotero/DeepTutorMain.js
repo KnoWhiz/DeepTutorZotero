@@ -8,7 +8,9 @@ import DeepTutorWelcomePane from './DeepTutorWelcomePane.js';
 import DeepTutorSignIn from './DeepTutorSignIn.js';
 import DeepTutorSubscription from './DeepTutorSubscription.js';
 import DeepTutorTopSection from './DeepTutorTopSection.js';
-import DeepTutorBottomSection from './DeepTutorBottomSection.js';
+// Keep BottomSection code in repo but no longer import/use it in UI
+// import DeepTutorBottomSection from './DeepTutorBottomSection.js';
+import DeepTutorSettingsPopup from './DeepTutorSettingsPopup.js';
 import DeepTutorUsagePopup from './DeepTutorUsagePopup.js';
 import DeepTutorWorkspaceSetup from './DeepTutorWorkspaceSetup.js';
 import DeepTutorNoSessionPane from './DeepTutorNoSessionPane.js';
@@ -263,6 +265,7 @@ const DeepTutorMain = (props) => {
 				currentPane={props.currentPane}
 				onSwitchPane={props.switchPane}
 				onToggleModelSelectionPopup={props.toggleModelSelectionPopup}
+				onToggleSettingsPopup={props.toggleSettingsPopup}
 			/>
 
 			{/* Middle Section */}
@@ -318,26 +321,7 @@ const DeepTutorMain = (props) => {
 				</div>
 			</div>
 
-			{/* Bottom Section */}
-			<DeepTutorBottomSection
-				currentPane={props.currentPane}
-				onSwitchPane={props.switchPane}
-				onToggleProfilePopup={props.toggleProfilePopup}
-				onToggleSignInPopup={props.toggleSignInPopup}
-				onToggleSignUpPopup={props.handleOpenSignUpPage}
-
-				onToggleSubscriptionPopup={props.toggleSubscriptionPopup}
-				onToggleUsagePopup={props.toggleUsagePopup}
-				showProfilePopup={props.showProfilePopup}
-				isAuthenticated={props.currentUser}
-				currentUser={props.currentUser}
-				onSignOut={props.handleSignOut}
-				onSwitchNoSession={() => props.switchPane('noSession')}
-				userData={props.userData}
-				activeSubscription={props.activeSubscription}
-				usageSummary={props.usageSummary}
-				onRefreshUsageSummary={props.refreshUsageSummary}
-			/>
+			{/* Bottom Section removed per spec; keeping component for future use */}
 
 			{/* Popups */}
 			{props.showSignInPopup && (
@@ -419,6 +403,20 @@ const DeepTutorMain = (props) => {
 					usageSummary={props.usageSummary}
 					onUpgrade={props.toggleSubscriptionPopup}
 					onRefreshUsageSummary={props.refreshUsageSummary}
+				/>
+			)}
+
+			{props.showSettingsPopup && (
+				<DeepTutorSettingsPopup
+					onClose={props.toggleSettingsPopup}
+					currentUser={props.currentUser}
+					userData={props.userData}
+					activeSubscription={props.activeSubscription}
+					usageSummary={props.usageSummary}
+					onShowUsage={props.toggleUsagePopup}
+					onShowUpgrade={props.toggleSubscriptionPopup}
+					onSignOut={props.handleSignOut}
+					refreshUsageSummary={props.refreshUsageSummary}
 				/>
 			)}
 
@@ -956,6 +954,7 @@ DeepTutorMain.propTypes = {
 	showProfilePopup: PropTypes.bool.isRequired,
 	showSignInPopup: PropTypes.bool.isRequired,
 	showUsagePopup: PropTypes.bool.isRequired,
+	showSettingsPopup: PropTypes.bool,
 	showWorkspaceSetupPopup: PropTypes.bool,
 
 	showModelSelectionPopup: PropTypes.bool.isRequired,
@@ -1011,6 +1010,7 @@ DeepTutorMain.propTypes = {
 	toggleModelSelectionPopup: PropTypes.func.isRequired,
 	toggleSignInPopup: PropTypes.func.isRequired,
 	toggleUsagePopup: PropTypes.func.isRequired,
+	toggleSettingsPopup: PropTypes.func,
 	toggleWorkspaceSetupPopup: PropTypes.func,
 
 	toggleProfilePopup: PropTypes.func.isRequired,

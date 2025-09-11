@@ -191,6 +191,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 			showSearch: false,
 			showSubscriptionPopup: false,
 			showUsagePopup: false,
+			showSettingsPopup: false,
 			// Auth state
 			isAuthenticated: false,
 			currentUser: null,
@@ -631,6 +632,12 @@ var DeepTutor = class DeepTutor extends React.Component {
 		}));
 	};
 
+	toggleSettingsPopup = () => {
+		this.setState(prevState => ({
+			showSettingsPopup: !prevState.showSettingsPopup
+		}));
+	};
+
 	toggleDeletePopup = () => {
 		this.setState(prevState => ({
 			showDeletePopup: !prevState.showDeletePopup,
@@ -767,7 +774,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 				}
 				
 				// Update the session in the sessions array
-				const updatedSessions = this.state.sessions.map(session => {
+				const updatedSessions = this.state.sessions.map((session) => {
 					if (session.id === renamedSessionId) {
 						return { ...session, sessionName: newSessionName };
 					}
@@ -793,7 +800,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 			if (renameSource === 'sessionHistory') {
 				// Stay on sessionHistory page if rename was initiated from there
 				this.switchPane('sessionHistory');
-			} else {
+			}
+			else {
 				// Stay on chat page if rename was initiated from there (default behavior)
 				this.switchPane('main');
 			}
@@ -1598,6 +1606,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 				showProfilePopup={this.state.showProfilePopup}
 				showSignInPopup={this.state.showSignInPopup}
 				showUsagePopup={this.state.showUsagePopup}
+				showSettingsPopup={this.state.showSettingsPopup}
 				showWorkspaceSetupPopup={this.state.showWorkspaceSetupPopup}
 
 				showModelSelectionPopup={this.state.showModelSelectionPopup}
@@ -1672,6 +1681,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 				toggleModelSelectionPopup={this.toggleModelSelectionPopup}
 				toggleSignInPopup={this.toggleSignInPopup}
 				toggleUsagePopup={this.toggleUsagePopup}
+				toggleSettingsPopup={this.toggleSettingsPopup}
 				toggleWorkspaceSetupPopup={() => this.setState({ showWorkspaceSetupPopup: !this.state.showWorkspaceSetupPopup })}
 				// Method to force show workspace setup for testing
 				forceShowWorkspaceSetup={() => this.setState({ showWorkspaceSetupPopup: true })}
