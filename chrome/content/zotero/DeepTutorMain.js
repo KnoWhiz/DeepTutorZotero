@@ -885,7 +885,7 @@ const DeepTutorMain = (props) => {
 						background: colors.background.primary,
 						borderRadius: '0.5rem',
 						padding: '2rem',
-						maxWidth: '24rem',
+						maxWidth: '28rem',
 						width: '100%',
 						position: 'relative',
 						border: isDark ? `1px solid ${colors.popup.border}` : 'none',
