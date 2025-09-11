@@ -9,6 +9,8 @@ const HISTORY_ICON_PATH = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_HI
 const HISTORY_ICON_DARK_PATH = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_HISTORY_DARK.svg';
 const PLUS_ICON_PATH = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_NEW.svg';
 const PLUS_ICON_DARK_PATH = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_NEW_DARK.svg';
+const BROWSER_ICON_PATH = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_BROWSER.svg';
+const BROWSER_ICON_DARK_PATH = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_BROWSER_DARK.svg';
 
 const styles = {
 	top: {
@@ -85,6 +87,7 @@ const DeepTutorTopSection = (props) => {
 	// Choose icons based on theme
 	const historyIconPath = isDark ? HISTORY_ICON_DARK_PATH : HISTORY_ICON_PATH;
 	const plusIconPath = isDark ? PLUS_ICON_DARK_PATH : PLUS_ICON_PATH;
+	const browserIconPath = isDark ? BROWSER_ICON_DARK_PATH : BROWSER_ICON_PATH;
 	
 	// Theme-aware styles
 	const themeStyles = {
@@ -134,6 +137,17 @@ const DeepTutorTopSection = (props) => {
 						/>
 					</button>
 					<button
+						style={getIconButtonStyle(props.currentPane === 'browser')}
+						onClick={() => props.onSwitchPane('browser')}
+						title="Web Browser"
+					>
+						<img
+							src={browserIconPath}
+							alt="Browser"
+							style={styles.iconImage}
+						/>
+					</button>
+					<button
 						style={getIconButtonStyle(props.currentPane === 'modelSelection')}
 						onClick={props.onToggleModelSelectionPopup}
 						title="Create New Session"
@@ -165,6 +179,14 @@ const DeepTutorTopSection = (props) => {
 		);
 	};
 
+	const renderBrowser = () => {
+		return (
+			<div style={styles.contentWrapper}>
+				<img src={logoPath} alt="DeepTutor Logo" style={styles.logo} />
+			</div>
+		);
+	};
+
 	let content;
 	if (props.currentPane === 'main') {
 		content = renderMain();
@@ -174,6 +196,9 @@ const DeepTutorTopSection = (props) => {
 	}
 	else if (props.currentPane === 'sessionHistory') {
 		content = renderSessionHistory();
+	}
+	else if (props.currentPane === 'browser') {
+		content = renderBrowser();
 	}
 	else {
 		// fallback to main design for other panes

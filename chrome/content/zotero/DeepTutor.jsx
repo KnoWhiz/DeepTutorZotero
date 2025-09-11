@@ -191,6 +191,10 @@ var DeepTutor = class DeepTutor extends React.Component {
 			showSearch: false,
 			showSubscriptionPopup: false,
 			showUsagePopup: false,
+			// Browser state
+			browserUrl: 'https://www.google.com',
+			browserHistory: [],
+			browserHistoryIndex: -1,
 			// Auth state
 			isAuthenticated: false,
 			currentUser: null,
@@ -581,6 +585,19 @@ var DeepTutor = class DeepTutor extends React.Component {
 		this.setState({ currentPane: pane });
 	};
 
+	// Browser navigation handlers
+	handleBrowserUrlChange = (url) => {
+		this.setState({ browserUrl: url });
+	};
+
+	handleBrowserNavigationChange = (navigationData) => {
+		const { history } = navigationData;
+		this.setState(prevState => ({
+			browserHistory: history || prevState.browserHistory,
+			browserHistoryIndex: navigationData.historyIndex !== undefined ? navigationData.historyIndex : prevState.browserHistoryIndex
+		}));
+	};
+
 	// Helper method to determine if sessions exist
 	getSessionHistoryPaneOrNoSession = () => {
 		Zotero.debug(`DeepTutor06130613: getSessionHistoryPaneOrNoSession: ${this.state.sessions.length}`);
@@ -767,7 +784,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 				}
 				
 				// Update the session in the sessions array
-				const updatedSessions = this.state.sessions.map(session => {
+				const updatedSessions = this.state.sessions.map((session) => {
 					if (session.id === renamedSessionId) {
 						return { ...session, sessionName: newSessionName };
 					}
@@ -1618,6 +1635,10 @@ var DeepTutor = class DeepTutor extends React.Component {
 				noteSaveSuccess={this.state.noteSaveSuccess}
 				noteSaveNoteName={this.state.noteSaveNoteName}
 				noteSaveContainerName={this.state.noteSaveContainerName}
+				// Browser props
+				browserUrl={this.state.browserUrl}
+				handleBrowserUrlChange={this.handleBrowserUrlChange}
+				handleBrowserNavigationChange={this.handleBrowserNavigationChange}
 				
 				// Feature flags
 				modelSelectionFrozen={this.state.modelSelectionFrozen}
@@ -1625,7 +1646,9 @@ var DeepTutor = class DeepTutor extends React.Component {
 				
 				// Refs
 				containerRef={this.containerRef}
-				tutorBoxRef={ref => this._tutorBox = ref}
+				tutorBoxRef={(ref) => {
+					this._tutorBox = ref;
+				}}
 				
 				// Event handlers
 				handleContainerClick={this.handleContainerClick}

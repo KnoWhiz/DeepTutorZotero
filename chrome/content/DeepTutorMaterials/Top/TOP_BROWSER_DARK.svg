@@ -1,0 +1,12 @@
+<svg width="17" height="17" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M2.125 3.1875H14.875V4.25H2.125V3.1875Z" fill="currentColor"/>
+<path d="M2.125 5.3125H14.875V6.375H2.125V5.3125Z" fill="currentColor"/>
+<path d="M2.125 7.4375H14.875V8.5H2.125V7.4375Z" fill="currentColor"/>
+<path d="M2.125 9.5625H14.875V10.625H2.125V9.5625Z" fill="currentColor"/>
+<path d="M2.125 11.6875H14.875V12.75H2.125V11.6875Z" fill="currentColor"/>
+<path d="M2.125 13.8125H14.875V14.875H2.125V13.8125Z" fill="currentColor"/>
+<rect x="1.0625" y="2.125" width="14.875" height="12.75" stroke="currentColor" stroke-width="1.0625" fill="none"/>
+<circle cx="3.1875" cy="3.1875" r="0.53125" fill="currentColor"/>
+<circle cx="4.78125" cy="3.1875" r="0.53125" fill="currentColor"/>
+<circle cx="6.375" cy="3.1875" r="0.53125" fill="currentColor"/>
+</svg>

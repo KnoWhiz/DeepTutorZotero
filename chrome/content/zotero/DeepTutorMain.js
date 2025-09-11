@@ -19,6 +19,7 @@ import DeepTutorFileSizeWarning from './DeepTutorFileSizeWarning.js';
 import DeepTutorPageLimitWarning from './DeepTutorPageLimitWarning.js';
 import DeepTutorNoteSave from './DeepTutorNoteSave.js';
 import DeepTutorSubscriptionPopup from './DeepTutorSubscriptionPopup.js';
+import DeepTutorBrowser from './DeepTutorBrowser.js';
 import { DT_BASE_URL } from './api/libs/api.js';
 import { getUserEmail } from './auth/userUtils.js';
 
@@ -292,6 +293,13 @@ const DeepTutorMain = (props) => {
 					}
 					{props.currentPane === 'noSession'
 						&& <DeepTutorNoSessionPane onCreateNewSession={props.toggleModelSelectionPopup} />
+					}
+					{props.currentPane === 'browser'
+						&& <DeepTutorBrowser
+							initialUrl={props.browserUrl}
+							onUrlChange={props.handleBrowserUrlChange}
+							onNavigationChange={props.handleBrowserNavigationChange}
+						/>
 					}
 					{props.currentPane === 'modelSelection'
 						&& <ModelSelection
@@ -977,6 +985,11 @@ DeepTutorMain.propTypes = {
 	noteSaveSuccess: PropTypes.bool.isRequired,
 	noteSaveNoteName: PropTypes.string.isRequired,
 	noteSaveContainerName: PropTypes.string.isRequired,
+
+	// Browser props
+	browserUrl: PropTypes.string,
+	handleBrowserUrlChange: PropTypes.func,
+	handleBrowserNavigationChange: PropTypes.func,
 
 	// Feature flags
 	modelSelectionFrozen: PropTypes.bool.isRequired,
