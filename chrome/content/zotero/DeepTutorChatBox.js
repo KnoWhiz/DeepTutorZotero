@@ -111,7 +111,14 @@ const StopIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_STOP.s
 const ArrowDownPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/CHAT_ARROWDOWN.svg';
 const RenameIconPath = 'chrome://zotero/content/DeepTutorMaterials/History/RENAME_SESSION.svg';
 const RenameIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/History/RENAME_SESSION_DARK.svg';
-const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSavePopup, onShowRenamePopup }) => {
+const HistoryIconPath = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_HISTORY_NEW.svg';
+const HistoryIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_HISTORY_DARK.svg';
+const SettingsIconPath = 'chrome://zotero/content/DeepTutorMaterials/Settings/SETTINGS_BUTTON.svg';
+const SettingsIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Settings/SETTINGS_BUTTON_DARK.svg';
+const PlusIconPath = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_NEW.svg';
+const PlusIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_NEW_DARK.svg';
+
+const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSavePopup, onShowRenamePopup, onOpenSessionHistory, onToggleSettingsPopup, onToggleModelSelectionPopup }) => {
 	const { colors, theme, isDark } = useDeepTutorTheme();
 	
 	// Theme-aware styles
@@ -139,7 +146,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			marginBottom: '1.25rem',
 			display: 'flex',
 			alignItems: 'center',
-			justifyContent: 'flex-start',
+			justifyContent: 'space-between',
 			gap: '10px',
 		},
 		sessionNameText: {
@@ -167,6 +174,48 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			padding: 0,
 			flexShrink: 0,
 			marginRight: '0.75rem',
+		},
+		topRight: {
+			display: 'flex',
+			flexDirection: 'row',
+			gap: '0.5rem',
+			alignItems: 'center',
+		},
+		iconButton: {
+			width: '2.5rem',
+			height: '2.5rem',
+			background: colors.background.tertiary,
+			border: 'none',
+			borderRadius: '0.375rem',
+			cursor: 'pointer',
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'center',
+			transition: 'background-color 0.2s ease',
+			padding: '0.5rem',
+		},
+		iconImage: {
+			width: '1.5rem',
+			height: '1.5rem',
+			objectFit: 'contain',
+		},
+		settingsButton: {
+			width: '3rem',
+			height: '3rem',
+			background: colors.background.tertiary,
+			border: 'none',
+			borderRadius: '0.5rem',
+			cursor: 'pointer',
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'center',
+			transition: 'background-color 0.2s ease',
+			padding: '0.5rem',
+		},
+		settingsIconImage: {
+			width: '1.75rem',
+			height: '1.75rem',
+			objectFit: 'contain',
 		},
 		renameIcon: {
 			width: '1rem',
@@ -485,6 +534,9 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 	
 	// Choose rename icon based on theme
 	const renameIconPath = isDark ? RenameIconDarkPath : RenameIconPath;
+	const historyIconPath = isDark ? HistoryIconDarkPath : HistoryIconPath;
+	const settingsIconPath = isDark ? SettingsIconDarkPath : SettingsIconPath;
+	const plusIconPath = isDark ? PlusIconDarkPath : PlusIconPath;
 
 	// Add state to track waiting for AI response (backend processing)
 	const [waitingStreaming, setWaitingStreaming] = useState(false);
@@ -2367,20 +2419,45 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			}} />
             
 			<div style={styles.sessionNameDiv}>
-				<div style={styles.sessionNameText}>
-					{currentSession?.sessionName || "New Session"}
+				<div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+					<div style={styles.sessionNameText}>
+						{currentSession?.sessionName || "New Session"}
+					</div>
+					<button
+						style={styles.renameIconButton}
+						onClick={handleRenameClick}
+						title="Rename Session"
+					>
+						<img
+							src={renameIconPath}
+							alt="Rename"
+							style={styles.renameIcon}
+						/>
+					</button>
 				</div>
-				<button
-					style={styles.renameIconButton}
-					onClick={handleRenameClick}
-					title="Rename Session"
-				>
-					<img
-						src={renameIconPath}
-						alt="Rename"
-						style={styles.renameIcon}
-					/>
-				</button>
+				<div style={styles.topRight}>
+					<button
+						style={styles.iconButton}
+						onClick={() => onOpenSessionHistory && onOpenSessionHistory()}
+						title="Session History"
+					>
+						<img src={historyIconPath} alt="History" style={styles.iconImage} />
+					</button>
+					<button
+						style={styles.settingsButton}
+						onClick={() => onToggleSettingsPopup && onToggleSettingsPopup()}
+						title="Settings"
+					>
+						<img src={settingsIconPath} alt="Settings" style={styles.settingsIconImage} />
+					</button>
+					<button
+						style={styles.iconButton}
+						onClick={() => onToggleModelSelectionPopup && onToggleModelSelectionPopup()}
+						title="Create New Session"
+					>
+						<img src={plusIconPath} alt="New Session" style={styles.iconImage} />
+					</button>
+				</div>
 			</div>
 
 			<div style={styles.viewContextContainer} ref={contextPopupRef}>
@@ -2550,7 +2627,10 @@ DeepTutorChatBox.propTypes = {
 	onSessionSelect: PropTypes.func,
 	onInitWaitChange: PropTypes.func,
 	handleShowNoteSavePopup: PropTypes.func,
-	onShowRenamePopup: PropTypes.func
+	onShowRenamePopup: PropTypes.func,
+	onOpenSessionHistory: PropTypes.func,
+	onToggleSettingsPopup: PropTypes.func,
+	onToggleModelSelectionPopup: PropTypes.func
 };
 
 export default DeepTutorChatBox;

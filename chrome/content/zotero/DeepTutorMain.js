@@ -7,7 +7,7 @@ import DeepTutorChatBox from './DeepTutorChatBox.js';
 import DeepTutorWelcomePane from './DeepTutorWelcomePane.js';
 import DeepTutorSignIn from './DeepTutorSignIn.js';
 import DeepTutorSubscription from './DeepTutorSubscription.js';
-import DeepTutorTopSection from './DeepTutorTopSection.js';
+// Top section removed per new layout spec
 // Keep BottomSection code in repo but no longer import/use it in UI
 // import DeepTutorBottomSection from './DeepTutorBottomSection.js';
 import DeepTutorSettingsPopup from './DeepTutorSettingsPopup.js';
@@ -261,13 +261,6 @@ const DeepTutorMain = (props) => {
 			id="zotero-deep-tutor-pane"
 			onClick={props.handleContainerClick}
 		>
-			<DeepTutorTopSection
-				currentPane={props.currentPane}
-				onSwitchPane={props.switchPane}
-				onToggleModelSelectionPopup={props.toggleModelSelectionPopup}
-				onToggleSettingsPopup={props.toggleSettingsPopup}
-			/>
-
 			{/* Middle Section */}
 			<div style={styles.middle}>
 				<div style={styles.paneList}>
@@ -280,6 +273,9 @@ const DeepTutorMain = (props) => {
 							onInitWaitChange={props.handleInitWaitChange}
 							handleShowNoteSavePopup={props.handleShowNoteSavePopup}
 							onShowRenamePopup={props.handleShowRenamePopup}
+							onOpenSessionHistory={() => props.switchPane('sessionHistory')}
+							onToggleSettingsPopup={props.toggleSettingsPopup}
+							onToggleModelSelectionPopup={props.toggleModelSelectionPopup}
 						/>
 					)}
 					{props.currentPane === 'sessionHistory'
