@@ -8,6 +8,7 @@ import {
 	subscribeToChat
 } from './api/libs/api';
 import DeepTutorChatBoxMessage from './DeepTutorChatBoxMessage';
+import DeepTutorComposer from './DeepTutorComposer.js';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 
 const markdownit = require('markdown-it');
@@ -106,8 +107,8 @@ const MessageRole = {
 };
 
 
-const SendIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_SEND.svg';
-const StopIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_STOP.svg';
+// const SendIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_SEND.svg';
+// const StopIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_STOP.svg';
 const ArrowDownPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/CHAT_ARROWDOWN.svg';
 const RenameIconPath = 'chrome://zotero/content/DeepTutorMaterials/History/RENAME_SESSION.svg';
 const RenameIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/History/RENAME_SESSION_DARK.svg';
@@ -499,7 +500,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		// renamePopupOverlay is managed by parent in DeepTutorMain
 	};
 	const [messages, setMessages] = useState([]);
-	const [inputValue, setInputValue] = useState('');
 	const [sessionId, setSessionId] = useState(null);
 	const [userId, setUserId] = useState(null);
 	const [documentIds, setDocumentIds] = useState([]);
@@ -507,7 +507,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 	const [curSessionType, setcurSessionType] = useState(SessionType.BASIC);
 	const chatLogRef = useRef(null);
 	const contextPopupRef = useRef(null);
-	const textareaRef = useRef(null);
 	const [hoveredContextDoc, setHoveredContextDoc] = useState(null);
 	const [hoveredQuestion, setHoveredQuestion] = useState(null);
 	const [iniWait, setInitWait] = useState(false);
@@ -830,49 +829,13 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		};
 	}, [messages, sessionId]); // Added sessionId dependency
 
-	// Function to adjust textarea height based on content
-	const adjustTextareaHeight = () => {
-		const textarea = textareaRef.current;
-		if (textarea) {
-			// Reset height to get the correct scrollHeight
-			textarea.style.height = 'auto';
-			
-			// Calculate the new height
-			const scrollHeight = textarea.scrollHeight;
-			const maxHeight = 83; // 10rem converted to pixels (assuming 16px base)
-			
-			// For empty or single-line content, use a fixed minimum height
-			// We detect single-line by checking if textarea value has newlines or if it's empty
-			const isEmpty = !textarea.value.trim();
-			const hasMultipleLines = textarea.value.includes('\n');
-			
-			let newHeight;
-			
-			if (isEmpty || (!hasMultipleLines && scrollHeight <= 50)) {
-				// Use minimum height for empty or short single-line content
-				newHeight = 24; // 1.5rem in pixels
-			}
-			else {
-				// Use scrollHeight for multi-line content, but cap at maxHeight
-				newHeight = Math.min(scrollHeight, maxHeight);
-			}
-			
-			textarea.style.height = newHeight + 'px';
-			
-			// Show/hide scrollbar based on content
-			if (scrollHeight > maxHeight) {
-				textarea.style.overflowY = 'scroll';
-			}
-			else {
-				textarea.style.overflowY = 'hidden';
-			}
-		}
-	};
+	// Deprecated: composer manages input height
+	// const adjustTextareaHeight = () => {};
 
-	// Adjust textarea height on mount and when inputValue changes
-	useEffect(() => {
-		adjustTextareaHeight();
-	}, [inputValue]);
+	// Deprecated: composer manages its own sizing
+	// useEffect(() => {
+	// 	adjustTextareaHeight();
+	// }, [inputValue]);
 
 	// Handle session changes
 	useEffect(() => {
@@ -1094,28 +1057,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		}
 	};
 
-	const handleInputChange = (e) => {
-		setInputValue(e.target.value);
-		// Adjust height after the value is set
-		setTimeout(adjustTextareaHeight, 0);
-	};
-
-	const handleSend = async () => {
-		setIsManuallyStopped(false);
-		const trimmedValue = inputValue.trim(); // Remove both leading and trailing spaces
-		if (trimmedValue) { // Only send if there's actual content after trimming
-			setInputValue('');
-			// Reset textarea height after clearing
-			setTimeout(adjustTextareaHeight, 0);
-			await userSendMessage(trimmedValue);
-		}
-		else {
-			setInputValue(''); // Clear input even if empty
-			// Reset textarea height after clearing
-			setTimeout(adjustTextareaHeight, 0);
-		}
-	};
-
 	const handleStopStreaming = async () => {
 		if (streamReaderRef.current) {
 			try {
@@ -1178,7 +1119,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			// Send message to API
 			const responseData = await createMessage(message);
 			const newDocumentFiles2 = [];
-			for (const documentId of currentSession.documentIds || []) {
+			for (const documentId of documentIds || []) {
 				try {
 					const docData = await getDocumentById(documentId);
 					newDocumentFiles2.push(docData);
@@ -2569,53 +2510,35 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 				})()}
 			</div>
 
-			<div style={styles.bottomBar}>
-				<textarea
-					ref={textareaRef}
-					style={{
-						...styles.textInput,
-						opacity: iniWait ? 0.5 : 1,
-						cursor: iniWait ? "not-allowed" : "text",
-						color: colors.text.primary
+			{messages.length === 0 && (
+				<DeepTutorComposer
+					sessionId={sessionId}
+					userId={userId}
+					selectedDocumentIds={documentIds}
+					onDocumentsChange={nextIds => setDocumentIds(nextIds)}
+					onSend={async (text) => {
+						setIsManuallyStopped(false);
+						await userSendMessage(text);
 					}}
-					value={inputValue}
-					onChange={handleInputChange}
-					onKeyDown={(e) => {
-						if (e.key === "Enter" && !e.shiftKey && !iniWait && !isStreaming) {
-							e.preventDefault(); // Prevent adding a new line
-							handleSend();
-						}
-						// Shift+Enter allows new line (default behavior)
-					}}
-					placeholder={`Ask DeepTutor ${curSessionType === SessionType.LITE ? "Standard" : curSessionType === SessionType.BASIC ? "Advanced" : curSessionType.toLowerCase()}`}
-					rows={1}
-					disabled={iniWait}
+					onStop={handleStopStreaming}
+					isBusy={iniWait || hasActiveStream || waitingStreaming}
 				/>
-				<style>
-					{`
-					textarea::placeholder {
-						color: ${colors.text.tertiary} !important;
-						opacity: 1;
-					}
-					`}
-				</style>
-				<button
-					style={{
-						...styles.sendButton,
-						opacity: iniWait ? 0.5 : 1,
-						cursor: iniWait ? "not-allowed" : "pointer"
+			)}
+
+			{messages.length > 0 && (
+				<DeepTutorComposer
+					sessionId={sessionId}
+					userId={userId}
+					selectedDocumentIds={documentIds}
+					onDocumentsChange={nextIds => setDocumentIds(nextIds)}
+					onSend={async (text) => {
+						setIsManuallyStopped(false);
+						await userSendMessage(text);
 					}}
-					onClick={(hasActiveStream || waitingStreaming) ? handleStopStreaming : handleSend}
-					disabled={iniWait}
-					title={(hasActiveStream || waitingStreaming) ? "Stop Thinking" : "Send"}
-				>
-					<img
-						src={(hasActiveStream || waitingStreaming) ? StopIconPath : SendIconPath}
-						alt={(hasActiveStream || waitingStreaming) ? "Stop" : "Send"}
-						style={styles.sendIcon}
-					/>
-				</button>
-			</div>
+					onStop={handleStopStreaming}
+					isBusy={iniWait || hasActiveStream || waitingStreaming}
+				/>
+			)}
 			
 			{/* Rename popup overlay is rendered by parent (DeepTutorMain) */}
 		</div>
