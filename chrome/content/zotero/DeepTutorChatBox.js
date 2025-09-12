@@ -2543,6 +2543,11 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 				await deepTutorManager.initializeDataBase();
 				setPdfProcessingStatus('Database structure created successfully');
 				
+				// Create CLAUDE.md instruction file
+				setPdfProcessingStatus('Creating Claude instruction file...');
+				await deepTutorManager.loadCLAUDEMD();
+				setPdfProcessingStatus('Claude instruction file created successfully');
+				
 				// Load and process raw PDF documents
 				setPdfProcessingStatus('Processing PDF documents...');
 				await deepTutorManager.loadRawPDFDoc();

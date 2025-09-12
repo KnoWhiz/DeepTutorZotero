@@ -539,6 +539,289 @@ class DeepTutorClaudeManagement {
         }
     }
 
+    /**
+     * Create CLAUDE.md file in the root directory of DeepTutorDataBase
+     * This file will contain instructions for Claude AI assistant
+     */
+    async loadCLAUDEMD() {
+        try {
+            Zotero.debug("DeepTutorClaudeManagement: Starting CLAUDE.md creation process...");
+            
+            // Ensure the database is initialized
+            if (!this.deepTutorDBPath) {
+                throw new Error("Database not initialized. Please run initializeDataBase first.");
+            }
+            
+            // Define the CLAUDE.md file path in the root directory
+            const claudeFilePath = this.pathJoin(this.deepTutorDBPath, "CLAUDE.md");
+            Zotero.debug(`DeepTutorClaudeManagement: CLAUDE.md file path: ${claudeFilePath}`);
+            
+            // Check if CLAUDE.md already exists
+            const claudeFileExists = this.pathExists(claudeFilePath);
+            if (claudeFileExists) {
+                Zotero.debug("DeepTutorClaudeManagement: CLAUDE.md file already exists, skipping creation");
+                return claudeFilePath;
+            }
+            
+            // Create default CLAUDE.md content
+            let claudeContent = this.generateDefaultClaudeContent();
+            
+            // Try to append file size analysis if RawDocData exists
+            try {
+                if (this.rawDocDataPath && this.pathExists(this.rawDocDataPath)) {
+                    const fileSizeAnalysis = await this.generateFileSizeAnalysis();
+                    claudeContent += fileSizeAnalysis;
+                    Zotero.debug("DeepTutorClaudeManagement: Added file size analysis to CLAUDE.md");
+                }
+            } catch (analysisError) {
+                Zotero.debug(`DeepTutorClaudeManagement: Could not generate file size analysis: ${analysisError.message}`);
+                // Continue without file size analysis
+            }
+            
+            // Write the CLAUDE.md file
+            this.writeTextFile(claudeFilePath, claudeContent);
+            Zotero.debug("DeepTutorClaudeManagement: Successfully created CLAUDE.md file");
+            
+            return claudeFilePath;
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error creating CLAUDE.md file: ${error.message}`);
+            throw new Error(`Failed to create CLAUDE.md file: ${error.message}`);
+        }
+    }
+
+    /**
+     * Generate default content for CLAUDE.md file
+     * This content will be updated with specific instructions in future requests
+     */
+    generateDefaultClaudeContent() {
+        const currentDate = new Date().toISOString().split('T')[0];
+        
+        return `# Claude AI Assistant Instructions for DeepTutor
+
+## File Overview
+Created: ${currentDate}
+Purpose: Instructions for Claude AI assistant when working with DeepTutor Zotero integration
+
+## System Context
+This file is located in the DeepTutorDataBase root directory and serves as a configuration and instruction guide for Claude AI assistant interactions with the DeepTutor system.
+
+## Current Status
+- File created automatically by DeepTutorClaudeManagement.js
+- Contains system QA prompt and operational instructions
+- Ready for academic tutoring interactions
+
+## Directory Structure Context
+The DeepTutorDataBase contains:
+- **RawDocData/**: Processed PDF documents in markdown format (PRIMARY FOCUS)
+- **DocTOC/**: Document table of contents
+- **UserMetric/**: User interaction metrics and analytics
+- **FileTree/**: Zotero library hierarchy data
+- **General/**: General configuration and metadata files
+- **CLAUDE.md**: This instruction file
+
+## Primary System QA Prompt
+Use this as the foundational prompt for all student interactions:
+
+\`\`\`
+Note: In the current data directory, please only view the /DeepTutorDataBase folder and the pdf files inside of it. In particular, please view the pdf file or files associated with the current session, which are named: {DOCUMENT_NAMES}. You are a deep thinking tutor helping a student reading a paper.
+Reference context from the paper: {formatted_context_string}
+This is a detailed plan for constructing the answer: {str(question.answer_planning)}
+The student's query is: {user_input_string}
+
+For formulas, use LaTeX format with $...$ or
+$$
+...
+$$
+and make sure latex syntax can be properly rendered in the response.
+
+Requirement:
+Only use the information from the context chunks to answer the question. Give the response in a scientific and academic tone. Do not make up or assume anything or guess without any evidence. If you answer some questions based on your own knowledge, clearly state that you are using your own knowledge.
+
+Format requirement:
+1. Make sure each sentence in the response there is a corresponding context chunk to support the sentence, and cite the most relevant context chunk keys in the format "[<chunk_key, like {example_keys}, etc>]" at the end of the sentence after the period mark. If there are more than one context chunk keys, use the format "[<chunk_key_1>][<chunk_key_2>] ..." to cite all the context chunk keys.
+2. Use markdown syntax for formatting the response to make it more clear and readable.
+\`\`\`
+
+## Enhanced Academic Response Instructions
+
+### Deep Thinking Approach
+- **Comprehensive Analysis**: Provide thorough, multi-layered analysis of academic content
+- **Critical Thinking**: Challenge assumptions, identify limitations, and propose alternative interpretations
+- **Contextual Understanding**: Connect findings to broader academic discourse and related research
+- **Methodological Awareness**: Discuss research methods, data quality, and statistical significance
+- **Interdisciplinary Connections**: Draw connections across disciplines when relevant
+
+### Response Quality Standards
+- **Depth over Breadth**: Prioritize detailed analysis over surface-level coverage
+- **Evidence-Based**: Every claim must be supported by specific textual evidence
+- **Academic Tone**: Maintain scholarly, objective, and precise language
+- **Structured Presentation**: Use clear headings, bullet points, and logical flow
+- **Interactive Guidance**: Ask follow-up questions to deepen student understanding
+
+## Intelligent File Selection Strategy
+
+### Token Management (200,000 Token Limit)
+- **Prioritize Relevance**: Focus on documents most relevant to the current query
+- **Strategic Sampling**: Read key sections rather than entire documents when appropriate
+- **Context Optimization**: Use document metadata and abstracts to guide selection
+- **Progressive Loading**: Start with most relevant files, expand as needed
+
+### File Selection Hierarchy
+1. **Primary Documents**: Files directly mentioned in the query
+2. **Related Documents**: Files from the same research area or methodology
+3. **Supporting Materials**: Background documents and supplementary resources
+4. **Reference Materials**: General resources for context
+
+### Efficient Reading Strategies
+- **Abstract-First Approach**: Read abstracts and conclusions before full text
+- **Targeted Sections**: Focus on methodology, results, and discussion sections
+- **Keyword-Guided**: Use search terms to identify relevant portions
+- **Metadata Utilization**: Leverage document titles, authors, and dates for relevance ranking
+
+## File Size and Content Management
+
+### Markdown File Optimization
+- Monitor total content size before processing
+- Prefer smaller, focused documents for detailed analysis
+- Use file metadata to estimate content volume
+- Break large analyses into focused segments
+
+### Content Prioritization Guidelines
+- **High Priority**: Research papers, primary sources, methodology documents
+- **Medium Priority**: Review articles, supplementary materials
+- **Low Priority**: Reference lists, appendices, general background materials
+
+## Operational Guidelines
+
+### Session Management
+- Track which documents have been analyzed in current session
+- Maintain context continuity across multiple queries
+- Reference previous analyses when building on earlier discussions
+
+### Quality Assurance
+- Verify citations and references
+- Cross-check facts across multiple sources
+- Identify and flag potential inconsistencies
+- Maintain source attribution accuracy
+
+### Student Engagement
+- Encourage deeper questioning
+- Suggest related topics for exploration
+- Provide learning pathways for complex concepts
+- Adapt explanation complexity to student level
+
+## Error Handling and Limitations
+- Clearly state when information is insufficient
+- Acknowledge when reaching token limits
+- Suggest alternative approaches when full analysis isn't possible
+- Maintain transparency about analytical constraints
+
+## Last Updated
+${currentDate}
+
+---
+*This file is automatically managed by DeepTutor Zotero integration*
+*For optimal performance, ensure document relevance matches query scope*
+`;
+    }
+
+    /**
+     * Generate file size analysis for Claude.md optimization
+     * Analyzes markdown files in RawDocData to help with token management
+     */
+    async generateFileSizeAnalysis() {
+        try {
+            if (!this.rawDocDataPath || !this.pathExists(this.rawDocDataPath)) {
+                return "File size analysis unavailable - RawDocData folder not found.";
+            }
+
+            // Get file system interface
+            const fileInterface = Components.classes["@mozilla.org/file/local;1"]
+                .createInstance(Components.interfaces.nsIFile);
+            fileInterface.initWithPath(this.rawDocDataPath);
+
+            if (!fileInterface.exists() || !fileInterface.isDirectory()) {
+                return "File size analysis unavailable - RawDocData path is not accessible.";
+            }
+
+            // Collect file information
+            const files = [];
+            const entries = fileInterface.directoryEntries;
+            let totalSize = 0;
+            let markdownCount = 0;
+
+            while (entries.hasMoreElements()) {
+                const entry = entries.getNext().QueryInterface(Components.interfaces.nsIFile);
+                if (entry.isFile() && entry.leafName.endsWith('.md')) {
+                    const fileSize = entry.fileSize;
+                    totalSize += fileSize;
+                    markdownCount++;
+                    
+                    files.push({
+                        name: entry.leafName,
+                        size: fileSize,
+                        sizeFormatted: this.formatFileSize(fileSize)
+                    });
+                }
+            }
+
+            // Sort files by size (largest first)
+            files.sort((a, b) => b.size - a.size);
+
+            // Generate analysis
+            let analysis = `\n## File Size Analysis (Generated: ${new Date().toISOString().split('T')[0]})\n\n`;
+            analysis += `**Total Markdown Files**: ${markdownCount}\n`;
+            analysis += `**Total Size**: ${this.formatFileSize(totalSize)}\n`;
+            analysis += `**Average Size**: ${this.formatFileSize(Math.round(totalSize / markdownCount))}\n\n`;
+
+            if (files.length > 0) {
+                analysis += `### File Size Distribution\n\n`;
+                analysis += `| File Name | Size | Token Estimate* |\n`;
+                analysis += `|-----------|------|----------------|\n`;
+                
+                for (const file of files.slice(0, 20)) { // Show top 20 files
+                    const tokenEstimate = Math.round(file.size / 4); // Rough estimate: 4 bytes per token
+                    analysis += `| ${file.name} | ${file.sizeFormatted} | ~${tokenEstimate.toLocaleString()} |\n`;
+                }
+
+                if (files.length > 20) {
+                    analysis += `| ... and ${files.length - 20} more files | | |\n`;
+                }
+
+                analysis += `\n*Token estimates are approximate (assuming ~4 bytes per token)\n\n`;
+
+                // Add recommendations
+                analysis += `### Token Management Recommendations\n\n`;
+                const largeFiles = files.filter(f => f.size > 100000); // Files larger than 100KB
+                if (largeFiles.length > 0) {
+                    analysis += `**Large Files (>100KB)**: ${largeFiles.length} files\n`;
+                    analysis += `- Consider processing these files in sections\n`;
+                    analysis += `- Focus on abstracts and key sections first\n`;
+                    analysis += `- Use targeted keyword searches within these files\n\n`;
+                }
+
+                const mediumFiles = files.filter(f => f.size > 50000 && f.size <= 100000);
+                if (mediumFiles.length > 0) {
+                    analysis += `**Medium Files (50KB-100KB)**: ${mediumFiles.length} files\n`;
+                    analysis += `- Can typically be processed in full for focused queries\n`;
+                    analysis += `- Good candidates for comparative analysis\n\n`;
+                }
+
+                const smallFiles = files.filter(f => f.size <= 50000);
+                analysis += `**Small Files (≤50KB)**: ${smallFiles.length} files\n`;
+                analysis += `- Can be processed efficiently in batch\n`;
+                analysis += `- Ideal for comprehensive analysis\n\n`;
+            }
+
+            return analysis;
+
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error generating file size analysis: ${error.message}`);
+            return `File size analysis unavailable due to error: ${error.message}`;
+        }
+    }
+
     // saveFileHierarchyData method removed - using comprehensive hierarchy generation instead
 
     /**
