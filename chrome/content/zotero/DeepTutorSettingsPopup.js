@@ -291,6 +291,7 @@ function DeepTutorSettingsPopup({ onClose, currentUser, userData, activeSubscrip
 							activeSubscription={activeSubscription}
 							usageSummary={usageSummary}
 							onRefreshUsageSummary={refreshUsageSummary}
+							onClose={onClose}
 						/>
 					</Tab>
 
