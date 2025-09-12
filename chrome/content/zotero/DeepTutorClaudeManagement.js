@@ -42,17 +42,17 @@ class DeepTutorClaudeManagement {
     configureHierarchyGeneration(options = {}) {
         if (options.hasOwnProperty('useEnhancedHierarchy')) {
             this.useEnhancedHierarchy = options.useEnhancedHierarchy;
-            Zotero.debug(`DeepTutorClaudeManagement: Enhanced hierarchy generation ${this.useEnhancedHierarchy ? 'enabled' : 'disabled'}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Enhanced hierarchy generation ${this.useEnhancedHierarchy ? 'enabled' : 'disabled'}`);
         }
         
         if (options.hasOwnProperty('enableSQLFallbacks')) {
             this.enableSQLFallbacks = options.enableSQLFallbacks;
-            Zotero.debug(`DeepTutorClaudeManagement: SQL fallbacks ${this.enableSQLFallbacks ? 'enabled' : 'disabled'}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: SQL fallbacks ${this.enableSQLFallbacks ? 'enabled' : 'disabled'}`);
         }
         
         if (options.hasOwnProperty('useSQLBasedHierarchy')) {
             this.useSQLBasedHierarchy = options.useSQLBasedHierarchy;
-            Zotero.debug(`DeepTutorClaudeManagement: SQL-based hierarchy generation ${this.useSQLBasedHierarchy ? 'enabled' : 'disabled'}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: SQL-based hierarchy generation ${this.useSQLBasedHierarchy ? 'enabled' : 'disabled'}`);
         }
         
         // Clear cache when configuration changes
@@ -82,7 +82,7 @@ class DeepTutorClaudeManagement {
      */
     async testHierarchyMethods() {
         try {
-            Zotero.debug("DeepTutorClaudeManagement: Testing all hierarchy generation methods...");
+            // Zotero.debug("DeepTutorClaudeManagement: Testing all hierarchy generation methods...");
             
             const results = {
                 timestamp: new Date().toISOString(),
@@ -99,11 +99,11 @@ class DeepTutorClaudeManagement {
                 const sqlTime = Date.now() - startTime;
                 results.comparison.sqlTime = sqlTime;
                 results.comparison.sqlSuccess = true;
-                Zotero.debug(`DeepTutorClaudeManagement: SQL-based method completed in ${sqlTime}ms`);
+                // Zotero.debug(`DeepTutorClaudeManagement: SQL-based method completed in ${sqlTime}ms`);
             } catch (error) {
                 results.comparison.sqlSuccess = false;
                 results.comparison.sqlError = error.message;
-                Zotero.debug(`DeepTutorClaudeManagement: SQL-based method failed: ${error.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: SQL-based method failed: ${error.message}`);
             }
             
             // Test original method
@@ -113,11 +113,11 @@ class DeepTutorClaudeManagement {
                 const originalTime = Date.now() - startTime;
                 results.comparison.originalTime = originalTime;
                 results.comparison.originalSuccess = true;
-                Zotero.debug(`DeepTutorClaudeManagement: Original method completed in ${originalTime}ms`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Original method completed in ${originalTime}ms`);
             } catch (error) {
                 results.comparison.originalSuccess = false;
                 results.comparison.originalError = error.message;
-                Zotero.debug(`DeepTutorClaudeManagement: Original method failed: ${error.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Original method failed: ${error.message}`);
             }
             
             // Test enhanced method
@@ -127,11 +127,11 @@ class DeepTutorClaudeManagement {
                 const enhancedTime = Date.now() - startTime;
                 results.comparison.enhancedTime = enhancedTime;
                 results.comparison.enhancedSuccess = true;
-                Zotero.debug(`DeepTutorClaudeManagement: Enhanced method completed in ${enhancedTime}ms`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Enhanced method completed in ${enhancedTime}ms`);
             } catch (error) {
                 results.comparison.enhancedSuccess = false;
                 results.comparison.enhancedError = error.message;
-                Zotero.debug(`DeepTutorClaudeManagement: Enhanced method failed: ${error.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Enhanced method failed: ${error.message}`);
             }
             
             // Generate comparison summary
@@ -153,11 +153,11 @@ class DeepTutorClaudeManagement {
             const testResultsPath = this.pathJoin(this.fileTreePath, 'hierarchy_method_comparison.json');
             this.writeTextFile(testResultsPath, JSON.stringify(results, null, 2));
             
-            Zotero.debug(`DeepTutorClaudeManagement: Hierarchy method comparison completed: ${results.comparison.summary}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Hierarchy method comparison completed: ${results.comparison.summary}`);
             return results;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error testing hierarchy methods: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error testing hierarchy methods: ${error.message}`);
             throw error;
         }
     }
@@ -170,7 +170,7 @@ class DeepTutorClaudeManagement {
             // Handle unhandled promise rejections
             if (typeof window !== 'undefined' && window.addEventListener) {
                 window.addEventListener('unhandledrejection', (event) => {
-                    Zotero.debug(`DeepTutorClaudeManagement: Unhandled promise rejection: ${event.reason}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Unhandled promise rejection: ${event.reason}`);
                     event.preventDefault();
                 });
             }
@@ -178,14 +178,14 @@ class DeepTutorClaudeManagement {
             // Handle global errors
             if (typeof window !== 'undefined' && window.addEventListener) {
                 window.addEventListener('error', (event) => {
-                    Zotero.debug(`DeepTutorClaudeManagement: Global error: ${event.error}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Global error: ${event.error}`);
                     event.preventDefault();
                 });
             }
             
-            Zotero.debug("DeepTutorClaudeManagement: Error handling setup completed");
+            // Zotero.debug("DeepTutorClaudeManagement: Error handling setup completed");
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error setting up error handling: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error setting up error handling: ${error.message}`);
         }
     }
 
@@ -195,15 +195,15 @@ class DeepTutorClaudeManagement {
      */
     isPDFWorkerAvailable() {
         try {
-            Zotero.debug("DeepTutorClaudeManagement: Checking Zotero PDFWorker availability...");
+            // Zotero.debug("DeepTutorClaudeManagement: Checking Zotero PDFWorker availability...");
             if (!Zotero.PDFWorker) {
-                Zotero.debug("DeepTutorClaudeManagement: Zotero PDFWorker not available");
+                // Zotero.debug("DeepTutorClaudeManagement: Zotero PDFWorker not available");
                 return false;
             }
-            Zotero.debug("DeepTutorClaudeManagement: Zotero PDFWorker is available");
+            // Zotero.debug("DeepTutorClaudeManagement: Zotero PDFWorker is available");
             return true;
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Zotero PDFWorker not available: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Zotero PDFWorker not available: ${error.message}`);
             return false;
         }
     }
@@ -214,7 +214,7 @@ class DeepTutorClaudeManagement {
      */
     async initializeDataBase() {
         try {
-            Zotero.debug("DeepTutorClaudeManagement: Starting database initialization...");
+            // Zotero.debug("DeepTutorClaudeManagement: Starting database initialization...");
             
             // Get Zotero's data directory
             this.dataDirectory = Zotero.DataDirectory.dir;
@@ -231,19 +231,19 @@ class DeepTutorClaudeManagement {
             this.fileTreePath = this.pathJoin(this.deepTutorDBPath, "FileTree");
             this.generalPath = this.pathJoin(this.deepTutorDBPath, "General");
 
-            Zotero.debug("DeepTutorClaudeManagement: Checking main database folder...");
+            // Zotero.debug("DeepTutorClaudeManagement: Checking main database folder...");
             // Check if DeepTutorDataBase folder exists, create if not
             try {
                 const mainFolderExists = this.pathExists(this.deepTutorDBPath);
                 if (!mainFolderExists) {
-                    Zotero.debug(`DeepTutorClaudeManagement: Creating main database folder at: ${this.deepTutorDBPath}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Creating main database folder at: ${this.deepTutorDBPath}`);
                     this.createDirectory(this.deepTutorDBPath);
-                    Zotero.debug("DeepTutorClaudeManagement: Successfully created DeepTutorDataBase folder");
+                    // Zotero.debug("DeepTutorClaudeManagement: Successfully created DeepTutorDataBase folder");
                 } else {
-                    Zotero.debug("DeepTutorClaudeManagement: Main database folder already exists");
+                    // Zotero.debug("DeepTutorClaudeManagement: Main database folder already exists");
                 }
             } catch (error) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error checking/creating main folder: ${error.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error checking/creating main folder: ${error.message}`);
                 throw error;
             }
 
@@ -256,25 +256,25 @@ class DeepTutorClaudeManagement {
                 { path: this.generalPath, name: "General" }
             ];
 
-            Zotero.debug("DeepTutorClaudeManagement: Checking and creating subfolders...");
+            // Zotero.debug("DeepTutorClaudeManagement: Checking and creating subfolders...");
             for (const folder of folders) {
-                Zotero.debug(`DeepTutorClaudeManagement: Checking folder: ${folder.name} at ${folder.path}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Checking folder: ${folder.name} at ${folder.path}`);
                 try {
                     const folderExists = this.pathExists(folder.path);
                     if (!folderExists) {
-                        Zotero.debug(`DeepTutorClaudeManagement: Creating ${folder.name} folder at: ${folder.path}`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: Creating ${folder.name} folder at: ${folder.path}`);
                         this.createDirectory(folder.path);
-                        Zotero.debug(`DeepTutorClaudeManagement: Successfully created ${folder.name} folder`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: Successfully created ${folder.name} folder`);
                     } else {
-                        Zotero.debug(`DeepTutorClaudeManagement: ${folder.name} folder already exists`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: ${folder.name} folder already exists`);
                     }
                 } catch (error) {
-                    Zotero.debug(`DeepTutorClaudeManagement: Error with folder ${folder.name}: ${error.message}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Error with folder ${folder.name}: ${error.message}`);
                     throw error;
                 }
             }
 
-            Zotero.debug("DeepTutorClaudeManagement: Database structure initialization completed successfully");
+            // Zotero.debug("DeepTutorClaudeManagement: Database structure initialization completed successfully");
             Zotero.debug(`DeepTutorClaudeManagement: Final paths - RawDocData: ${this.rawDocDataPath}`);
             Zotero.debug(`DeepTutorClaudeManagement: Final paths - DocTOC: ${this.docTOCPath}`);
             Zotero.debug(`DeepTutorClaudeManagement: Final paths - UserMetric: ${this.userMetricPath}`);
@@ -284,8 +284,8 @@ class DeepTutorClaudeManagement {
             return true;
 
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error initializing DeepTutor database: ${error.message}`);
-            Zotero.debug(`DeepTutorClaudeManagement: Error stack: ${error.stack}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error initializing DeepTutor database: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error stack: ${error.stack}`);
             throw error;
         }
     }
@@ -422,7 +422,7 @@ class DeepTutorClaudeManagement {
                     }
                 }
             } catch (e) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error getting collections: ${e.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error getting collections: ${e.message}`);
             }
 
             // Build hierarchy information
@@ -440,7 +440,7 @@ class DeepTutorClaudeManagement {
             return metadata;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error extracting comprehensive metadata: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error extracting comprehensive metadata: ${error.message}`);
             return {
                 item: { id: attachment.id },
                 parent: {},
@@ -460,7 +460,7 @@ class DeepTutorClaudeManagement {
      */
     generateSummary(fullText, abstractResult) {
         try {
-            Zotero.debug("DeepTutorClaudeManagement: Generating document summary...");
+            // Zotero.debug("DeepTutorClaudeManagement: Generating document summary...");
             
             let summary = '';
             let method = 'generated';
@@ -471,7 +471,7 @@ class DeepTutorClaudeManagement {
                 summary = abstractResult.abstract;
                 method = 'abstract';
                 confidence = 'high';
-                Zotero.debug("DeepTutorClaudeManagement: Using high-confidence abstract as summary");
+                // Zotero.debug("DeepTutorClaudeManagement: Using high-confidence abstract as summary");
             }
             // Strategy 2: Generate summary from first paragraphs
             else {
@@ -509,7 +509,7 @@ class DeepTutorClaudeManagement {
                 method = 'first_paragraphs';
                 confidence = 'medium';
                 
-                Zotero.debug(`DeepTutorClaudeManagement: Generated summary from first paragraphs (${wordCount} words)`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Generated summary from first paragraphs (${wordCount} words)`);
             }
 
             // Validate and clean summary
@@ -529,7 +529,7 @@ class DeepTutorClaudeManagement {
             };
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error generating summary: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error generating summary: ${error.message}`);
             return {
                 summary: fullText.substring(0, 500) + '...',
                 method: 'error_fallback',
@@ -547,29 +547,29 @@ class DeepTutorClaudeManagement {
      */
     async loadRawPDFDoc() {
         try {
-            Zotero.debug("DeepTutorClaudeManagement: Starting PDF document loading process...");
+            // Zotero.debug("DeepTutorClaudeManagement: Starting PDF document loading process...");
             
             // Ensure RawDocData folder exists
             const rawDocDataExists = this.pathExists(this.rawDocDataPath);
             if (!rawDocDataExists) {
-                Zotero.debug("DeepTutorClaudeManagement: RawDocData folder does not exist, throwing error");
+                // Zotero.debug("DeepTutorClaudeManagement: RawDocData folder does not exist, throwing error");
                 throw new Error("RawDocData folder does not exist. Please run initializeDataBase first.");
             }
-            Zotero.debug(`DeepTutorClaudeManagement: RawDocData folder verified at: ${this.rawDocDataPath}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: RawDocData folder verified at: ${this.rawDocDataPath}`);
 
             // Get all items with PDF attachments from the user's library (matches working pattern in ModelSelection)
-            Zotero.debug("DeepTutorClaudeManagement: Fetching all items from user library...");
+            // Zotero.debug("DeepTutorClaudeManagement: Fetching all items from user library...");
             const userLibID = (Zotero.Libraries && typeof Zotero.Libraries.userLibraryID !== 'undefined')
                 ? Zotero.Libraries.userLibraryID
                 : 1;
             const items = await Zotero.Items.getAll(userLibID);
-            Zotero.debug(`DeepTutorClaudeManagement: Found ${items.length} total items in library ${userLibID}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Found ${items.length} total items in library ${userLibID}`);
             
             const pdfItems = [];
             let totalAttachments = 0;
             let pdfAttachments = 0;
 
-            Zotero.debug("DeepTutorClaudeManagement: Scanning items for PDF attachments...");
+            // Zotero.debug("DeepTutorClaudeManagement: Scanning items for PDF attachments...");
             for (const item of items) {
                 if (!item) continue;
 
@@ -586,7 +586,7 @@ class DeepTutorClaudeManagement {
                             attachmentID: item.id,
                             attachment: item
                         });
-                        Zotero.debug(`DeepTutorClaudeManagement: Found PDF attachment (direct) - Attachment ID: ${item.id}, Parent Item ID: ${(item.parentID || 'none')}`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: Found PDF attachment (direct) - Attachment ID: ${item.id}, Parent Item ID: ${(item.parentID || 'none')}`);
                     }
                     continue;
                 }
@@ -609,7 +609,7 @@ class DeepTutorClaudeManagement {
                                 attachmentID: attachmentID,
                                 attachment: attachment
                             });
-                            Zotero.debug(`DeepTutorClaudeManagement: Found PDF attachment - Item ID: ${item.id}, Attachment ID: ${attachmentID}`);
+                            // Zotero.debug(`DeepTutorClaudeManagement: Found PDF attachment - Item ID: ${item.id}, Attachment ID: ${attachmentID}`);
                         }
                     }
                 }
@@ -619,7 +619,7 @@ class DeepTutorClaudeManagement {
             Zotero.debug(`DeepTutorClaudeManagement: Found ${pdfItems.length} PDF items to process`);
 
             if (pdfItems.length === 0) {
-                Zotero.debug("DeepTutorClaudeManagement: No PDF items found to process");
+                // Zotero.debug("DeepTutorClaudeManagement: No PDF items found to process");
                 return true;
             }
 
@@ -630,25 +630,27 @@ class DeepTutorClaudeManagement {
             
             Zotero.debug("DeepTutorClaudeManagement: Starting PDF processing loop...");
             for (const pdfItem of pdfItems) {
-                // New file naming - only fulltext since summary is commented off
-                const markdownFulltextFileName = `${pdfItem.itemID}_fulltext.md`;
-                const markdownSummaryFileName = `${pdfItem.itemID}_summary.md`;
+                // Generate safe filename with itemID_itemName format
+                const safeFilenameBase = this.generateSafeFilename(pdfItem.itemID, pdfItem.attachment);
+                const markdownFulltextFileName = `${safeFilenameBase}_fulltext.md`;
+                const markdownSummaryFileName = `${safeFilenameBase}_summary.md`;
                 const markdownFulltextFilePath = this.pathJoin(this.rawDocDataPath, markdownFulltextFileName);
                 const markdownSummaryFilePath = this.pathJoin(this.rawDocDataPath, markdownSummaryFileName);
 
                 Zotero.debug(`DeepTutorClaudeManagement: Processing PDF item ${pdfItem.itemID} (${processedCount + 1}/${pdfItems.length})`);
+                Zotero.debug(`DeepTutorClaudeManagement: Generated filename: ${markdownFulltextFileName}`);
 
                 // Check if markdown files already exist (only check fulltext since summary is commented off)
                 const fulltextExists = this.pathExists(markdownFulltextFilePath);
                 if (fulltextExists) {
-                    Zotero.debug(`DeepTutorClaudeManagement: Fulltext markdown for item ${pdfItem.itemID} already exists, skipping`);
+                    Zotero.debug(`DeepTutorClaudeManagement: Fulltext markdown for item ${pdfItem.itemID} already exists: ${markdownFulltextFileName}, skipping`);
                     skippedCount++;
                     continue;
                 }
 
                 try {
                     // Get the PDF file path for metadata purposes
-                    Zotero.debug(`DeepTutorClaudeManagement: Getting file path for attachment ${pdfItem.attachmentID}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Getting file path for attachment ${pdfItem.attachmentID}`);
                     let pdfFilePath = null;
                     try {
                         if (typeof pdfItem.attachment.getFilePath === 'function') {
@@ -676,7 +678,7 @@ class DeepTutorClaudeManagement {
                     }
 
                     // Extract comprehensive metadata including collections and hierarchy
-                    Zotero.debug(`DeepTutorClaudeManagement: Extracting comprehensive metadata for item ${pdfItem.itemID}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Extracting comprehensive metadata for item ${pdfItem.itemID}`);
                     const comprehensiveMetadata = await this.extractComprehensiveMetadata(pdfItem.attachment);
 
                     Zotero.debug(`DeepTutorClaudeManagement: PDF file verified, starting conversion for item ${pdfItem.itemID}`);
@@ -719,27 +721,27 @@ class DeepTutorClaudeManagement {
             
             // Generate comprehensive summary after processing all PDFs
             try {
-                Zotero.debug("DeepTutorClaudeManagement: Generating comprehensive summary...");
+                // Zotero.debug("DeepTutorClaudeManagement: Generating comprehensive summary...");
                 await this.generateComprehensiveSummary();
-                Zotero.debug("DeepTutorClaudeManagement: Comprehensive summary generated successfully");
+                // Zotero.debug("DeepTutorClaudeManagement: Comprehensive summary generated successfully");
             } catch (summaryError) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error generating comprehensive summary: ${summaryError.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error generating comprehensive summary: ${summaryError.message}`);
             }
             
             // Generate complete file hierarchy mapping using smart method
             try {
-                Zotero.debug("DeepTutorClaudeManagement: Generating complete file hierarchy using smart method...");
+                // Zotero.debug("DeepTutorClaudeManagement: Generating complete file hierarchy using smart method...");
                 await this.generateFileHierarchySmart();
-                Zotero.debug("DeepTutorClaudeManagement: File hierarchy generated successfully");
+                // Zotero.debug("DeepTutorClaudeManagement: File hierarchy generated successfully");
             } catch (hierarchyError) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error generating file hierarchy: ${hierarchyError.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error generating file hierarchy: ${hierarchyError.message}`);
             }
             
             return true;
 
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error loading raw PDF documents: ${error.message}`);
-            Zotero.debug(`DeepTutorClaudeManagement: Error stack: ${error.stack}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error loading raw PDF documents: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error stack: ${error.stack}`);
             throw error;
         }
     }
@@ -775,7 +777,7 @@ class DeepTutorClaudeManagement {
             return mime.includes('pdf') || /\.pdf$/i.test(filename);
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error checking PDF attachment: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error checking PDF attachment: ${error.message}`);
             return false;
         }
     }
@@ -791,7 +793,7 @@ class DeepTutorClaudeManagement {
      */
     async convertPDFToEnhancedMarkdown(attachmentItem, pdfFilePath, comprehensiveMetadata) {
         try {
-            Zotero.debug(`DeepTutorClaudeManagement: Starting enhanced PDF conversion for attachment item: ${attachmentItem.id}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Starting enhanced PDF conversion for attachment item: ${attachmentItem.id}`);
             
             const fileName = this.pathBasename(pdfFilePath);
             const currentDate = new Date().toISOString();
@@ -819,7 +821,7 @@ class DeepTutorClaudeManagement {
                 file.initWithPath(pdfFilePath);
                 fileSize = file.fileSize;
             } catch (e) {
-                Zotero.debug(`DeepTutorClaudeManagement: Could not get file size: ${e.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Could not get file size: ${e.message}`);
             }
             
             // Extract abstract (for comprehensive summary, not for individual files)
@@ -864,7 +866,7 @@ class DeepTutorClaudeManagement {
             // Return empty summary markdown since it's commented off
             const summaryMarkdown = '';
             
-            Zotero.debug(`DeepTutorClaudeManagement: Enhanced PDF conversion completed successfully`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Enhanced PDF conversion completed successfully`);
             
             return {
                 fulltextMarkdown: fulltextMarkdown,
@@ -874,7 +876,7 @@ class DeepTutorClaudeManagement {
             };
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error in enhanced PDF conversion: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error in enhanced PDF conversion: ${error.message}`);
             
             // Return fallback content
             const fileName = this.pathBasename(pdfFilePath);
@@ -1083,7 +1085,7 @@ class DeepTutorClaudeManagement {
             if (!Zotero.PDFWorker) {
                 throw new Error("Zotero PDFWorker is not available");
             }
-            Zotero.debug("DeepTutorClaudeManagement: Zotero PDFWorker is available");
+            // Zotero.debug("DeepTutorClaudeManagement: Zotero PDFWorker is available");
             
             // Use Zotero's PDFWorker to extract full text directly
             Zotero.debug(`DeepTutorClaudeManagement: Extracting full text using PDFWorker for item ${attachmentItem.id}...`);
@@ -1107,7 +1109,7 @@ class DeepTutorClaudeManagement {
                 file.initWithPath(pdfFilePath);
                 fileSize = file.fileSize;
             } catch (e) {
-                Zotero.debug(`DeepTutorClaudeManagement: Could not get file size: ${e.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Could not get file size: ${e.message}`);
             }
             
             // Try to get PDF metadata from the attachment item
@@ -1139,7 +1141,7 @@ class DeepTutorClaudeManagement {
             } catch (e) { /* ignore */ }
             
             // Create markdown content
-            Zotero.debug("DeepTutorClaudeManagement: Creating markdown content...");
+            // Zotero.debug("DeepTutorClaudeManagement: Creating markdown content...");
             let markdownContent = `# PDF Document: ${fileName}\n\n`;
             markdownContent += `**File Path:** ${pdfFilePath}\n\n`;
             markdownContent += `**Processed Date:** ${currentDate}\n\n`;
@@ -1193,15 +1195,15 @@ class DeepTutorClaudeManagement {
             markdownContent += `- **PDF Library Used:** Zotero PDFWorker\n`;
             markdownContent += `- **Pages Processed:** ${extractedPages} of ${totalPages}\n`;
 
-            Zotero.debug(`DeepTutorClaudeManagement: Markdown content created successfully - Length: ${markdownContent.length} characters`);
-            Zotero.debug(`DeepTutorClaudeManagement: PDF conversion completed successfully for: ${fileName}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Markdown content created successfully - Length: ${markdownContent.length} characters`);
+            // Zotero.debug(`DeepTutorClaudeManagement: PDF conversion completed successfully for: ${fileName}`);
             
             return markdownContent;
 
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error converting PDF to markdown: ${error.message}`);
-            Zotero.debug(`DeepTutorClaudeManagement: Error stack: ${error.stack}`);
-            Zotero.debug(`DeepTutorClaudeManagement: Creating fallback markdown content for failed PDF`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error converting PDF to markdown: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error stack: ${error.stack}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Creating fallback markdown content for failed PDF`);
             
             // Return a fallback markdown with error information
             const fileName = this.pathBasename(pdfFilePath);
@@ -1224,7 +1226,7 @@ class DeepTutorClaudeManagement {
             fallbackContent += `## Manual Processing Required\n\n`;
             fallbackContent += `This PDF needs manual review or alternative processing methods.\n`;
 
-            Zotero.debug(`DeepTutorClaudeManagement: Fallback markdown content created - Length: ${fallbackContent.length} characters`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Fallback markdown content created - Length: ${fallbackContent.length} characters`);
             return fallbackContent;
         }
     }
@@ -1394,9 +1396,9 @@ class DeepTutorClaudeManagement {
             return markdownContent;
 
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error converting PDF to markdown: ${error.message}`);
-            Zotero.debug(`DeepTutorClaudeManagement: Error stack: ${error.stack}`);
-            Zotero.debug(`DeepTutorClaudeManagement: Creating fallback markdown content for failed PDF`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error converting PDF to markdown: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error stack: ${error.stack}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Creating fallback markdown content for failed PDF`);
             
             // Return a fallback markdown with error information
             const fileName = this.pathBasename(pdfFilePath);
@@ -1420,7 +1422,7 @@ class DeepTutorClaudeManagement {
             fallbackContent += `## Manual Processing Required\n\n`;
             fallbackContent += `This PDF needs manual review or alternative processing methods.\n`;
 
-            Zotero.debug(`DeepTutorClaudeManagement: Fallback markdown content created - Length: ${fallbackContent.length} characters`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Fallback markdown content created - Length: ${fallbackContent.length} characters`);
             return fallbackContent;
         }
     }
@@ -1471,7 +1473,7 @@ The system will automatically:
      * Returns detailed information about the current setup
      */
     async testPdfParsing() {
-        Zotero.debug("DeepTutorClaudeManagement: Starting PDF parsing test...");
+        // Zotero.debug("DeepTutorClaudeManagement: Starting PDF parsing test...");
         
         const testResult = {
             pdfWorkerAvailable: this.isPDFWorkerAvailable(),
@@ -1480,16 +1482,16 @@ The system will automatically:
             processingInfo: this.getPDFProcessingInfo()
         };
 
-        Zotero.debug(`DeepTutorClaudeManagement: Test results - PDFWorker available: ${testResult.pdfWorkerAvailable}`);
-        Zotero.debug(`DeepTutorClaudeManagement: Test results - data directory: ${testResult.dataDirectory}`);
-        Zotero.debug(`DeepTutorClaudeManagement: Test results - deepTutor DB path: ${testResult.deepTutorDBPath}`);
+        // Zotero.debug(`DeepTutorClaudeManagement: Test results - PDFWorker available: ${testResult.pdfWorkerAvailable}`);
+        // Zotero.debug(`DeepTutorClaudeManagement: Test results - data directory: ${testResult.dataDirectory}`);
+        // Zotero.debug(`DeepTutorClaudeManagement: Test results - deepTutor DB path: ${testResult.deepTutorDBPath}`);
 
         if (!testResult.pdfWorkerAvailable) {
             testResult.error = "Zotero PDFWorker is not available";
             testResult.solution = "Ensure you're running this within Zotero with PDFWorker support";
-            Zotero.debug("DeepTutorClaudeManagement: Test failed - Zotero PDFWorker not available");
+            // Zotero.debug("DeepTutorClaudeManagement: Test failed - Zotero PDFWorker not available");
         } else {
-            Zotero.debug("DeepTutorClaudeManagement: Test passed - Zotero PDFWorker is available");
+            // Zotero.debug("DeepTutorClaudeManagement: Test passed - Zotero PDFWorker is available");
         }
 
         return testResult;
@@ -1505,7 +1507,7 @@ The system will automatically:
      */
     async extractAbstractWithRecognizer(attachmentItem) {
         try {
-            Zotero.debug(`DeepTutorClaudeManagement: Using recognizer data for abstract extraction`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Using recognizer data for abstract extraction`);
             
             // Get both full text and recognizer data
             const [fullTextResult, recognizerData] = await Promise.all([
@@ -1538,7 +1540,7 @@ The system will automatically:
             
             // Strategy 1A: Use recognizer data to find styled headers (if available)
             if (recognizerData && recognizerData.pages && recognizerData.pages.length > 0) {
-                Zotero.debug("DeepTutorClaudeManagement: Analyzing recognizer data for styled headers");
+                // Zotero.debug("DeepTutorClaudeManagement: Analyzing recognizer data for styled headers");
                 
                 // Analyze first 2 pages and last 2 pages
                 const totalPages = recognizerData.pages.length;
@@ -1580,14 +1582,14 @@ The system will automatically:
                                     );
                                     
                                     if (matchedKeyword) {
-                                        Zotero.debug(`DeepTutorClaudeManagement: Found abstract keyword "${matchedKeyword}" on page ${index + 1} with fontSize: ${fontSize}, bold: ${bold}`);
+                                        // Zotero.debug(`DeepTutorClaudeManagement: Found abstract keyword "${matchedKeyword}" on page ${index + 1} with fontSize: ${fontSize}, bold: ${bold}`);
                                         
                                         // Try to extract text following this header
                                         const extractedText = this.extractTextAfterKeyword(fullText, matchedKeyword);
                                         if (extractedText && extractedText.length > 50) {
                                             abstractText = extractedText;
                                             confidence = (bold || fontSize > 12) ? 'high' : 'medium';
-                                            Zotero.debug(`DeepTutorClaudeManagement: Successfully extracted abstract using keyword "${matchedKeyword}"`);
+                                            // Zotero.debug(`DeepTutorClaudeManagement: Successfully extracted abstract using keyword "${matchedKeyword}"`);
                                             return { abstract: abstractText, confidence, method };
                                         }
                                     }
@@ -1600,14 +1602,14 @@ The system will automatically:
             
             // Strategy 1B: Fallback to simple text pattern matching in full text
             if (!abstractText) {
-                Zotero.debug("DeepTutorClaudeManagement: Falling back to text pattern matching");
+                // Zotero.debug("DeepTutorClaudeManagement: Falling back to text pattern matching");
                 
                 for (const keyword of abstractKeywords) {
                     const extractedText = this.extractTextAfterKeyword(fullText, keyword);
                     if (extractedText && extractedText.length > 50) {
                         abstractText = extractedText;
                         confidence = 'medium';
-                        Zotero.debug(`DeepTutorClaudeManagement: Successfully extracted abstract using text pattern "${keyword}"`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: Successfully extracted abstract using text pattern "${keyword}"`);
                         break;
                     }
                 }
@@ -1620,7 +1622,7 @@ The system will automatically:
             };
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error in recognizer-based extraction: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error in recognizer-based extraction: ${error.message}`);
             return {
                 abstract: null,
                 confidence: 'none',
@@ -1704,7 +1706,7 @@ The system will automatically:
             return extractedText;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error extracting text after keyword: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error extracting text after keyword: ${error.message}`);
             return null;
         }
     }
@@ -1716,19 +1718,19 @@ The system will automatically:
      */
     async extractFirstPageAsAbstract(attachmentItem) {
         try {
-            Zotero.debug("DeepTutorClaudeManagement: Extracting first 1.5-2 pages as abstract");
+            // Zotero.debug("DeepTutorClaudeManagement: Extracting first 1.5-2 pages as abstract");
             
             // Try to get 2 pages first, then fall back to 1.5 if needed
             let fullTextResult = await Zotero.PDFWorker.getFullText(attachmentItem.id, 2); // Try 2 pages
             
             if (!fullTextResult || !fullTextResult.text) {
                 // Fallback to 1.5 pages
-                Zotero.debug("DeepTutorClaudeManagement: 2 pages not available, trying 1.5 pages");
+                // Zotero.debug("DeepTutorClaudeManagement: 2 pages not available, trying 1.5 pages");
                 fullTextResult = await Zotero.PDFWorker.getFullText(attachmentItem.id, 1.5);
                 
                 if (!fullTextResult || !fullTextResult.text) {
                     // Final fallback to 1 page
-                    Zotero.debug("DeepTutorClaudeManagement: 1.5 pages not available, falling back to 1 page");
+                    // Zotero.debug("DeepTutorClaudeManagement: 1.5 pages not available, falling back to 1 page");
                     fullTextResult = await Zotero.PDFWorker.getFullText(attachmentItem.id, 1);
                     
                     if (!fullTextResult || !fullTextResult.text) {
@@ -1788,7 +1790,7 @@ The system will automatically:
                 note = 'Using first page content as abstract fallback';
             }
             
-            Zotero.debug(`DeepTutorClaudeManagement: Successfully extracted ${extractedPages} pages (${extractedText.length} characters)`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Successfully extracted ${extractedPages} pages (${extractedText.length} characters)`);
             
             return {
                 abstract: extractedText,
@@ -1800,7 +1802,7 @@ The system will automatically:
             };
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error in first page extraction: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error in first page extraction: ${error.message}`);
             return {
                 abstract: null,
                 confidence: 'none',
@@ -1818,7 +1820,7 @@ The system will automatically:
      */
     async extractAbstract(attachmentItem, pdfFilePath) {
         try {
-            Zotero.debug(`DeepTutorClaudeManagement: Starting abstract extraction for attachment ${attachmentItem.id}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Starting abstract extraction for attachment ${attachmentItem.id}`);
             
             // Strategy 1: Try to get abstract from parent item metadata
             try {
@@ -1826,7 +1828,7 @@ The system will automatically:
                 if (parentItem && parentItem.getField) {
                     const abstractNote = parentItem.getField('abstractNote');
                     if (abstractNote && abstractNote.trim()) {
-                        Zotero.debug("DeepTutorClaudeManagement: Found abstract in parent item metadata");
+                        // Zotero.debug("DeepTutorClaudeManagement: Found abstract in parent item metadata");
                         return {
                             abstract: abstractNote.trim(),
                             confidence: 'high',
@@ -1836,33 +1838,33 @@ The system will automatically:
                     }
                 }
             } catch (e) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error checking parent metadata: ${e.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error checking parent metadata: ${e.message}`);
             }
             
             // Strategy 2: Try to extract from first page content
             try {
                 const firstPageResult = await this.extractFirstPageAsAbstract(attachmentItem);
                 if (firstPageResult.abstract) {
-                    Zotero.debug("DeepTutorClaudeManagement: Successfully extracted abstract from first page");
+                    // Zotero.debug("DeepTutorClaudeManagement: Successfully extracted abstract from first page");
                     return firstPageResult;
                 }
             } catch (e) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error in first page extraction: ${e.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error in first page extraction: ${e.message}`);
             }
             
             // Strategy 3: Try to extract using recognizer-based approach
             try {
                 const recognizerResult = await this.extractAbstractWithRecognizer(attachmentItem, pdfFilePath);
                 if (recognizerResult.abstract) {
-                    Zotero.debug("DeepTutorClaudeManagement: Successfully extracted abstract using recognizer");
+                    // Zotero.debug("DeepTutorClaudeManagement: Successfully extracted abstract using recognizer");
                     return recognizerResult;
                 }
             } catch (e) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error in recognizer extraction: ${e.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error in recognizer extraction: ${e.message}`);
             }
             
             // All strategies failed
-            Zotero.debug("DeepTutorClaudeManagement: All abstract extraction strategies failed");
+            // Zotero.debug("DeepTutorClaudeManagement: All abstract extraction strategies failed");
             return {
                 abstract: null,
                 confidence: 'none',
@@ -1871,7 +1873,7 @@ The system will automatically:
             };
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error in abstract extraction: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error in abstract extraction: ${error.message}`);
             return {
                 abstract: null,
                 confidence: 'none',
@@ -1889,7 +1891,7 @@ The system will automatically:
      */
     async extractAbstractWithRecognizer(attachmentItem, pdfFilePath) {
         try {
-            Zotero.debug("DeepTutorClaudeManagement: Using recognizer-based abstract extraction");
+            // Zotero.debug("DeepTutorClaudeManagement: Using recognizer-based abstract extraction");
             
             // Get full text to analyze
             const extractionResult = await Zotero.PDFWorker.getFullText(attachmentItem.id);
@@ -1912,7 +1914,7 @@ The system will automatically:
             for (const keyword of abstractKeywords) {
                 const extractedText = this.extractTextAfterKeyword(fullText, keyword);
                 if (extractedText && extractedText.length > 50) {
-                    Zotero.debug(`DeepTutorClaudeManagement: Successfully extracted abstract using keyword "${keyword}"`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Successfully extracted abstract using keyword "${keyword}"`);
                     return {
                         abstract: extractedText,
                         confidence: 'medium',
@@ -1927,7 +1929,7 @@ The system will automatically:
             if (paragraphs.length > 0) {
                 const firstParagraphs = paragraphs.slice(0, 2).join('\n\n');
                 if (firstParagraphs.length > 100) {
-                    Zotero.debug("DeepTutorClaudeManagement: Extracted abstract from first paragraphs");
+                    // Zotero.debug("DeepTutorClaudeManagement: Extracted abstract from first paragraphs");
                     return {
                         abstract: firstParagraphs,
                         confidence: 'low',
@@ -1940,7 +1942,7 @@ The system will automatically:
             throw new Error("No abstract content found using recognizer approach");
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error in recognizer-based extraction: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error in recognizer-based extraction: ${error.message}`);
             return {
                 abstract: null,
                 confidence: 'none',
@@ -1959,7 +1961,7 @@ The system will automatically:
     /*
     async extractAbstractWithAPI(attachmentItem, pdfFilePath) {
         try {
-            Zotero.debug("DeepTutorClaudeManagement: Using DeepTutor API for abstract extraction");
+            // Zotero.debug("DeepTutorClaudeManagement: Using DeepTutor API for abstract extraction");
             
             // TODO: Implement API call to DeepTutor pipeline
             // This would involve:
@@ -1977,7 +1979,7 @@ The system will automatically:
             return apiResult;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error in API-based extraction: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error in API-based extraction: ${error.message}`);
             return {
                 abstract: null,
                 confidence: 'none', 
@@ -1997,7 +1999,7 @@ The system will automatically:
      */
     async addAbstractToMarkdown(attachmentItem, pdfFilePath, markdownContent) {
         try {
-            Zotero.debug("DeepTutorClaudeManagement: Adding abstract section to markdown...");
+            // Zotero.debug("DeepTutorClaudeManagement: Adding abstract section to markdown...");
             
             const abstractResult = await this.extractAbstract(attachmentItem, pdfFilePath);
             
@@ -2010,7 +2012,7 @@ The system will automatically:
                 }
                 markdownContent += `**Abstract Text:**\n\n`;
                 markdownContent += abstractResult.abstract + `\n\n`;
-                Zotero.debug(`DeepTutorClaudeManagement: Successfully added abstract (${abstractResult.method}, confidence: ${abstractResult.confidence})`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Successfully added abstract (${abstractResult.method}, confidence: ${abstractResult.confidence})`);
             } else {
                 markdownContent += `## Abstract Extraction\n\n`;
                 markdownContent += `**Status:** Failed to extract abstract\n\n`;
@@ -2018,7 +2020,7 @@ The system will automatically:
                 if (abstractResult.error) {
                     markdownContent += `**Error:** ${abstractResult.error}\n\n`;
                 }
-                Zotero.debug(`DeepTutorClaudeManagement: Abstract extraction failed: ${abstractResult.error || 'unknown error'}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Abstract extraction failed: ${abstractResult.error || 'unknown error'}`);
             }
             
             return markdownContent;
@@ -2027,7 +2029,7 @@ The system will automatically:
             markdownContent += `## Abstract Extraction\n\n`;
             markdownContent += `**Status:** Error during abstract extraction\n\n`;
             markdownContent += `**Error:** ${abstractError.message}\n\n`;
-            Zotero.debug(`DeepTutorClaudeManagement: Abstract extraction error: ${abstractError.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Abstract extraction error: ${abstractError.message}`);
             return markdownContent;
         }
     }
@@ -2038,7 +2040,7 @@ The system will automatically:
      */
     async testPdfConversion() {
         try {
-            Zotero.debug("DeepTutorClaudeManagement: Starting PDF conversion test...");
+            // Zotero.debug("DeepTutorClaudeManagement: Starting PDF conversion test...");
             
             // Find the first PDF attachment in the library
             const userLibID = (Zotero.Libraries && typeof Zotero.Libraries.userLibraryID !== 'undefined')
@@ -2062,7 +2064,7 @@ The system will automatically:
                 };
             }
             
-            Zotero.debug(`DeepTutorClaudeManagement: Testing with PDF attachment ${testAttachment.id}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Testing with PDF attachment ${testAttachment.id}`);
             
             // Get file path
             let pdfFilePath = null;
@@ -2107,7 +2109,7 @@ The system will automatically:
             };
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: PDF conversion test failed: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: PDF conversion test failed: ${error.message}`);
             return {
                 success: false,
                 error: error.message,
@@ -2170,7 +2172,7 @@ The system will automatically:
             
             // Get file size first
             const fileSize = file.fileSize;
-            Zotero.debug(`DeepTutorClaudeManagement: File size: ${fileSize} bytes`);
+            // Zotero.debug(`DeepTutorClaudeManagement: File size: ${fileSize} bytes`);
             
             if (fileSize <= 0) {
                 throw new Error(`File is empty or invalid: ${path}`);
@@ -2191,23 +2193,23 @@ The system will automatically:
             bis.setInputStream(fis);
             
             const available = bis.available();
-            Zotero.debug(`DeepTutorClaudeManagement: Stream available: ${available} bytes`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Stream available: ${available} bytes`);
             
             if (available !== fileSize) {
-                Zotero.debug(`DeepTutorClaudeManagement: Warning: Stream size (${available}) differs from file size (${fileSize})`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Warning: Stream size (${available}) differs from file size (${fileSize})`);
             }
             
             // Read the entire file at once (safer for smaller files)
             const bytes = bis.readByteArray(available);
-            Zotero.debug(`DeepTutorClaudeManagement: Read ${bytes.length} bytes from stream`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Read ${bytes.length} bytes from stream`);
             
             // Create Uint8Array from the bytes
             const buffer = new Uint8Array(bytes);
             
-            Zotero.debug(`DeepTutorClaudeManagement: Created buffer of size: ${buffer.byteLength} bytes`);
-            Zotero.debug(`DeepTutorClaudeManagement: Buffer type: ${buffer.constructor.name}`);
-            Zotero.debug(`DeepTutorClaudeManagement: Buffer is Uint8Array: ${buffer instanceof Uint8Array}`);
-            Zotero.debug(`DeepTutorClaudeManagement: Buffer length: ${buffer.length}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Created buffer of size: ${buffer.byteLength} bytes`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Buffer type: ${buffer.constructor.name}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Buffer is Uint8Array: ${buffer instanceof Uint8Array}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Buffer length: ${buffer.length}`);
             
             // Validate the buffer
             if (buffer.byteLength === 0 || buffer.length === 0) {
@@ -2217,16 +2219,16 @@ The system will automatically:
             // Basic validation - check first few bytes for PDF signature
             if (buffer.length >= 4) {
                 const signature = String.fromCharCode(buffer[0], buffer[1], buffer[2], buffer[3]);
-                Zotero.debug(`DeepTutorClaudeManagement: File signature: ${signature}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: File signature: ${signature}`);
                 if (signature !== '%PDF') {
-                    Zotero.debug(`DeepTutorClaudeManagement: Warning: File does not appear to be a valid PDF (signature: ${signature})`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Warning: File does not appear to be a valid PDF (signature: ${signature})`);
                 }
             }
             
             return buffer;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error reading binary file: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error reading binary file: ${error.message}`);
             throw error;
         } finally {
             // Always close streams to prevent resource leaks
@@ -2235,7 +2237,7 @@ The system will automatically:
                     bis.close();
                 }
             } catch (e) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error closing binary input stream: ${e.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error closing binary input stream: ${e.message}`);
             }
             
             try {
@@ -2243,7 +2245,7 @@ The system will automatically:
                     fis.close();
                 }
             } catch (e) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error closing file input stream: ${e.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error closing file input stream: ${e.message}`);
             }
         }
     }
@@ -2276,15 +2278,70 @@ The system will automatically:
     }
 
     /**
+     * Generate a safe filename from item ID and item name
+     * @param {number} itemID - Zotero item ID
+     * @param {Object} attachment - Zotero attachment item
+     * @returns {string} Safe filename with itemID_itemName format
+     */
+    generateSafeFilename(itemID, attachment) {
+        try {
+            let itemName = '';
+            
+            // Try to get the item title first
+            try {
+                itemName = attachment.getField('title') || '';
+            } catch (e) {
+                // If title fails, try attachment filename
+                itemName = attachment.attachmentFilename || '';
+            }
+            
+            // If we still don't have a name, try parent item title
+            if (!itemName && attachment.parentItem) {
+                try {
+                    const parentItem = attachment.parentItem;
+                    itemName = parentItem.getField('title') || '';
+                } catch (e) {
+                    // Ignore parent item errors
+                }
+            }
+            
+            // Fallback to "Document" if no name found
+            if (!itemName || typeof itemName !== 'string' || itemName.trim() === '') {
+                itemName = 'Document';
+            }
+            
+            // Clean the name for filesystem safety
+            itemName = itemName
+                .trim()
+                .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_') // Replace invalid filename characters
+                .replace(/\s+/g, '_') // Replace spaces with underscores
+                .replace(/_{2,}/g, '_') // Replace multiple underscores with single
+                .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
+                .substring(0, 100); // Limit length to prevent very long filenames
+            
+            // Ensure we have a valid name
+            if (!itemName) {
+                itemName = 'Document';
+            }
+            
+            return `${itemID}_${itemName}`;
+            
+        } catch (error) {
+            Zotero.debug(`DeepTutorClaudeManagement: Error generating safe filename: ${error.message}`);
+            return `${itemID}_Document`; // Fallback
+        }
+    }
+
+    /**
      * Generate comprehensive file hierarchy mapping using simple approach
      * Creates a complete hierarchy map of collections and their attachments
      */
     async generateFileHierarchy() {
         try {
-            Zotero.debug("DeepTutorClaudeManagement: Starting file hierarchy generation...");
+            // Zotero.debug("DeepTutorClaudeManagement: Starting file hierarchy generation...");
             
             if (this.hierarchyCache) {
-                Zotero.debug("DeepTutorClaudeManagement: Using cached hierarchy data");
+                // Zotero.debug("DeepTutorClaudeManagement: Using cached hierarchy data");
                 return this.hierarchyCache;
             }
 
@@ -2313,14 +2370,14 @@ The system will automatically:
             let collections = [];
             try {
                 const userLibID = Zotero.Libraries.userLibraryID;
-                Zotero.debug(`DeepTutorClaudeManagement: Getting collections for library ${userLibID} using Zotero.Collections.getByLibrary`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Getting collections for library ${userLibID} using Zotero.Collections.getByLibrary`);
                 
                 // Use the correct Zotero API method
                 collections = Zotero.Collections.getByLibrary(userLibID);
-                Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections using getByLibrary`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections using getByLibrary`);
                 
             } catch (error) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error getting collections with getByLibrary, trying alternative: ${error.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error getting collections with getByLibrary, trying alternative: ${error.message}`);
                 // Fallback: use search approach
                 try {
                     const search = new Zotero.Search();
@@ -2328,9 +2385,9 @@ The system will automatically:
                     search.addCondition('itemType', 'is', 'collection');
                     const collectionIDs = await search.search();
                     collections = collectionIDs.map(id => Zotero.Collections.get(id)).filter(col => col);
-                    Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections using search fallback`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections using search fallback`);
                 } catch (searchError) {
-                    Zotero.debug(`DeepTutorClaudeManagement: Search fallback failed, trying database query: ${searchError.message}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Search fallback failed, trying database query: ${searchError.message}`);
                     // Last resort: direct database query
                     try {
                         const allObjects = await Zotero.DB.columnQueryAsync(
@@ -2338,21 +2395,21 @@ The system will automatically:
                             [userLibID]
                         );
                         collections = allObjects.map(id => Zotero.Collections.get(id)).filter(col => col);
-                        Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections using database query`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections using database query`);
                     } catch (dbError) {
-                        Zotero.debug(`DeepTutorClaudeManagement: All collection retrieval methods failed: ${dbError.message}`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: All collection retrieval methods failed: ${dbError.message}`);
                         collections = [];
                     }
                 }
             }
             
-            Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections`);
 
             // Build complete collection hierarchy using proper Zotero API
             for (const collection of collections) {
                 try {
                     if (!collection.parentID) { // Only top-level collections
-                        Zotero.debug(`DeepTutorClaudeManagement: Processing top-level collection: ${collection.name} (ID: ${collection.id})`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: Processing top-level collection: ${collection.name} (ID: ${collection.id})`);
                         
                         const collectionData = await this.buildCollectionHierarchyRecursive(collection, 0);
                         hierarchyData.collections.push(collectionData);
@@ -2364,7 +2421,7 @@ The system will automatically:
                         hierarchyData.statistics.totalPDFs += collectionData.pdfCount;
                     }
                 } catch (error) {
-                    Zotero.debug(`DeepTutorClaudeManagement: Error processing collection ${collection.id}: ${error.message}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Error processing collection ${collection.id}: ${error.message}`);
                 }
             }
 
@@ -2375,7 +2432,7 @@ The system will automatically:
                 hierarchyData.uncategorized.itemCount = uncategorizedItems.length;
                 hierarchyData.statistics.totalItems += uncategorizedItems.length;
             } catch (uncatError) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error getting uncategorized items: ${uncatError.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error getting uncategorized items: ${uncatError.message}`);
             }
 
             // Save hierarchy data as both JSON and Markdown
@@ -2391,11 +2448,11 @@ The system will automatically:
             // Cache the result
             this.hierarchyCache = hierarchyData;
             
-            Zotero.debug(`DeepTutorClaudeManagement: File hierarchy generated successfully. Collections: ${hierarchyData.statistics.totalCollections}, Items: ${hierarchyData.statistics.totalItems}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: File hierarchy generated successfully. Collections: ${hierarchyData.statistics.totalCollections}, Items: ${hierarchyData.statistics.totalItems}`);
             return hierarchyData;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error generating file hierarchy: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error generating file hierarchy: ${error.message}`);
             throw error;
         }
     }
@@ -2425,7 +2482,7 @@ The system will automatically:
             // Get items in this collection using proper Zotero API
             try {
                 const items = collection.getChildItems();
-                Zotero.debug(`DeepTutorClaudeManagement: Collection ${collection.name} has ${items.length} child items`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Collection ${collection.name} has ${items.length} child items`);
                 
                 for (const item of items) {
                     if (item && item.isRegularItem && item.isRegularItem()) {
@@ -2461,7 +2518,7 @@ The system will automatically:
                                 }
                             }
                         } catch (attachError) {
-                            Zotero.debug(`DeepTutorClaudeManagement: Error getting attachments for item ${item.id}: ${attachError.message}`);
+                            // Zotero.debug(`DeepTutorClaudeManagement: Error getting attachments for item ${item.id}: ${attachError.message}`);
                         }
                         
                         collectionData.items.push(itemData);
@@ -2471,13 +2528,13 @@ The system will automatically:
                     }
                 }
             } catch (itemError) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error getting items for collection ${collection.id}: ${itemError.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error getting items for collection ${collection.id}: ${itemError.message}`);
             }
 
             // Get subcollections using proper Zotero API
             try {
                 const subcollections = collection.getChildCollections();
-                Zotero.debug(`DeepTutorClaudeManagement: Collection ${collection.name} has ${subcollections.length} subcollections`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Collection ${collection.name} has ${subcollections.length} subcollections`);
                 
                 for (const subcollection of subcollections) {
                     const subcollectionData = await this.buildCollectionHierarchyRecursive(subcollection, level + 1);
@@ -2489,7 +2546,7 @@ The system will automatically:
                     collectionData.pdfCount += subcollectionData.pdfCount;
                 }
             } catch (subcolError) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error getting subcollections for collection ${collection.id}: ${subcolError.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error getting subcollections for collection ${collection.id}: ${subcolError.message}`);
             }
 
             // Build full path for this collection
@@ -2500,14 +2557,14 @@ The system will automatically:
                         collectionData.fullPath = `${parentCollection.name} > ${collection.name}`;
                     }
                 } catch (pathError) {
-                    Zotero.debug(`DeepTutorClaudeManagement: Error building path for collection ${collection.id}: ${pathError.message}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Error building path for collection ${collection.id}: ${pathError.message}`);
                 }
             }
 
             return collectionData;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error building collection hierarchy: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error building collection hierarchy: ${error.message}`);
             return {
                 id: collection.id,
                 name: collection.name,
@@ -2583,7 +2640,7 @@ The system will automatically:
             return itemData;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error building item data: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error building item data: ${error.message}`);
             return {
                 id: item.id,
                 title: 'Error loading item',
@@ -2605,7 +2662,7 @@ The system will automatically:
             try {
                 allItems = await Zotero.Items.getAll(libraryID);
             } catch (error) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error getting items with getAll for uncategorized, trying alternative: ${error.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error getting items with getAll for uncategorized, trying alternative: ${error.message}`);
                 // Fallback: get items from search
                 const search = new Zotero.Search();
                 search.libraryID = libraryID;
@@ -2656,21 +2713,21 @@ The system will automatically:
                                     }
                                 }
                             } catch (attachError) {
-                                Zotero.debug(`DeepTutorClaudeManagement: Error getting attachments for uncategorized item ${item.id}: ${attachError.message}`);
+                                // Zotero.debug(`DeepTutorClaudeManagement: Error getting attachments for uncategorized item ${item.id}: ${attachError.message}`);
                             }
                             
                             uncategorizedItems.push(itemData);
                         }
                     }
                 } catch (itemError) {
-                    Zotero.debug(`DeepTutorClaudeManagement: Error processing uncategorized item ${item.id}: ${itemError.message}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Error processing uncategorized item ${item.id}: ${itemError.message}`);
                 }
             }
             
             return uncategorizedItems;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error getting uncategorized items: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error getting uncategorized items: ${error.message}`);
             return [];
         }
     }
@@ -2681,7 +2738,7 @@ The system will automatically:
      */
     async generateComprehensiveSummary() {
         try {
-            Zotero.debug("DeepTutorClaudeManagement: Starting comprehensive summary generation...");
+            // Zotero.debug("DeepTutorClaudeManagement: Starting comprehensive summary generation...");
             
             const summaryData = {
                 timestamp: new Date().toISOString(),
@@ -2704,7 +2761,7 @@ The system will automatically:
             try {
                 allItems = await Zotero.Items.getAll(libraryID);
             } catch (error) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error getting items with getAll, trying alternative: ${error.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error getting items with getAll, trying alternative: ${error.message}`);
                 // Fallback: get items from search
                 const search = new Zotero.Search();
                 search.libraryID = libraryID;
@@ -2715,11 +2772,11 @@ The system will automatically:
             }
             
             if (!allItems || !Array.isArray(allItems)) {
-                Zotero.debug("DeepTutorClaudeManagement: Failed to get items array, creating empty summary");
+                // Zotero.debug("DeepTutorClaudeManagement: Failed to get items array, creating empty summary");
                 allItems = [];
             }
             
-            Zotero.debug(`DeepTutorClaudeManagement: Processing ${allItems.length} items for summary`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Processing ${allItems.length} items for summary`);
             
             for (const item of allItems) {
                 try {
@@ -2739,7 +2796,7 @@ The system will automatically:
                         }
                     }
                 } catch (error) {
-                    Zotero.debug(`DeepTutorClaudeManagement: Error processing item ${item.id} for summary: ${error.message}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Error processing item ${item.id} for summary: ${error.message}`);
                 }
             }
 
@@ -2754,11 +2811,11 @@ The system will automatically:
             const summaryJsonPath = this.pathJoin(this.generalPath, 'comprehensive_summary.json');
             this.writeTextFile(summaryJsonPath, JSON.stringify(summaryData, null, 2));
             
-            Zotero.debug(`DeepTutorClaudeManagement: Comprehensive summary generated successfully. Total PDFs: ${summaryData.totalPDFs}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Comprehensive summary generated successfully. Total PDFs: ${summaryData.totalPDFs}`);
             return summaryData;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error generating comprehensive summary: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error generating comprehensive summary: ${error.message}`);
             throw error;
         }
     }
@@ -2785,7 +2842,7 @@ The system will automatically:
             // Extract abstract if not cached - ensure we get the full, detailed abstract
             if (!this.abstractCache.has(cacheKey)) {
                 try {
-                    Zotero.debug(`DeepTutorClaudeManagement: Extracting full abstract for comprehensive summary - item ${attachment.id}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Extracting full abstract for comprehensive summary - item ${attachment.id}`);
                     const abstractResult = await this.extractAbstract(attachment);
                     this.abstractCache.set(cacheKey, abstractResult);
                     
@@ -2794,9 +2851,9 @@ The system will automatically:
                     metadata.abstractMethod = abstractResult.method || 'unknown';
                     metadata.abstractConfidence = abstractResult.confidence || 'none';
                     
-                    Zotero.debug(`DeepTutorClaudeManagement: Abstract extracted for item ${attachment.id} - method: ${metadata.abstractMethod}, confidence: ${metadata.abstractConfidence}, length: ${metadata.abstract.length} characters`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Abstract extracted for item ${attachment.id} - method: ${metadata.abstractMethod}, confidence: ${metadata.abstractConfidence}, length: ${metadata.abstract.length} characters`);
                 } catch (error) {
-                    Zotero.debug(`DeepTutorClaudeManagement: Error extracting abstract for ${attachment.id}: ${error.message}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Error extracting abstract for ${attachment.id}: ${error.message}`);
                     metadata.abstract = '';
                     metadata.abstractMethod = 'error';
                     metadata.abstractConfidence = 'none';
@@ -2806,13 +2863,13 @@ The system will automatically:
                 metadata.abstract = cachedAbstract.abstract || '';
                 metadata.abstractMethod = cachedAbstract.method || 'cached';
                 metadata.abstractConfidence = cachedAbstract.confidence || 'none';
-                Zotero.debug(`DeepTutorClaudeManagement: Using cached abstract for item ${attachment.id} - length: ${metadata.abstract.length} characters`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Using cached abstract for item ${attachment.id} - length: ${metadata.abstract.length} characters`);
             }
 
             this.addToSummaryData(metadata, summaryData);
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error processing item for summary: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error processing item for summary: ${error.message}`);
         }
     }
 
@@ -2864,7 +2921,7 @@ The system will automatically:
             }
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error adding to summary data: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error adding to summary data: ${error.message}`);
         }
     }
 
@@ -2948,7 +3005,7 @@ The system will automatically:
             return markdown;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error generating summary markdown: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error generating summary markdown: ${error.message}`);
             return `# Error Generating Summary\n\n${error.message}`;
         }
     }
@@ -3046,7 +3103,7 @@ The system will automatically:
             return markdown;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error generating hierarchy markdown: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error generating hierarchy markdown: ${error.message}`);
             return `# Error Generating Hierarchy\n\n${error.message}`;
         }
     }
@@ -3119,7 +3176,7 @@ The system will automatically:
             return markdown;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error rendering collection hierarchy: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error rendering collection hierarchy: ${error.message}`);
             return `Error rendering collection: ${error.message}\n\n`;
         }
     }
@@ -3133,22 +3190,22 @@ The system will automatically:
             // Priority order: SQL-based > Enhanced > Original
             if (this.useSQLBasedHierarchy && this.enableSQLFallbacks) {
                 try {
-                    Zotero.debug("DeepTutorClaudeManagement: Attempting SQL-based hierarchy generation...");
+                    // Zotero.debug("DeepTutorClaudeManagement: Attempting SQL-based hierarchy generation...");
                     return await this.generateFileHierarchySQL();
                 } catch (sqlError) {
-                    Zotero.debug(`DeepTutorClaudeManagement: SQL-based method failed, falling back to enhanced: ${sqlError.message}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: SQL-based method failed, falling back to enhanced: ${sqlError.message}`);
                 }
             }
             
             if (this.useEnhancedHierarchy) {
-                Zotero.debug("DeepTutorClaudeManagement: Using enhanced hierarchy generation...");
+                // Zotero.debug("DeepTutorClaudeManagement: Using enhanced hierarchy generation...");
                 return await this.generateFileHierarchyEnhanced();
             } else {
-                Zotero.debug("DeepTutorClaudeManagement: Using original hierarchy generation...");
+                // Zotero.debug("DeepTutorClaudeManagement: Using original hierarchy generation...");
                 return await this.generateFileHierarchy();
             }
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Smart hierarchy generation failed: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Smart hierarchy generation failed: ${error.message}`);
             throw error;
         }
     }
@@ -3159,10 +3216,10 @@ The system will automatically:
      */
     async generateFileHierarchyEnhanced() {
         try {
-            Zotero.debug("DeepTutorClaudeManagement: Starting enhanced file hierarchy generation following Zotero patterns...");
+            // Zotero.debug("DeepTutorClaudeManagement: Starting enhanced file hierarchy generation following Zotero patterns...");
             
             if (this.hierarchyCache) {
-                Zotero.debug("DeepTutorClaudeManagement: Using cached hierarchy data");
+                // Zotero.debug("DeepTutorClaudeManagement: Using cached hierarchy data");
                 return this.hierarchyCache;
             }
 
@@ -3192,14 +3249,14 @@ The system will automatically:
             const userLibID = Zotero.Libraries.userLibraryID;
             
             try {
-                Zotero.debug(`DeepTutorClaudeManagement: Getting collections for library ${userLibID} using Zotero.Collections.getByLibrary`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Getting collections for library ${userLibID} using Zotero.Collections.getByLibrary`);
                 
                 // Primary method: Use Zotero API
                 collections = Zotero.Collections.getByLibrary(userLibID);
-                Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections using getByLibrary`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections using getByLibrary`);
                 
             } catch (error) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error getting collections with getByLibrary, trying search fallback: ${error.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error getting collections with getByLibrary, trying search fallback: ${error.message}`);
                 
                 // Fallback 1: Use search approach
                 try {
@@ -3208,9 +3265,9 @@ The system will automatically:
                     search.addCondition('itemType', 'is', 'collection');
                     const collectionIDs = await search.search();
                     collections = collectionIDs.map(id => Zotero.Collections.get(id)).filter(col => col);
-                    Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections using search fallback`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections using search fallback`);
                 } catch (searchError) {
-                    Zotero.debug(`DeepTutorClaudeManagement: Search fallback failed, trying direct SQL query: ${searchError.message}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Search fallback failed, trying direct SQL query: ${searchError.message}`);
                     
                     // Fallback 2: Direct database query for collections
                     try {
@@ -3219,9 +3276,9 @@ The system will automatically:
                             [userLibID]
                         );
                         collections = allObjects.map(id => Zotero.Collections.get(id)).filter(col => col);
-                        Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections using direct SQL query`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections using direct SQL query`);
                     } catch (dbError) {
-                        Zotero.debug(`DeepTutorClaudeManagement: Direct SQL query failed, trying comprehensive SQL approach: ${dbError.message}`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: Direct SQL query failed, trying comprehensive SQL approach: ${dbError.message}`);
                         
                         // Fallback 3: Comprehensive SQL query with joins
                         try {
@@ -3240,7 +3297,7 @@ The system will automatically:
                             `;
                             
                             const comprehensiveResults = await Zotero.DB.queryAsync(comprehensiveQuery, [userLibID]);
-                            Zotero.debug(`DeepTutorClaudeManagement: Comprehensive SQL query returned ${comprehensiveResults.length} rows`);
+                            // Zotero.debug(`DeepTutorClaudeManagement: Comprehensive SQL query returned ${comprehensiveResults.length} rows`);
                             
                             // Create collection objects from SQL results
                             collections = comprehensiveResults.map(row => ({
@@ -3253,22 +3310,22 @@ The system will automatically:
                                 dateModified: row.dateModified
                             }));
                             
-                            Zotero.debug(`DeepTutorClaudeManagement: Created ${collections.length} collection objects from SQL results`);
+                            // Zotero.debug(`DeepTutorClaudeManagement: Created ${collections.length} collection objects from SQL results`);
                         } catch (comprehensiveError) {
-                            Zotero.debug(`DeepTutorClaudeManagement: All collection retrieval methods failed: ${comprehensiveError.message}`);
+                            // Zotero.debug(`DeepTutorClaudeManagement: All collection retrieval methods failed: ${comprehensiveError.message}`);
                             collections = [];
                         }
                     }
                 }
             }
             
-            Zotero.debug(`DeepTutorClaudeManagement: Final collection count: ${collections.length}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Final collection count: ${collections.length}`);
 
             // Build complete collection hierarchy using enhanced approach
             for (const collection of collections) {
                 try {
                     if (!collection.parentID) { // Only top-level collections
-                        Zotero.debug(`DeepTutorClaudeManagement: Processing top-level collection: ${collection.name} (ID: ${collection.id})`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: Processing top-level collection: ${collection.name} (ID: ${collection.id})`);
                         
                         const collectionData = await this.buildCollectionHierarchyRecursiveEnhanced(collection, 0, userLibID);
                         hierarchyData.collections.push(collectionData);
@@ -3280,7 +3337,7 @@ The system will automatically:
                         hierarchyData.statistics.totalPDFs += collectionData.pdfCount;
                     }
                 } catch (error) {
-                    Zotero.debug(`DeepTutorClaudeManagement: Error processing collection ${collection.id}: ${error.message}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Error processing collection ${collection.id}: ${error.message}`);
                 }
             }
 
@@ -3291,7 +3348,7 @@ The system will automatically:
                 hierarchyData.uncategorized.itemCount = uncategorizedItems.length;
                 hierarchyData.statistics.totalItems += uncategorizedItems.length;
             } catch (uncatError) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error getting uncategorized items: ${uncatError.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error getting uncategorized items: ${uncatError.message}`);
             }
 
             // Save hierarchy data as both JSON and Markdown
@@ -3307,11 +3364,11 @@ The system will automatically:
             // Cache the result
             this.hierarchyCache = hierarchyData;
             
-            Zotero.debug(`DeepTutorClaudeManagement: Enhanced file hierarchy generated successfully. Collections: ${hierarchyData.statistics.totalCollections}, Items: ${hierarchyData.statistics.totalItems}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Enhanced file hierarchy generated successfully. Collections: ${hierarchyData.statistics.totalCollections}, Items: ${hierarchyData.statistics.totalItems}`);
             return hierarchyData;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error generating enhanced file hierarchy: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error generating enhanced file hierarchy: ${error.message}`);
             throw error;
         }
     }
@@ -3389,14 +3446,14 @@ The system will automatically:
                     result.push(collectionData);
                     
                 } catch (collectionError) {
-                    Zotero.debug(`DeepTutorClaudeManagement: Error processing collection ${collection.id}: ${collectionError.message}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Error processing collection ${collection.id}: ${collectionError.message}`);
                 }
             }
             
             return result;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error in buildCollectionTreeRecursive: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error in buildCollectionTreeRecursive: ${error.message}`);
             return [];
         }
     }
@@ -3422,7 +3479,7 @@ The system will automatically:
             return items.filter(item => item.isTopLevelItem());
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error getting collection items via search: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error getting collection items via search: ${error.message}`);
             
             // Fallback to direct collection item retrieval
             try {
@@ -3430,7 +3487,7 @@ The system will automatically:
                 const itemIDs = collection.getChildItems();
                 return await Zotero.Items.getAsync(itemIDs);
             } catch (fallbackError) {
-                Zotero.debug(`DeepTutorClaudeManagement: Fallback item retrieval failed: ${fallbackError.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Fallback item retrieval failed: ${fallbackError.message}`);
                 return [];
             }
         }
@@ -3460,7 +3517,7 @@ The system will automatically:
                     }))
                 };
             } catch (dupError) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error getting duplicates: ${dupError.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error getting duplicates: ${dupError.message}`);
             }
 
             // Unfiled items
@@ -3489,7 +3546,7 @@ The system will automatically:
                     itemCount: hierarchyData.virtualCollections.unfiled.itemCount
                 };
             } catch (unfiledError) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error getting unfiled items: ${unfiledError.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error getting unfiled items: ${unfiledError.message}`);
             }
 
             // Trash
@@ -3507,11 +3564,11 @@ The system will automatically:
                     }))
                 };
             } catch (trashError) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error getting trash items: ${trashError.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error getting trash items: ${trashError.message}`);
             }
 
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error adding virtual collections: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error adding virtual collections: ${error.message}`);
         }
     }
 
@@ -3537,7 +3594,7 @@ The system will automatically:
             
             return pathParts.join(' > ');
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error getting collection path: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error getting collection path: ${error.message}`);
             return collection.name;
         }
     }
@@ -3583,7 +3640,7 @@ The system will automatically:
             };
 
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error calculating statistics: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error calculating statistics: ${error.message}`);
         }
     }
 
@@ -3623,7 +3680,7 @@ The system will automatically:
 
             return markdown;
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error generating enhanced markdown: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error generating enhanced markdown: ${error.message}`);
             return "Error generating markdown representation";
         }
     }
@@ -3687,9 +3744,9 @@ The system will automatically:
                 // Primary method: Use Zotero API
                 try {
                     items = collection.getChildItems();
-                    Zotero.debug(`DeepTutorClaudeManagement: Collection ${collection.name} has ${items.length} child items using API`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Collection ${collection.name} has ${items.length} child items using API`);
                 } catch (apiError) {
-                    Zotero.debug(`DeepTutorClaudeManagement: API method failed for items, trying SQL fallback: ${apiError.message}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: API method failed for items, trying SQL fallback: ${apiError.message}`);
                     
                     // SQL fallback: Get items by collection ID
                     try {
@@ -3702,7 +3759,7 @@ The system will automatically:
                         `;
                         
                         const itemResults = await Zotero.DB.queryAsync(itemsQuery, [collection.id]);
-                        Zotero.debug(`DeepTutorClaudeManagement: SQL query returned ${itemResults.length} items for collection ${collection.id}`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: SQL query returned ${itemResults.length} items for collection ${collection.id}`);
                         
                         // Convert SQL results to item objects
                         items = itemResults.map(row => ({
@@ -3713,7 +3770,7 @@ The system will automatically:
                             dateModified: row.dateModified
                         }));
                     } catch (sqlError) {
-                        Zotero.debug(`DeepTutorClaudeManagement: SQL fallback for items failed: ${sqlError.message}`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: SQL fallback for items failed: ${sqlError.message}`);
                         items = [];
                     }
                 }
@@ -3731,11 +3788,11 @@ The system will automatically:
                             }
                         }
                     } catch (itemError) {
-                        Zotero.debug(`DeepTutorClaudeManagement: Error processing item ${item.id}: ${itemError.message}`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: Error processing item ${item.id}: ${itemError.message}`);
                     }
                 }
             } catch (itemError) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error getting items for collection ${collection.id}: ${itemError.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error getting items for collection ${collection.id}: ${itemError.message}`);
             }
 
             // Enhanced subcollection retrieval with SQL fallback
@@ -3745,9 +3802,9 @@ The system will automatically:
                 // Primary method: Use Zotero API
                 try {
                     subcollections = collection.getChildCollections();
-                    Zotero.debug(`DeepTutorClaudeManagement: Collection ${collection.name} has ${subcollections.length} subcollections using API`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Collection ${collection.name} has ${subcollections.length} subcollections using API`);
                 } catch (apiError) {
-                    Zotero.debug(`DeepTutorClaudeManagement: API method failed for subcollections, trying SQL fallback: ${apiError.message}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: API method failed for subcollections, trying SQL fallback: ${apiError.message}`);
                     
                     // SQL fallback: Get subcollections by parent ID
                     try {
@@ -3759,7 +3816,7 @@ The system will automatically:
                         `;
                         
                         const subcollectionResults = await Zotero.DB.queryAsync(subcollectionsQuery, [collection.id, libraryID]);
-                        Zotero.debug(`DeepTutorClaudeManagement: SQL query returned ${subcollectionResults.length} subcollections for collection ${collection.id}`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: SQL query returned ${subcollectionResults.length} subcollections for collection ${collection.id}`);
                         
                         // Convert SQL results to collection objects
                         subcollections = subcollectionResults.map(row => ({
@@ -3772,7 +3829,7 @@ The system will automatically:
                             dateModified: row.dateModified
                         }));
                     } catch (sqlError) {
-                        Zotero.debug(`DeepTutorClaudeManagement: SQL fallback for subcollections failed: ${sqlError.message}`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: SQL fallback for subcollections failed: ${sqlError.message}`);
                         subcollections = [];
                     }
                 }
@@ -3788,7 +3845,7 @@ The system will automatically:
                     collectionData.pdfCount += subcollectionData.pdfCount;
                 }
             } catch (subcolError) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error getting subcollections for collection ${collection.id}: ${subcolError.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error getting subcollections for collection ${collection.id}: ${subcolError.message}`);
             }
 
             // Build full path for this collection
@@ -3808,7 +3865,7 @@ The system will automatically:
                                 parentCollection = { name: parentResult.collectionName };
                             }
                         } catch (sqlError) {
-                            Zotero.debug(`DeepTutorClaudeManagement: Could not get parent collection name: ${sqlError.message}`);
+                            // Zotero.debug(`DeepTutorClaudeManagement: Could not get parent collection name: ${sqlError.message}`);
                         }
                     }
                     
@@ -3816,14 +3873,14 @@ The system will automatically:
                         collectionData.fullPath = `${parentCollection.name} > ${collection.name}`;
                     }
                 } catch (pathError) {
-                    Zotero.debug(`DeepTutorClaudeManagement: Error building path for collection ${collection.id}: ${pathError.message}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Error building path for collection ${collection.id}: ${pathError.message}`);
                 }
             }
 
             return collectionData;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error building enhanced collection hierarchy: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error building enhanced collection hierarchy: ${error.message}`);
             return {
                 id: collection.id,
                 name: collection.name,
@@ -3870,7 +3927,7 @@ The system will automatically:
                     try {
                         fullItem = Zotero.Items.get(item.id);
                     } catch (getError) {
-                        Zotero.debug(`DeepTutorClaudeManagement: Could not get full item ${item.id}: ${getError.message}`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: Could not get full item ${item.id}: ${getError.message}`);
                         // Continue with SQL fallback
                     }
                 }
@@ -3892,14 +3949,14 @@ The system will automatically:
                             creatorType: creator.creatorType || 'author'
                         }));
                     } catch (creatorError) {
-                        Zotero.debug(`DeepTutorClaudeManagement: Error getting creators: ${creatorError.message}`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: Error getting creators: ${creatorError.message}`);
                     }
                     
                     try {
                         const tags = fullItem.getTags();
                         itemData.tags = tags.map(tag => tag.tag);
                     } catch (tagError) {
-                        Zotero.debug(`DeepTutorClaudeManagement: Error getting tags: ${tagError.message}`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: Error getting tags: ${tagError.message}`);
                     }
                 } else {
                     // SQL fallback for item details
@@ -3930,13 +3987,13 @@ The system will automatically:
                                         itemData.itemType = itemTypeResult.typeName;
                                     }
                                 } catch (typeError) {
-                                    Zotero.debug(`DeepTutorClaudeManagement: Error getting item type: ${typeError.message}`);
+                                    // Zotero.debug(`DeepTutorClaudeManagement: Error getting item type: ${typeError.message}`);
                                     itemData.itemType = 'unknown';
                                 }
                             }
                         }
                     } catch (detailsError) {
-                        Zotero.debug(`DeepTutorClaudeManagement: Error getting item details via SQL: ${detailsError.message}`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: Error getting item details via SQL: ${detailsError.message}`);
                     }
                 }
 
@@ -3966,7 +4023,7 @@ The system will automatically:
                             `;
                             
                             const attachmentResults = await Zotero.DB.queryAsync(attachmentsQuery, [item.id]);
-                            Zotero.debug(`DeepTutorClaudeManagement: SQL query returned ${attachmentResults.length} attachments for item ${item.id}`);
+                            // Zotero.debug(`DeepTutorClaudeManagement: SQL query returned ${attachmentResults.length} attachments for item ${item.id}`);
                             
                             // Convert SQL results to attachment objects
                             attachments = attachmentResults.map(row => ({
@@ -3979,7 +4036,7 @@ The system will automatically:
                                 dateModified: row.dateModified
                             }));
                         } catch (sqlError) {
-                            Zotero.debug(`DeepTutorClaudeManagement: SQL fallback for attachments failed: ${sqlError.message}`);
+                            // Zotero.debug(`DeepTutorClaudeManagement: SQL fallback for attachments failed: ${sqlError.message}`);
                         }
                     }
                     
@@ -4005,21 +4062,21 @@ The system will automatically:
                                 itemData.pdfCount++;
                             }
                         } catch (attachError) {
-                            Zotero.debug(`DeepTutorClaudeManagement: Error processing attachment ${attachment.id}: ${attachError.message}`);
+                            // Zotero.debug(`DeepTutorClaudeManagement: Error processing attachment ${attachment.id}: ${attachError.message}`);
                         }
                     }
                 } catch (attachError) {
-                    Zotero.debug(`DeepTutorClaudeManagement: Error getting attachments for item ${item.id}: ${attachError.message}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Error getting attachments for item ${item.id}: ${attachError.message}`);
                 }
 
             } catch (error) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error building enhanced item data: ${error.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error building enhanced item data: ${error.message}`);
             }
 
             return itemData;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error in buildItemDataEnhanced: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error in buildItemDataEnhanced: ${error.message}`);
             return {
                 id: item.id,
                 title: 'Error loading item',
@@ -4035,16 +4092,16 @@ The system will automatically:
      */
     async getUncategorizedItemsEnhanced(libraryID) {
         try {
-            Zotero.debug("DeepTutorClaudeManagement: Getting uncategorized items with enhanced method...");
+            // Zotero.debug("DeepTutorClaudeManagement: Getting uncategorized items with enhanced method...");
             
             let allItems = [];
             
             // Primary method: Use Zotero API
             try {
                 allItems = await Zotero.Items.getAll(libraryID);
-                Zotero.debug(`DeepTutorClaudeManagement: Found ${allItems.length} items using getAll API`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Found ${allItems.length} items using getAll API`);
             } catch (error) {
-                Zotero.debug(`DeepTutorClaudeManagement: Error getting items with getAll, trying search fallback: ${error.message}`);
+                // Zotero.debug(`DeepTutorClaudeManagement: Error getting items with getAll, trying search fallback: ${error.message}`);
                 
                 // Fallback 1: Use search approach
                 try {
@@ -4054,9 +4111,9 @@ The system will automatically:
                     search.addCondition('itemType', 'isNot', 'annotation');
                     const itemIDs = await search.search();
                     allItems = itemIDs.map(id => Zotero.Items.get(id)).filter(item => item);
-                    Zotero.debug(`DeepTutorClaudeManagement: Found ${allItems.length} items using search fallback`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Found ${allItems.length} items using search fallback`);
                 } catch (searchError) {
-                    Zotero.debug(`DeepTutorClaudeManagement: Search fallback failed, trying SQL fallback: ${searchError.message}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Search fallback failed, trying SQL fallback: ${searchError.message}`);
                     
                     // Fallback 2: Direct SQL query for items
                     try {
@@ -4077,7 +4134,7 @@ The system will automatically:
                         `;
                         
                         const itemResults = await Zotero.DB.queryAsync(itemsQuery, [libraryID]);
-                        Zotero.debug(`DeepTutorClaudeManagement: SQL query returned ${itemResults.length} items`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: SQL query returned ${itemResults.length} items`);
                         
                         // Convert SQL results to item objects
                         allItems = itemResults.map(row => ({
@@ -4088,14 +4145,14 @@ The system will automatically:
                             dateModified: row.dateModified
                         }));
                     } catch (sqlError) {
-                        Zotero.debug(`DeepTutorClaudeManagement: SQL fallback for items failed: ${sqlError.message}`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: SQL fallback for items failed: ${sqlError.message}`);
                         allItems = [];
                     }
                 }
             }
             
             if (!allItems || !Array.isArray(allItems)) {
-                Zotero.debug("DeepTutorClaudeManagement: No items found, returning empty array");
+                // Zotero.debug("DeepTutorClaudeManagement: No items found, returning empty array");
                 return [];
             }
             
@@ -4125,13 +4182,13 @@ The system will automatically:
                                 const result = await Zotero.DB.rowQueryAsync(collectionCheckQuery, [item.id, libraryID]);
                                 isInCollection = result && result.count > 0;
                             } catch (checkError) {
-                                Zotero.debug(`DeepTutorClaudeManagement: Error checking collection membership for item ${item.id}: ${checkError.message}`);
+                                // Zotero.debug(`DeepTutorClaudeManagement: Error checking collection membership for item ${item.id}: ${checkError.message}`);
                                 // Assume not in collection if we can't check
                                 isInCollection = false;
                             }
                         }
                     } catch (collectionError) {
-                        Zotero.debug(`DeepTutorClaudeManagement: Error checking collections for item ${item.id}: ${collectionError.message}`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: Error checking collections for item ${item.id}: ${collectionError.message}`);
                         isInCollection = false;
                     }
                     
@@ -4142,15 +4199,15 @@ The system will automatically:
                         }
                     }
                 } catch (itemError) {
-                    Zotero.debug(`DeepTutorClaudeManagement: Error processing uncategorized item ${item.id}: ${itemError.message}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: Error processing uncategorized item ${item.id}: ${itemError.message}`);
                 }
             }
             
-            Zotero.debug(`DeepTutorClaudeManagement: Found ${uncategorizedItems.length} uncategorized items`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Found ${uncategorizedItems.length} uncategorized items`);
             return uncategorizedItems;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error getting enhanced uncategorized items: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error getting enhanced uncategorized items: ${error.message}`);
             return [];
         }
     }
@@ -4176,7 +4233,7 @@ The system will automatically:
     initializeUsageTracking() {
         // DO NOT USE - BACKUP IMPLEMENTATION ONLY
         if (this.usageTrackingEnabled) {
-            Zotero.debug("DeepTutorClaudeManagement: Usage tracking is DISABLED - this is backup code only");
+            // Zotero.debug("DeepTutorClaudeManagement: Usage tracking is DISABLED - this is backup code only");
             return;
         }
 
@@ -4207,7 +4264,7 @@ The system will automatically:
         // Set up periodic cleanup and export
         this.setupUsageTrackingMaintenance();
         
-        Zotero.debug("DeepTutorClaudeManagement: Usage tracking system initialized (BACKUP MODE)");
+        // Zotero.debug("DeepTutorClaudeManagement: Usage tracking system initialized (BACKUP MODE)");
     }
 
     /**
@@ -4230,10 +4287,10 @@ The system will automatically:
                 this.usageTrackingData.sessionData = new Map(Object.entries(parsed.sessionData || {}));
                 this.usageTrackingData.documentAnalysis = new Map(Object.entries(parsed.documentAnalysis || {}));
                 
-                Zotero.debug("DeepTutorClaudeManagement: Loaded usage tracking data from preferences (BACKUP)");
+                // Zotero.debug("DeepTutorClaudeManagement: Loaded usage tracking data from preferences (BACKUP)");
             }
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error loading usage tracking data: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error loading usage tracking data: ${error.message}`);
         }
     }
 
@@ -4258,9 +4315,9 @@ The system will automatically:
             });
             
             Zotero.Prefs.set('deeptutor.usage.tracking.backup', serializedData);
-            Zotero.debug("DeepTutorClaudeManagement: Saved usage tracking data to preferences (BACKUP)");
+            // Zotero.debug("DeepTutorClaudeManagement: Saved usage tracking data to preferences (BACKUP)");
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error saving usage tracking data: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error saving usage tracking data: ${error.message}`);
         }
     }
 
@@ -4546,9 +4603,9 @@ The system will automatically:
             
             const markdown = this.formatUsageDataAsMarkdown(stats);
             await this.writeTextFile(filePath, markdown);
-            Zotero.debug(`DeepTutorClaudeManagement: Exported usage data to ${filePath} (BACKUP)`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Exported usage data to ${filePath} (BACKUP)`);
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error exporting usage data: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error exporting usage data: ${error.message}`);
         }
     }
 
@@ -4633,7 +4690,7 @@ ${stats.topFeatures.map(feature => `- **${feature.feature}**: ${feature.usageCou
         }
         
         this.saveUsageTrackingToPrefs();
-        Zotero.debug("DeepTutorClaudeManagement: Cleaned up old usage data (BACKUP)");
+        // Zotero.debug("DeepTutorClaudeManagement: Cleaned up old usage data (BACKUP)");
     }
 
     /**
@@ -4736,7 +4793,7 @@ ${stats.topFeatures.map(feature => `- **${feature.feature}**: ${feature.usageCou
     this.onCollectionSelected = Zotero.serial(async function () {
         var collectionTreeRow = this.getCollectionTreeRow();
         if (!collectionTreeRow) {
-            Zotero.debug('ZoteroPane.onCollectionSelected: No selected collection found');
+            // Zotero.debug('ZoteroPane.onCollectionSelected: No selected collection found');
             return;
         }
         
@@ -4895,10 +4952,10 @@ ${stats.topFeatures.map(feature => `- **${feature.feature}**: ${feature.usageCou
      */
     async generateFileHierarchySQL() {
         try {
-            Zotero.debug("DeepTutorClaudeManagement: Starting SQL-based file hierarchy generation...");
+            // Zotero.debug("DeepTutorClaudeManagement: Starting SQL-based file hierarchy generation...");
             
             if (this.hierarchyCache) {
-                Zotero.debug("DeepTutorClaudeManagement: Using cached hierarchy data");
+                // Zotero.debug("DeepTutorClaudeManagement: Using cached hierarchy data");
                 return this.hierarchyCache;
             }
 
@@ -4926,30 +4983,30 @@ ${stats.topFeatures.map(feature => `- **${feature.feature}**: ${feature.usageCou
             };
 
             // Step 1: Get all collections using API (not SQL - bro learned his lesson!)
-            Zotero.debug("DeepTutorClaudeManagement: Step 1 - Retrieving collections via API (no more SQL pain!)...");
+            // Zotero.debug("DeepTutorClaudeManagement: Step 1 - Retrieving collections via API (no more SQL pain!)...");
             const collections = await this.getCollectionsViaAPI(userLibID);
-            Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Found ${collections.length} collections`);
 
             // Step 2: Build hierarchical collection map
-            Zotero.debug("DeepTutorClaudeManagement: Step 2 - Building hierarchical collection map...");
+            // Zotero.debug("DeepTutorClaudeManagement: Step 2 - Building hierarchical collection map...");
             const collectionMap = this.buildCollectionHierarchyMap(collections);
             hierarchyData.collections = collectionMap;
 
             // Step 3: Get all items using API (ditched SQL for good!)
-            Zotero.debug("DeepTutorClaudeManagement: Step 3 - Retrieving items via API (much safer!)...");
+            // Zotero.debug("DeepTutorClaudeManagement: Step 3 - Retrieving items via API (much safer!)...");
             const items = await this.getItemsViaAPI(userLibID);
-            Zotero.debug(`DeepTutorClaudeManagement: Found ${items.length} items`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Found ${items.length} items`);
 
             // Step 4: Position items in collection hierarchy
-            Zotero.debug("DeepTutorClaudeManagement: Step 4 - Positioning items in collection hierarchy...");
+            // Zotero.debug("DeepTutorClaudeManagement: Step 4 - Positioning items in collection hierarchy...");
             await this.positionItemsInHierarchy(items, collectionMap, hierarchyData);
 
             // Step 5: Calculate statistics
-            Zotero.debug("DeepTutorClaudeManagement: Step 5 - Calculating statistics...");
+            // Zotero.debug("DeepTutorClaudeManagement: Step 5 - Calculating statistics...");
             this.calculateHierarchyStatisticsSQL(hierarchyData);
 
             // Step 6: Export to markdown
-            Zotero.debug("DeepTutorClaudeManagement: Step 6 - Exporting to markdown...");
+            // Zotero.debug("DeepTutorClaudeManagement: Step 6 - Exporting to markdown...");
             const hierarchyMarkdown = this.generateSQLHierarchyMarkdown(hierarchyData);
             
             // Save files with clear naming
@@ -4959,21 +5016,21 @@ ${stats.topFeatures.map(feature => `- **${feature.feature}**: ${feature.usageCou
             this.writeTextFile(hierarchyJsonPath, JSON.stringify(hierarchyData, null, 2));
             this.writeTextFile(hierarchyMdPath, hierarchyMarkdown);
             
-            Zotero.debug(`DeepTutorClaudeManagement: 🎉 BRO! FILES EXPORTED TO:`);
-            Zotero.debug(`DeepTutorClaudeManagement: 📄 JSON FILE: ${hierarchyJsonPath}`);
-            Zotero.debug(`DeepTutorClaudeManagement: 📝 MARKDOWN FILE: ${hierarchyMdPath}`);
-            Zotero.debug(`DeepTutorClaudeManagement: 📁 BASE DIRECTORY: ${this.dataDirectory}`);
-            Zotero.debug(`DeepTutorClaudeManagement: 🏗️ DEEPTUTOR PATH: ${this.deepTutorDBPath}`);
-            Zotero.debug(`DeepTutorClaudeManagement: 🌳 FILETREE PATH: ${this.fileTreePath}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: 🎉 BRO! FILES EXPORTED TO:`);
+            // Zotero.debug(`DeepTutorClaudeManagement: 📄 JSON FILE: ${hierarchyJsonPath}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: 📝 MARKDOWN FILE: ${hierarchyMdPath}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: 📁 BASE DIRECTORY: ${this.dataDirectory}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: 🏗️ DEEPTUTOR PATH: ${this.deepTutorDBPath}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: 🌳 FILETREE PATH: ${this.fileTreePath}`);
             
             // Cache the result
             this.hierarchyCache = hierarchyData;
             
-            Zotero.debug(`DeepTutorClaudeManagement: SQL-based file hierarchy generated successfully. Collections: ${hierarchyData.statistics.totalCollections}, Items: ${hierarchyData.statistics.totalItems}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: SQL-based file hierarchy generated successfully. Collections: ${hierarchyData.statistics.totalCollections}, Items: ${hierarchyData.statistics.totalItems}`);
             return hierarchyData;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error generating SQL-based file hierarchy: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error generating SQL-based file hierarchy: ${error.message}`);
             throw error;
         }
     }
@@ -4985,17 +5042,17 @@ ${stats.topFeatures.map(feature => `- **${feature.feature}**: ${feature.usageCou
      */
     async getCollectionsViaAPI(libraryID) {
         try {
-            Zotero.debug(`DeepTutorClaudeManagement: 🚀 BRO! Using Zotero API to get collections for library ${libraryID}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: 🚀 BRO! Using Zotero API to get collections for library ${libraryID}`);
             
             // Use the actual Zotero Collections API that KNOWS what it's doing!
             const collections = Zotero.Collections.getByLibrary(libraryID, true); // recursive = true
             
             if (!collections) {
-                Zotero.debug("DeepTutorClaudeManagement: 😅 No collections found, but that's cool!");
+                // Zotero.debug("DeepTutorClaudeManagement: 😅 No collections found, but that's cool!");
                 return [];
             }
             
-            Zotero.debug(`DeepTutorClaudeManagement: 🎉 Found ${collections.length} collections using the API like a boss!`);
+            // Zotero.debug(`DeepTutorClaudeManagement: 🎉 Found ${collections.length} collections using the API like a boss!`);
             
             return collections.map(collection => ({
                 id: collection.id,
@@ -5010,7 +5067,7 @@ ${stats.topFeatures.map(feature => `- **${feature.feature}**: ${feature.usageCou
             }));
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: 😱 Error getting collections via API: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: 😱 Error getting collections via API: ${error.message}`);
             throw error;
         }
     }
@@ -5093,11 +5150,11 @@ ${stats.topFeatures.map(feature => `- **${feature.feature}**: ${feature.usageCou
             
             calculateLevels(collectionMap);
             
-            Zotero.debug(`DeepTutorClaudeManagement: Built hierarchical map with ${Object.keys(collectionMap).length} root collections`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Built hierarchical map with ${Object.keys(collectionMap).length} root collections`);
             return collectionMap;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error building collection hierarchy map: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error building collection hierarchy map: ${error.message}`);
             throw error;
         }
     }
@@ -5109,17 +5166,17 @@ ${stats.topFeatures.map(feature => `- **${feature.feature}**: ${feature.usageCou
      */
     async getItemsViaAPI(libraryID) {
         try {
-            Zotero.debug(`DeepTutorClaudeManagement: 🎯 BRO! Using Zotero API to get items for library ${libraryID}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: 🎯 BRO! Using Zotero API to get items for library ${libraryID}`);
             
             // Use the actual Zotero Items API that actually works!
             const items = await Zotero.Items.getAll(libraryID);
             
             if (!items) {
-                Zotero.debug("DeepTutorClaudeManagement: 😅 No items found, but that's totally fine!");
+                // Zotero.debug("DeepTutorClaudeManagement: 😅 No items found, but that's totally fine!");
                 return [];
             }
             
-            Zotero.debug(`DeepTutorClaudeManagement: 🎉 Found ${items.length} total items using the API!`);
+            // Zotero.debug(`DeepTutorClaudeManagement: 🎉 Found ${items.length} total items using the API!`);
             
             // Filter to only regular items (not attachments, notes, etc.)
             const regularItems = items.filter(item => {
@@ -5130,7 +5187,7 @@ ${stats.topFeatures.map(feature => `- **${feature.feature}**: ${feature.usageCou
                 }
             });
             
-            Zotero.debug(`DeepTutorClaudeManagement: 🔥 Filtered to ${regularItems.length} regular items!`);
+            // Zotero.debug(`DeepTutorClaudeManagement: 🔥 Filtered to ${regularItems.length} regular items!`);
             
             const processedItems = [];
             
@@ -5187,20 +5244,20 @@ ${stats.topFeatures.map(feature => `- **${feature.feature}**: ${feature.usageCou
                             }
                         }
                     } catch (attachError) {
-                        Zotero.debug(`DeepTutorClaudeManagement: 😅 Error getting attachments for item ${item.id}: ${attachError.message}`);
+                        // Zotero.debug(`DeepTutorClaudeManagement: 😅 Error getting attachments for item ${item.id}: ${attachError.message}`);
                     }
                     
                     processedItems.push(processedItem);
                 } catch (itemError) {
-                    Zotero.debug(`DeepTutorClaudeManagement: 😅 Error processing item ${item.id}: ${itemError.message}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: 😅 Error processing item ${item.id}: ${itemError.message}`);
                 }
             }
             
-            Zotero.debug(`DeepTutorClaudeManagement: 🚀 Successfully processed ${processedItems.length} items!`);
+            // Zotero.debug(`DeepTutorClaudeManagement: 🚀 Successfully processed ${processedItems.length} items!`);
             return processedItems;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: 😱 Error getting items via API: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: 😱 Error getting items via API: ${error.message}`);
             throw error;
         }
     }
@@ -5263,7 +5320,7 @@ ${stats.topFeatures.map(feature => `- **${feature.feature}**: ${feature.usageCou
             }
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error getting metadata for item ${item.id}: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error getting metadata for item ${item.id}: ${error.message}`);
         }
     }
 
@@ -5322,7 +5379,7 @@ ${stats.topFeatures.map(feature => `- **${feature.feature}**: ${feature.usageCou
             }
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error getting attachments for item ${item.id}: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error getting attachments for item ${item.id}: ${error.message}`);
         }
     }
 
@@ -5394,10 +5451,10 @@ ${stats.topFeatures.map(feature => `- **${feature.feature}**: ${feature.usageCou
                 }
             }
             
-            Zotero.debug(`DeepTutorClaudeManagement: Positioned ${items.length} items in hierarchy`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Positioned ${items.length} items in hierarchy`);
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error positioning items in hierarchy: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error positioning items in hierarchy: ${error.message}`);
             throw error;
         }
     }
@@ -5411,7 +5468,7 @@ ${stats.topFeatures.map(feature => `- **${feature.feature}**: ${feature.usageCou
         try {
             if (items.length === 0) return new Map();
             
-            Zotero.debug(`DeepTutorClaudeManagement: 🎪 Getting collection membership for ${items.length} items via API!`);
+            // Zotero.debug(`DeepTutorClaudeManagement: 🎪 Getting collection membership for ${items.length} items via API!`);
             
             const membershipMap = new Map();
             
@@ -5424,22 +5481,22 @@ ${stats.topFeatures.map(feature => `- **${feature.feature}**: ${feature.usageCou
                         const collectionIDs = item.getCollections();
                         if (collectionIDs && collectionIDs.length > 0) {
                             membershipMap.set(itemData.id, collectionIDs);
-                            Zotero.debug(`DeepTutorClaudeManagement: 🎯 Item ${itemData.id} is in ${collectionIDs.length} collections`);
+                            // Zotero.debug(`DeepTutorClaudeManagement: 🎯 Item ${itemData.id} is in ${collectionIDs.length} collections`);
                         } else {
                             membershipMap.set(itemData.id, []);
                         }
                     }
                 } catch (itemError) {
-                    Zotero.debug(`DeepTutorClaudeManagement: 😅 Error getting collections for item ${itemData.id}: ${itemError.message}`);
+                    // Zotero.debug(`DeepTutorClaudeManagement: 😅 Error getting collections for item ${itemData.id}: ${itemError.message}`);
                     membershipMap.set(itemData.id, []); // Default to uncategorized
                 }
             }
             
-            Zotero.debug(`DeepTutorClaudeManagement: 🚀 Successfully mapped ${membershipMap.size} items to their collections!`);
+            // Zotero.debug(`DeepTutorClaudeManagement: 🚀 Successfully mapped ${membershipMap.size} items to their collections!`);
             return membershipMap;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: 😱 Error getting item collection membership via API: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: 😱 Error getting item collection membership via API: ${error.message}`);
             return new Map();
         }
     }
@@ -5502,7 +5559,7 @@ ${stats.topFeatures.map(feature => `- **${feature.feature}**: ${feature.usageCou
             }
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error adding item to collection: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error adding item to collection: ${error.message}`);
         }
     }
 
@@ -5543,10 +5600,10 @@ ${stats.topFeatures.map(feature => `- **${feature.feature}**: ${feature.usageCou
                 totalPDFs: collectionStats.pdfs
             };
             
-            Zotero.debug(`DeepTutorClaudeManagement: Calculated statistics - Collections: ${hierarchyData.statistics.totalCollections}, Items: ${hierarchyData.statistics.totalItems}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Calculated statistics - Collections: ${hierarchyData.statistics.totalCollections}, Items: ${hierarchyData.statistics.totalItems}`);
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error calculating hierarchy statistics: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error calculating hierarchy statistics: ${error.message}`);
         }
     }
 
@@ -5604,7 +5661,7 @@ ${stats.topFeatures.map(feature => `- **${feature.feature}**: ${feature.usageCou
             return markdown;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error generating SQL hierarchy markdown: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error generating SQL hierarchy markdown: ${error.message}`);
             return `# Error Generating Hierarchy\n\n${error.message}`;
         }
     }
@@ -5671,7 +5728,7 @@ ${stats.topFeatures.map(feature => `- **${feature.feature}**: ${feature.usageCou
             return markdown;
             
         } catch (error) {
-            Zotero.debug(`DeepTutorClaudeManagement: Error rendering SQL collection hierarchy: ${error.message}`);
+            // Zotero.debug(`DeepTutorClaudeManagement: Error rendering SQL collection hierarchy: ${error.message}`);
             return `Error rendering collection: ${error.message}\n\n`;
         }
     }
