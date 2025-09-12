@@ -15,6 +15,7 @@ export default function DeepTutorSettingsPopup({ onClose, currentUser, userData,
 	const { colors, isDark } = useDeepTutorTheme();
 
 	const [activeTab, setActiveTab] = useState('subscription');
+	const [hoveredTab, setHoveredTab] = useState(null);
 
 	// Derive name/email similar to account popup
 	const userName = useMemo(() => {
@@ -40,28 +41,40 @@ export default function DeepTutorSettingsPopup({ onClose, currentUser, userData,
 			background: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000
 		},
 		container: {
-			display: 'flex', flexDirection: 'row', width: '56rem', maxWidth: '90vw', height: '34rem', maxHeight: '90vh',
+			display: 'flex', flexDirection: 'row', width: '64rem', maxWidth: '90vw', height: '40rem', maxHeight: '90vh',
 			background: colors.background.primary, borderRadius: '0.5rem', overflow: 'hidden', position: 'relative',
 			border: isDark ? `1px solid ${colors.popup.border}` : 'none', boxShadow: '0 0.25rem 1rem rgba(0,0,0,0.15)'
 		},
 		sidebar: {
-			width: '16rem', background: colors.background.tertiary, borderRight: `1px solid ${colors.border.primary}`,
-			padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem'
+			width: '18rem', background: colors.background.tertiary, borderRight: `1px solid ${colors.border.primary}`,
+			padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem'
 		},
-		main: { flex: 1, padding: '1.25rem', overflow: 'auto' },
-		userBlock: { display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '0.5rem' },
+		main: { flex: 1, padding: '1.75rem', overflow: 'auto' },
+		userBlock: { display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '0.75rem' },
 		nameText: { color: colors.text.primary, fontWeight: 600 },
 		emailText: { color: colors.text.tertiary, fontSize: '0.9rem' },
-		divider: { height: '1px', background: isDark ? colors.border.primary : '#E5E7EB', width: '100%', margin: '0.5rem 0' },
+		divider: { height: '1px', background: isDark ? colors.border.primary : '#E5E7EB', width: '100%', margin: '0.75rem 0' },
 		tabButton: {
-			all: 'revert', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', border: 'none', textAlign: 'left',
-			background: 'transparent', color: colors.text.primary, cursor: 'pointer', fontFamily: 'Roboto, sans-serif'
+			all: 'revert', padding: '0.75rem 1rem', borderRadius: '0.375rem', border: 'none', textAlign: 'left',
+			background: 'transparent', color: colors.text.primary, cursor: 'pointer', fontFamily: 'Roboto, sans-serif',
+			transition: 'background-color 0.2s ease', fontSize: '0.95rem'
 		},
 		tabButtonActive: {
 			background: isDark ? colors.background.tertiary : '#F3F4F6'
 		},
+		tabButtonHover: {
+			background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'
+		},
+		actionTabButton: {
+			all: 'revert', padding: '0.75rem 1rem', borderRadius: '0.375rem', border: 'none', textAlign: 'left',
+			background: 'transparent', color: colors.text.primary, cursor: 'pointer', fontFamily: 'Roboto, sans-serif',
+			transition: 'background-color 0.2s ease', fontSize: '0.95rem', width: '100%'
+		},
+		actionTabButtonHover: {
+			background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'
+		},
 		closeBtn: {
-			all: 'revert', background: 'none', border: 'none', cursor: 'pointer', position: 'absolute', right: '1rem', top: '1rem', width: '1rem', height: '1rem'
+			all: 'revert', background: 'none', border: 'none', cursor: 'pointer', position: 'absolute', left: '1rem', top: '1rem', width: '1rem', height: '1rem'
 		},
 		grid3: {
 			display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '1rem'
@@ -136,11 +149,81 @@ export default function DeepTutorSettingsPopup({ onClose, currentUser, userData,
 					</div>
 					<div style={styles.divider} />
 
-					<button type="button" style={{ ...styles.tabButton, ...(activeTab === 'subscription' ? styles.tabButtonActive : {}) }} onClick={() => setActiveTab('subscription')}>Subscription and usage</button>
-					<button type="button" style={{ ...styles.tabButton, ...(activeTab === 'more' ? styles.tabButtonActive : {}) }} onClick={() => setActiveTab('more')}>More AI tools</button>
-					<button type="button" style={{ ...styles.tabButton, ...(activeTab === 'api' ? styles.tabButtonActive : {}) }} onClick={() => setActiveTab('api')}>API key settings</button>
-					<button type="button" style={{ ...styles.tabButton, ...(activeTab === 'feedback' ? styles.tabButtonActive : {}) }} onClick={() => setActiveTab('feedback')}>Give Us Feedbacks</button>
-					<button type="button" style={{ ...styles.tabButton, ...(activeTab === 'signout' ? styles.tabButtonActive : {}) }} onClick={() => setActiveTab('signout')}>Sign Out</button>
+					<button
+						type="button"
+						style={{
+							...styles.tabButton,
+							...(activeTab === 'subscription' ? styles.tabButtonActive : {}),
+							...(hoveredTab === 'subscription' ? styles.tabButtonHover : {})
+						}}
+						onClick={() => setActiveTab('subscription')}
+						onMouseEnter={() => setHoveredTab('subscription')}
+						onMouseLeave={() => setHoveredTab(null)}
+					>
+						Subscription and usage
+					</button>
+					<button
+						type="button"
+						style={{
+							...styles.tabButton,
+							...(activeTab === 'more' ? styles.tabButtonActive : {}),
+							...(hoveredTab === 'more' ? styles.tabButtonHover : {})
+						}}
+						onClick={() => setActiveTab('more')}
+						onMouseEnter={() => setHoveredTab('more')}
+						onMouseLeave={() => setHoveredTab(null)}
+					>
+						More AI tools
+					</button>
+					<button
+						type="button"
+						style={{
+							...styles.tabButton,
+							...(activeTab === 'api' ? styles.tabButtonActive : {}),
+							...(hoveredTab === 'api' ? styles.tabButtonHover : {})
+						}}
+						onClick={() => setActiveTab('api')}
+						onMouseEnter={() => setHoveredTab('api')}
+						onMouseLeave={() => setHoveredTab(null)}
+					>
+						API key settings
+					</button>
+					<button
+						type="button"
+						style={{
+							...styles.actionTabButton,
+							...(hoveredTab === 'feedback' ? styles.actionTabButtonHover : {})
+						}}
+						onClick={() => {
+							const url = 'https://docs.google.com/forms/d/e/1FAIpQLSfgLdhUz79oBsNTIF_rD3hEw5pCTbXOOGfi1UBKViiVgFjI-A/viewform?usp=dialog';
+							try {
+								Zotero.launchURL(url);
+							}
+							catch {
+								if (navigator.clipboard) navigator.clipboard.writeText(url);
+							}
+							onClose();
+						}}
+						onMouseEnter={() => setHoveredTab('feedback')}
+						onMouseLeave={() => setHoveredTab(null)}
+					>
+						Give Us Feedbacks
+					</button>
+					<button
+						type="button"
+						style={{
+							...styles.actionTabButton,
+							...(hoveredTab === 'signout' ? styles.actionTabButtonHover : {})
+						}}
+						onClick={() => {
+							if (onSignOut) onSignOut();
+							onClose();
+						}}
+						onMouseEnter={() => setHoveredTab('signout')}
+						onMouseLeave={() => setHoveredTab(null)}
+					>
+						Sign Out
+					</button>
 				</aside>
 
 				{/* Main */}
@@ -160,25 +243,6 @@ export default function DeepTutorSettingsPopup({ onClose, currentUser, userData,
 
 					<Tab id="api">
 						<div style={{ color: colors.text.tertiary }}>API key settings — coming soon.</div>
-					</Tab>
-
-					<Tab id="feedback">
-						<button type="button" style={styles.actionBtn} onClick={() => {
-							const url = 'https://docs.google.com/forms/d/e/1FAIpQLSfgLdhUz79oBsNTIF_rD3hEw5pCTbXOOGfi1UBKViiVgFjI-A/viewform?usp=dialog';
-							try {
-								Zotero.launchURL(url);
-							}
-							catch {
-								if (navigator.clipboard) navigator.clipboard.writeText(url);
-							}
-							onClose();
-						}}>Give Us Feedbacks</button>
-					</Tab>
-
-					<Tab id="signout">
-						<button type="button" style={styles.actionBtn} onClick={() => {
-							if (onSignOut) onSignOut(); onClose();
-						}}>Sign Out</button>
 					</Tab>
 				</main>
 			</div>
