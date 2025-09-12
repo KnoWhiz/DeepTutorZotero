@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'; // eslint-disable-line no-unused-vars
+import React, { useMemo, useState, memo } from 'react'; // eslint-disable-line no-unused-vars
 import PropTypes from 'prop-types';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 import DeepTutorUsageContent from './DeepTutorUsageContent.js';
@@ -7,15 +7,44 @@ import DeepTutorUsageContent from './DeepTutorUsageContent.js';
 const PopupClosePath = 'chrome://zotero/content/DeepTutorMaterials/Main/MAIN_CLOSE.svg';
 const PopupCloseDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Main/CLOSE_DARK.svg';
 
+// Tab icons
+const TAB_ICON_PATHS = {
+	subscription: {
+		light: 'chrome://zotero/content/DeepTutorMaterials/Profile/profile_manage.svg',
+		dark: 'chrome://zotero/content/DeepTutorMaterials/Profile/profile_manage_dark.svg'
+	},
+	more: {
+		light: 'chrome://zotero/content/DeepTutorMaterials/Settings/MORE_AI_TOOLS.svg',
+		dark: 'chrome://zotero/content/DeepTutorMaterials/Settings/MORE_AI_TOOLS_DARK.svg'
+	},
+	api: {
+		light: 'chrome://zotero/content/DeepTutorMaterials/Settings/API_SETTINGS.svg',
+		dark: 'chrome://zotero/content/DeepTutorMaterials/Settings/API_SETTINGS_DARK.svg'
+	},
+	feedback: {
+		light: 'chrome://zotero/content/DeepTutorMaterials/Bot/BOT_FEEDBACK.svg',
+		dark: 'chrome://zotero/content/DeepTutorMaterials/Bot/BOT_FEEDBACK_DARK.svg'
+	},
+	signout: {
+		light: 'chrome://zotero/content/DeepTutorMaterials/Profile/profile_signout.svg',
+		dark: 'chrome://zotero/content/DeepTutorMaterials/Profile/profile_signout_dark.svg'
+	}
+};
+
 /**
  * Settings popup with left sidebar and right content.
  * Sidebar shows user name/email, divider, and five tabs.
  */
-export default function DeepTutorSettingsPopup({ onClose, currentUser, userData, activeSubscription, usageSummary, onShowUpgrade, onSignOut, refreshUsageSummary }) {
+function DeepTutorSettingsPopup({ onClose, currentUser, userData, activeSubscription, usageSummary, onShowUpgrade, onSignOut, refreshUsageSummary }) {
 	const { colors, isDark } = useDeepTutorTheme();
 
 	const [activeTab, setActiveTab] = useState('subscription');
 	const [hoveredTab, setHoveredTab] = useState(null);
+
+	// Helper function to get icon path based on theme
+	const getIconPath = (iconName) => {
+		return isDark ? TAB_ICON_PATHS[iconName].dark : TAB_ICON_PATHS[iconName].light;
+	};
 
 	// Derive name/email similar to account popup
 	const userName = useMemo(() => {
@@ -46,18 +75,35 @@ export default function DeepTutorSettingsPopup({ onClose, currentUser, userData,
 			border: isDark ? `1px solid ${colors.popup.border}` : 'none', boxShadow: '0 0.25rem 1rem rgba(0,0,0,0.15)'
 		},
 		sidebar: {
-			width: '18rem', background: colors.background.tertiary, borderRight: `1px solid ${colors.border.primary}`,
+			width: '18rem', background: isDark ? colors.background.tertiary : '#FFFFFF', borderRight: `1px solid ${colors.border.primary}`,
 			padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem'
 		},
-		main: { flex: 1, padding: '1.75rem', overflow: 'auto' },
-		userBlock: { display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '0.75rem' },
+		main: {
+			flex: 1,
+			padding: '1.75rem',
+			overflow: 'auto',
+			background: isDark ? '#2A2A2A' : '#F8F9FA'
+		},
+		userBlock: {
+			display: 'flex',
+			flexDirection: 'column',
+			gap: '0.25rem',
+			marginBottom: '0.75rem',
+			marginTop: '1.5rem'
+		},
 		nameText: { color: colors.text.primary, fontWeight: 600 },
 		emailText: { color: colors.text.tertiary, fontSize: '0.9rem' },
-		divider: { height: '1px', background: isDark ? colors.border.primary : '#E5E7EB', width: '100%', margin: '0.75rem 0' },
+		divider: {
+			height: '2px',
+			background: isDark ? '#4A4A4A' : '#D1D5DB',
+			width: '100%',
+			margin: '0.75rem 0',
+			borderRadius: '1px'
+		},
 		tabButton: {
 			all: 'revert', padding: '0.75rem 1rem', borderRadius: '0.375rem', border: 'none', textAlign: 'left',
 			background: 'transparent', color: colors.text.primary, cursor: 'pointer', fontFamily: 'Roboto, sans-serif',
-			transition: 'background-color 0.2s ease', fontSize: '0.95rem'
+			transition: 'background-color 0.2s ease', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.75rem'
 		},
 		tabButtonActive: {
 			background: isDark ? colors.background.tertiary : '#F3F4F6'
@@ -68,7 +114,7 @@ export default function DeepTutorSettingsPopup({ onClose, currentUser, userData,
 		actionTabButton: {
 			all: 'revert', padding: '0.75rem 1rem', borderRadius: '0.375rem', border: 'none', textAlign: 'left',
 			background: 'transparent', color: colors.text.primary, cursor: 'pointer', fontFamily: 'Roboto, sans-serif',
-			transition: 'background-color 0.2s ease', fontSize: '0.95rem', width: '100%'
+			transition: 'background-color 0.2s ease', fontSize: '0.95rem', width: '100%', display: 'flex', alignItems: 'center', gap: '0.75rem'
 		},
 		actionTabButtonHover: {
 			background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'
@@ -92,6 +138,12 @@ export default function DeepTutorSettingsPopup({ onClose, currentUser, userData,
 		actionBtn: {
 			all: 'revert', background: 'transparent', border: 'none', color: '#0687E5', cursor: 'pointer', textDecoration: 'underline',
 			fontFamily: 'Roboto, sans-serif'
+		},
+		tabIcon: {
+			width: '1.5rem', height: '1.5rem', flexShrink: 0
+		},
+		tabIconSmall: {
+			width: '1.25rem', height: '1.25rem', flexShrink: 0
 		}
 	};
 
@@ -160,6 +212,7 @@ export default function DeepTutorSettingsPopup({ onClose, currentUser, userData,
 						onMouseEnter={() => setHoveredTab('subscription')}
 						onMouseLeave={() => setHoveredTab(null)}
 					>
+						<img src={getIconPath('subscription')} alt="Subscription" style={styles.tabIcon} />
 						Subscription and usage
 					</button>
 					<button
@@ -173,6 +226,7 @@ export default function DeepTutorSettingsPopup({ onClose, currentUser, userData,
 						onMouseEnter={() => setHoveredTab('more')}
 						onMouseLeave={() => setHoveredTab(null)}
 					>
+						<img src={getIconPath('more')} alt="More AI Tools" style={styles.tabIcon} />
 						More AI tools
 					</button>
 					<button
@@ -186,6 +240,7 @@ export default function DeepTutorSettingsPopup({ onClose, currentUser, userData,
 						onMouseEnter={() => setHoveredTab('api')}
 						onMouseLeave={() => setHoveredTab(null)}
 					>
+						<img src={getIconPath('api')} alt="API Settings" style={styles.tabIcon} />
 						API key settings
 					</button>
 					<button
@@ -207,6 +262,7 @@ export default function DeepTutorSettingsPopup({ onClose, currentUser, userData,
 						onMouseEnter={() => setHoveredTab('feedback')}
 						onMouseLeave={() => setHoveredTab(null)}
 					>
+						<img src={getIconPath('feedback')} alt="Feedback" style={styles.tabIconSmall} />
 						Give Us Feedbacks
 					</button>
 					<button
@@ -222,6 +278,7 @@ export default function DeepTutorSettingsPopup({ onClose, currentUser, userData,
 						onMouseEnter={() => setHoveredTab('signout')}
 						onMouseLeave={() => setHoveredTab(null)}
 					>
+						<img src={getIconPath('signout')} alt="Sign Out" style={styles.tabIcon} />
 						Sign Out
 					</button>
 				</aside>
@@ -261,5 +318,20 @@ DeepTutorSettingsPopup.propTypes = {
 	onSignOut: PropTypes.func,
 	refreshUsageSummary: PropTypes.func,
 };
+
+// Memoize the component to prevent unnecessary re-renders
+export default memo(DeepTutorSettingsPopup, (prevProps, nextProps) => {
+	// Only re-render if these specific props change
+	return (
+		prevProps.currentUser === nextProps.currentUser
+		&& prevProps.userData === nextProps.userData
+		&& prevProps.activeSubscription === nextProps.activeSubscription
+		&& prevProps.usageSummary === nextProps.usageSummary
+		&& prevProps.onClose === nextProps.onClose
+		&& prevProps.onShowUpgrade === nextProps.onShowUpgrade
+		&& prevProps.onSignOut === nextProps.onSignOut
+		&& prevProps.refreshUsageSummary === nextProps.refreshUsageSummary
+	);
+});
 
 
