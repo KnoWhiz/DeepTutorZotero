@@ -2469,16 +2469,59 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 	}, []);
 
 	// Settings popup component
-	const SettingsPopup = ({ onConfirm, onCancel, initialApiKey, initialPrompt, initialCliChoice, initialOpenaiApiKey, styles }) => {
+	const SettingsPopup = ({ onConfirm, onCancel, initialApiKey, initialPrompt, initialCliChoice, initialOpenaiApiKey, styles, colors }) => {
 		const [tempApiKey, setTempApiKey] = useState(initialApiKey || '');
 		const [tempPrompt, setTempPrompt] = useState(initialPrompt || '');
 		const [tempCliChoice, setTempCliChoice] = useState(initialCliChoice || 'claude');
 		const [tempOpenaiApiKey, setTempOpenaiApiKey] = useState(initialOpenaiApiKey || '');
 		const [isProcessingPDFs, setIsProcessingPDFs] = useState(false);
 		const [pdfProcessingStatus, setPdfProcessingStatus] = useState('');
+		const [isCheckingClaude, setIsCheckingClaude] = useState(false);
+		const [claudeCheckResult, setClaudeCheckResult] = useState('');
+		const [isInstallingClaude, setIsInstallingClaude] = useState(false);
+		const [claudeInstallResult, setClaudeInstallResult] = useState('');
 
 		const handleConfirm = () => {
 			onConfirm(tempApiKey, tempPrompt, tempCliChoice, tempOpenaiApiKey);
+		};
+
+		const handleCheckClaude = async () => {
+			setIsCheckingClaude(true);
+			setClaudeCheckResult('Checking...');
+			try {
+				const result = await ClaudeCliWrapper.checkClaude();
+				if (result.exists) {
+					setClaudeCheckResult(`✅ Claude CLI found at: ${result.path}`);
+				} else {
+					setClaudeCheckResult(`❌ Claude CLI not found. ${result.error ? `Error: ${result.error.message}` : 'Please install it first.'}`);
+				}
+			} catch (error) {
+				setClaudeCheckResult(`❌ Error checking Claude: ${error.message}`);
+			} finally {
+				setIsCheckingClaude(false);
+			}
+		};
+
+		const handleInstallClaude = async () => {
+			if (!tempApiKey.trim()) {
+				setClaudeInstallResult('❌ Please enter an Anthropic API key first');
+				return;
+			}
+			
+			setIsInstallingClaude(true);
+			setClaudeInstallResult('Installing Claude CLI and setting up API key...');
+			try {
+				const result = await ClaudeCliWrapper.installClaude(tempApiKey);
+				if (result.ok) {
+					setClaudeInstallResult(`✅ ${result.message}`);
+				} else {
+					setClaudeInstallResult(`❌ Installation failed: ${result.error.message}`);
+				}
+			} catch (error) {
+				setClaudeInstallResult(`❌ Error installing Claude: ${error.message}`);
+			} finally {
+				setIsInstallingClaude(false);
+			}
 		};
 		
 		const handleCliChoiceChange = (choice) => {
@@ -2573,6 +2616,69 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 					style={styles.settingsInput}
 					placeholder="Enter OpenAI API key..."
 				/>
+
+				{/* Claude CLI Management Section */}
+				<div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: `1px solid ${colors.border.primary}` }}>
+					<label style={styles.settingsLabel}>Claude CLI Management</label>
+					
+					<div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+						<button
+							onClick={handleCheckClaude}
+							disabled={isCheckingClaude}
+							style={{
+								...styles.settingsButton,
+								backgroundColor: isCheckingClaude ? '#9ca3af' : colors.button.primary,
+								cursor: isCheckingClaude ? 'not-allowed' : 'pointer',
+								opacity: isCheckingClaude ? 0.6 : 1,
+								flex: 1
+							}}
+						>
+							{isCheckingClaude ? 'Checking...' : 'Check Claude Installed'}
+						</button>
+						
+						<button
+							onClick={handleInstallClaude}
+							disabled={isInstallingClaude || !tempApiKey.trim()}
+							style={{
+								...styles.settingsButton,
+								backgroundColor: isInstallingClaude || !tempApiKey.trim() ? '#9ca3af' : colors.button.primary,
+								cursor: isInstallingClaude || !tempApiKey.trim() ? 'not-allowed' : 'pointer',
+								opacity: isInstallingClaude || !tempApiKey.trim() ? 0.6 : 1,
+								flex: 1
+							}}
+						>
+							{isInstallingClaude ? 'Installing...' : 'Install Claude'}
+						</button>
+					</div>
+
+					{claudeCheckResult && (
+						<div style={{
+							marginBottom: '0.5rem',
+							padding: '0.5rem',
+							borderRadius: '0.25rem',
+							backgroundColor: claudeCheckResult.includes('✅') ? '#dcfce7' : '#fee2e2',
+							color: claudeCheckResult.includes('✅') ? '#166534' : '#991b1b',
+							fontSize: '0.875rem',
+							lineHeight: '1.2'
+						}}>
+							{claudeCheckResult}
+						</div>
+					)}
+
+					{claudeInstallResult && (
+						<div style={{
+							marginBottom: '0.5rem',
+							padding: '0.5rem',
+							borderRadius: '0.25rem',
+							backgroundColor: claudeInstallResult.includes('✅') ? '#dcfce7' : '#fee2e2',
+							color: claudeInstallResult.includes('✅') ? '#166534' : '#991b1b',
+							fontSize: '0.875rem',
+							lineHeight: '1.2'
+						}}>
+							{claudeInstallResult}
+						</div>
+					)}
+				</div>
 				
 				<label style={styles.settingsLabel}>Custom Prompt</label>
 				<textarea
@@ -3187,6 +3293,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 							initialCliChoice={cliChoice}
 							initialOpenaiApiKey={openaiApiKey}
 							styles={styles}
+							colors={colors}
 						/>
 					)}
 				</div>
