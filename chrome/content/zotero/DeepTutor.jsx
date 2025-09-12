@@ -1341,21 +1341,38 @@ var DeepTutor = class DeepTutor extends React.Component {
 				sesIdToObj: updatedSesIdToObj
 			};
 
-			// If we deleted the current session, clear it and switch panes
+			// If we deleted the current session, switch to the most recent remaining session
 			if (wasCurrentSession) {
-				newState.currentSession = null;
-				newState.messages = [];
-				newState.documentIds = [];
+				if (updatedSessions.length === 0) {
+					// No sessions left, clear current session and go to no session pane
+					newState.currentSession = null;
+					newState.messages = [];
+					newState.documentIds = [];
+				}
+				else {
+					// Switch to the most recent session
+					const mostRecentSession = updatedSessions
+						.sort((a, b) => new Date(b.lastUpdatedTime || 0) - new Date(a.lastUpdatedTime || 0))[0];
+					
+					newState.currentSession = mostRecentSession;
+					newState.messages = []; // Will be loaded by handleSessionSelect
+					newState.documentIds = mostRecentSession.documentIds || [];
+				}
 			}
 
-			this.setState(newState, () => {
-				// If we deleted the current session or if no sessions remain, switch to appropriate pane
-				if (wasCurrentSession || updatedSessions.length === 0) {
+			this.setState(newState, async () => {
+				// If we deleted the current session, handle the session switch
+				if (wasCurrentSession) {
 					if (updatedSessions.length === 0) {
 						this.switchPane('noSession');
 					}
 					else {
-						this.switchPane('sessionHistory');
+						// Load messages for the most recent session and switch to main pane
+						const mostRecentSession = updatedSessions
+							.sort((a, b) => new Date(b.lastUpdatedTime || 0) - new Date(a.lastUpdatedTime || 0))[0];
+						
+						await this.handleSessionSelect(mostRecentSession.id);
+						this.switchPane('main');
 					}
 				}
 			});

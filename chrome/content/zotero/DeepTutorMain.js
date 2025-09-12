@@ -268,6 +268,7 @@ const DeepTutorMain = (props) => {
 						<DeepTutorChatBox
 							ref={props.tutorBoxRef}
 							currentSession={props.currentSession}
+							sessions={props.sessions}
 							key={props.currentSession?.id}
 							onSessionSelect={props.handleSessionSelect}
 							onInitWaitChange={props.handleInitWaitChange}
@@ -276,6 +277,7 @@ const DeepTutorMain = (props) => {
 							onOpenSessionHistory={() => props.switchPane('sessionHistory')}
 							onToggleSettingsPopup={props.toggleSettingsPopup}
 							onToggleModelSelectionPopup={props.toggleModelSelectionPopup}
+							onDeleteSession={props.handleShowDeletePopup}
 						/>
 					)}
 					{props.currentPane === 'sessionHistory'

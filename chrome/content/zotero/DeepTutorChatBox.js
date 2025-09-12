@@ -1,5 +1,5 @@
 /* eslint-disable no-loop-func */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import {
 	createMessage,
@@ -110,17 +110,20 @@ const MessageRole = {
 // const SendIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_SEND.svg';
 // const StopIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_STOP.svg';
 const ArrowDownPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/CHAT_ARROWDOWN.svg';
-const RenameIconPath = 'chrome://zotero/content/DeepTutorMaterials/History/RENAME_SESSION.svg';
-const RenameIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/History/RENAME_SESSION_DARK.svg';
 const HistoryIconPath = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_HISTORY_NEW.svg';
 const HistoryIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_HISTORY_DARK.svg';
 const SettingsIconPath = 'chrome://zotero/content/DeepTutorMaterials/Settings/SETTINGS_BUTTON.svg';
 const SettingsIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Settings/SETTINGS_BUTTON_DARK.svg';
 const PlusIconPath = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_NEW.svg';
 const PlusIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_NEW_DARK.svg';
+const CloseIconPath = 'chrome://zotero/content/DeepTutorMaterials/Main/MAIN_CLOSE.svg';
+const CloseIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Main/CLOSE_DARK.svg';
 
-const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSavePopup, onShowRenamePopup, onOpenSessionHistory, onToggleSettingsPopup, onToggleModelSelectionPopup }) => {
+const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onInitWaitChange, handleShowNoteSavePopup, _onShowRenamePopup, onOpenSessionHistory, onToggleSettingsPopup, onToggleModelSelectionPopup, onDeleteSession }) => {
 	const { colors, theme, isDark } = useDeepTutorTheme();
+	
+	// State for managing hover states
+	const [hoveredTabId, setHoveredTabId] = useState(null);
 	
 	// Theme-aware styles
 	const styles = {
@@ -148,7 +151,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			display: 'flex',
 			alignItems: 'center',
 			justifyContent: 'space-between',
-			gap: '10px',
+			gap: '0.75rem',
+			minHeight: '2rem',
 		},
 		sessionNameText: {
 			color: colors.text.allText,
@@ -179,12 +183,12 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		topRight: {
 			display: 'flex',
 			flexDirection: 'row',
-			gap: '0.5rem',
+			gap: '0.25rem',
 			alignItems: 'center',
 		},
 		iconButton: {
-			width: '2.5rem',
-			height: '2.5rem',
+			width: '2rem',
+			height: '2rem',
 			background: colors.background.tertiary,
 			border: 'none',
 			borderRadius: '0.375rem',
@@ -193,29 +197,29 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			alignItems: 'center',
 			justifyContent: 'center',
 			transition: 'background-color 0.2s ease',
-			padding: '0.5rem',
+			padding: '0.375rem',
 		},
 		iconImage: {
-			width: '1.5rem',
-			height: '1.5rem',
+			width: '1.25rem',
+			height: '1.25rem',
 			objectFit: 'contain',
 		},
 		settingsButton: {
-			width: '3rem',
-			height: '3rem',
+			width: '2rem',
+			height: '2rem',
 			background: colors.background.tertiary,
 			border: 'none',
-			borderRadius: '0.5rem',
+			borderRadius: '0.375rem',
 			cursor: 'pointer',
 			display: 'flex',
 			alignItems: 'center',
 			justifyContent: 'center',
 			transition: 'background-color 0.2s ease',
-			padding: '0.5rem',
+			padding: '0.375rem',
 		},
 		settingsIconImage: {
-			width: '1.75rem',
-			height: '1.75rem',
+			width: '1.25rem',
+			height: '1.25rem',
 			objectFit: 'contain',
 		},
 		renameIcon: {
@@ -498,6 +502,76 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			marginRight: '1rem',
 		},
 		// renamePopupOverlay is managed by parent in DeepTutorMain
+		
+		// Session tabs styles
+		sessionTabsContainer: {
+			display: 'flex',
+			flexDirection: 'row',
+			gap: '0.25rem',
+			overflow: 'hidden',
+			flex: 1,
+			minWidth: 0,
+			alignItems: 'center',
+		},
+		sessionTab: {
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'space-between',
+			background: colors.background.quaternary,
+			border: `1px solid ${colors.border.primary}`,
+			borderRadius: '0.375rem',
+			padding: '0.375rem 0.5rem',
+			cursor: 'pointer',
+			transition: 'all 0.2s ease',
+			minWidth: '0',
+			flex: '1',
+			maxWidth: '150px',
+			position: 'relative',
+			height: '2rem',
+		},
+		sessionTabActive: {
+			background: colors.button.primary,
+			borderColor: colors.button.primary,
+		},
+		sessionTabHovered: {
+			background: colors.border.quaternary,
+		},
+		sessionTabText: {
+			color: colors.text.allText,
+			fontWeight: 500,
+			fontSize: '0.75rem',
+			lineHeight: '1.2',
+			overflow: 'hidden',
+			textOverflow: 'ellipsis',
+			whiteSpace: 'nowrap',
+			flex: 1,
+			marginRight: '0.375rem',
+		},
+		sessionTabActiveText: {
+			color: colors.button.primaryText,
+		},
+		sessionTabCloseButton: {
+			width: '0.875rem',
+			height: '0.875rem',
+			background: 'transparent',
+			border: 'none',
+			cursor: 'pointer',
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'center',
+			padding: 0,
+			flexShrink: 0,
+			opacity: 0,
+			transition: 'opacity 0.2s ease',
+		},
+		sessionTabCloseButtonVisible: {
+			opacity: 1,
+		},
+		sessionTabCloseIcon: {
+			width: '0.625rem',
+			height: '0.625rem',
+			objectFit: 'contain',
+		},
 	};
 	const [messages, setMessages] = useState([]);
 	const [sessionId, setSessionId] = useState(null);
@@ -531,11 +605,19 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 	const [streamingComponentVisibility, setStreamingComponentVisibility] = useState({});
 	// const [showRenamePopup, setShowRenamePopup] = useState(false); // deprecated - managed by parent
 	
-	// Choose rename icon based on theme
-	const renameIconPath = isDark ? RenameIconDarkPath : RenameIconPath;
+	// Choose icons based on theme
 	const historyIconPath = isDark ? HistoryIconDarkPath : HistoryIconPath;
 	const settingsIconPath = isDark ? SettingsIconDarkPath : SettingsIconPath;
 	const plusIconPath = isDark ? PlusIconDarkPath : PlusIconPath;
+	const closeIconPath = isDark ? CloseIconDarkPath : CloseIconPath;
+	
+	// Get the most recent 3 sessions, sorted by lastUpdatedTime
+	const recentSessions = useMemo(() => {
+		return sessions
+			.filter(session => session && session.id)
+			.sort((a, b) => new Date(b.lastUpdatedTime || 0) - new Date(a.lastUpdatedTime || 0))
+			.slice(0, 3);
+	}, [sessions]);
 
 	// Add state to track waiting for AI response (backend processing)
 	const [waitingStreaming, setWaitingStreaming] = useState(false);
@@ -973,11 +1055,26 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		}
 	};
 
-	// Handle rename functionality
-	const handleRenameClick = () => {
-		if (onShowRenamePopup && currentSession?.id) {
-			onShowRenamePopup(currentSession.id, 'chat');
+	// Session tab handlers
+	const handleTabClick = (sessionId) => {
+		if (onSessionSelect && sessionId !== currentSession?.id) {
+			onSessionSelect(sessionId);
 		}
+	};
+	
+	const handleTabClose = (e, sessionId) => {
+		e.stopPropagation();
+		if (onDeleteSession) {
+			onDeleteSession(sessionId);
+		}
+	};
+	
+	const handleTabMouseEnter = (sessionId) => {
+		setHoveredTabId(sessionId);
+	};
+	
+	const handleTabMouseLeave = () => {
+		setHoveredTabId(null);
 	};
 
 	// Handle scroll to detect if user scrolled back to bottom
@@ -2359,23 +2456,54 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 				`
 			}} />
             
+			{/* Session Tabs and Functional Buttons Row */}
 			<div style={styles.sessionNameDiv}>
-				<div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
-					<div style={styles.sessionNameText}>
-						{currentSession?.sessionName || "New Session"}
+				{/* Session Tabs */}
+				{recentSessions.length > 0 && (
+					<div style={styles.sessionTabsContainer}>
+						{recentSessions.map((session) => {
+							const isActive = currentSession?.id === session.id;
+							const isHovered = hoveredTabId === session.id;
+							
+							return (
+								<div
+									key={session.id}
+									style={{
+										...styles.sessionTab,
+										...(isActive ? styles.sessionTabActive : {}),
+										...(isHovered && !isActive ? styles.sessionTabHovered : {}),
+									}}
+									onClick={() => handleTabClick(session.id)}
+									onMouseEnter={() => handleTabMouseEnter(session.id)}
+									onMouseLeave={handleTabMouseLeave}
+								>
+									<div style={{
+										...styles.sessionTabText,
+										...(isActive ? styles.sessionTabActiveText : {}),
+									}}>
+										{session.sessionName || 'Unnamed Session'}
+									</div>
+									<button
+										style={{
+											...styles.sessionTabCloseButton,
+											...(isHovered ? styles.sessionTabCloseButtonVisible : {}),
+										}}
+										onClick={e => handleTabClose(e, session.id)}
+										title="Delete Session"
+									>
+										<img
+											src={closeIconPath}
+											alt="Close"
+											style={styles.sessionTabCloseIcon}
+										/>
+									</button>
+								</div>
+							);
+						})}
 					</div>
-					<button
-						style={styles.renameIconButton}
-						onClick={handleRenameClick}
-						title="Rename Session"
-					>
-						<img
-							src={renameIconPath}
-							alt="Rename"
-							style={styles.renameIcon}
-						/>
-					</button>
-				</div>
+				)}
+				
+				{/* Top Right Buttons */}
 				<div style={styles.topRight}>
 					<button
 						style={styles.iconButton}
@@ -2547,13 +2675,15 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 
 DeepTutorChatBox.propTypes = {
 	currentSession: PropTypes.object,
+	sessions: PropTypes.array,
 	onSessionSelect: PropTypes.func,
 	onInitWaitChange: PropTypes.func,
 	handleShowNoteSavePopup: PropTypes.func,
-	onShowRenamePopup: PropTypes.func,
+	_onShowRenamePopup: PropTypes.func,
 	onOpenSessionHistory: PropTypes.func,
 	onToggleSettingsPopup: PropTypes.func,
-	onToggleModelSelectionPopup: PropTypes.func
+	onToggleModelSelectionPopup: PropTypes.func,
+	onDeleteSession: PropTypes.func
 };
 
 export default DeepTutorChatBox;
