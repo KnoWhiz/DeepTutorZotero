@@ -278,6 +278,8 @@ const DeepTutorMain = (props) => {
 							onToggleSettingsPopup={props.toggleSettingsPopup}
 							onToggleModelSelectionPopup={props.toggleModelSelectionPopup}
 							onDeleteSession={props.handleShowDeletePopup}
+							userIdFromParent={props.userData && props.userData.id}
+							onCreateSessionFromId={props.handleModelSelectionSubmit}
 						/>
 					)}
 					{props.currentPane === 'sessionHistory'

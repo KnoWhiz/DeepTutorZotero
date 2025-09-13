@@ -33,6 +33,7 @@ const DeepTutorComposer = ({
 	const [askType, setAskType] = useState('ASK'); // ASK | AGENT (future)
 	const [askMode, setAskMode] = useState('standard'); // standard | advanced
 	const searchPopupRef = useRef(null);
+	const isSessionActive = Boolean(sessionId);
 
 	// Load persisted selections per session
 	useEffect(() => {
@@ -256,7 +257,7 @@ const DeepTutorComposer = ({
 	useEffect(() => {
 		const loadNames = () => {
 			try {
-				const mappingStr = Zotero.Prefs.get(`deeptutor_mapping_${sessionId}`) || '{}';
+				const mappingStr = Zotero.Prefs.get(sessionId ? `deeptutor_mapping_${sessionId}` : 'deeptutor_mapping_draft') || '{}';
 				const mapping = JSON.parse(mappingStr);
 				const updated = {};
 				selectedDocumentIds.forEach((azureId) => {
@@ -342,7 +343,7 @@ const DeepTutorComposer = ({
 			const pdfAttachments = item.getAttachments().map(x => Zotero.Items.get(x)).filter(x => x && x.isPDFAttachment && x.isPDFAttachment());
 			if (!pdfAttachments.length) return;
 
-			const mappingKey = `deeptutor_mapping_${sessionId}`;
+			const mappingKey = sessionId ? `deeptutor_mapping_${sessionId}` : 'deeptutor_mapping_draft';
 			let mapping = {};
 			try { mapping = JSON.parse(Zotero.Prefs.get(mappingKey) || '{}'); } catch { mapping = {}; }
 
@@ -515,11 +516,12 @@ const DeepTutorComposer = ({
 				<div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', position: 'relative' }}>
 					{/* Ask/Agent dropdown */}
 					<div style={{ position: 'relative' }}>
-						<button style={styles.dropdownButton} onClick={(e) => {
+						<button style={{ ...styles.dropdownButton, opacity: isSessionActive ? 0.6 : 1, cursor: isSessionActive ? 'not-allowed' : 'pointer' }} onClick={(e) => {
 							e.preventDefault();
+							if (isSessionActive) return;
 							const next = askType === 'ASK' ? 'AGENT' : 'ASK';
 							setAskType(next);
-						}}>
+						}} disabled={isSessionActive}>
 							{askType === 'ASK' ? 'Ask' : 'Agent'}
 						</button>
 					</div>
@@ -527,13 +529,13 @@ const DeepTutorComposer = ({
 					{/* Standard/Advanced when in Ask mode */}
 					<div style={{ position: 'relative' }}>
 						<button
-							style={{ ...styles.dropdownButton, opacity: askType === 'ASK' ? 1 : 0.6, cursor: askType === 'ASK' ? 'pointer' : 'not-allowed' }}
+							style={{ ...styles.dropdownButton, opacity: (askType === 'ASK' && !isSessionActive) ? 1 : 0.6, cursor: (askType === 'ASK' && !isSessionActive) ? 'pointer' : 'not-allowed' }}
 							onClick={(e) => {
 								e.preventDefault();
-								if (askType !== 'ASK') return;
+								if (askType !== 'ASK' || isSessionActive) return;
 								setAskMode(askMode === 'standard' ? 'advanced' : 'standard');
 							}}
-							disabled={askType !== 'ASK'}
+							disabled={askType !== 'ASK' || isSessionActive}
 						>
 							<img src={isDark ? (askMode === 'standard' ? BasicDarkPath : AdvancedDarkPath) : (askMode === 'standard' ? BasicPath : AdvancedPath)} alt="Mode" style={{ width: '1rem', height: '1rem' }} />
 							{askMode === 'standard' ? 'Standard' : 'Advanced'}

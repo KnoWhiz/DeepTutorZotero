@@ -609,8 +609,13 @@ var DeepTutor = class DeepTutor extends React.Component {
 	};
 
 	toggleModelSelectionPopup = () => {
-		this.setState(prevState => ({
-			showModelSelectionPopup: !prevState.showModelSelectionPopup
+		this.setState(_prevState => ({
+			// Repurpose model selection toggle to start a fresh chat session without popup
+			showModelSelectionPopup: false,
+			currentSession: null,
+			messages: [],
+			documentIds: [],
+			currentPane: 'main'
 		}));
 	};
 
@@ -761,7 +766,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 	handleRenameSuccess = async (renamedSessionId, newSessionName) => {
 		try {
 			// Store the renameSource before reloading sessions (it might get overwritten)
-			const renameSource = this.state.renameSource;
+			const _renameSource = this.state.renameSource;
 			
 			// Update local session data instead of reloading from server (faster, no page refresh)
 			if (renamedSessionId && newSessionName) {
@@ -797,14 +802,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 			}
 
 			// Navigate based on where the rename was initiated from
-			if (renameSource === 'sessionHistory') {
-				// Stay on sessionHistory page if rename was initiated from there
-				this.switchPane('sessionHistory');
-			}
-			else {
-				// Stay on chat page if rename was initiated from there (default behavior)
-				this.switchPane('main');
-			}
+			// Always remain on the current pane; don't force sessionHistory
+			this.switchPane('main');
 		}
 		catch (error) {
 			Zotero.debug(`DeepTutor: Error reloading sessions after rename: ${error.message}`);
@@ -1224,13 +1223,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 			// If no sessions, switch to model selection pane
 			Zotero.debug(`DeepTutor061306130613: Switching to model selection pane: ${sessions}`);
 			Zotero.debug(`DeepTutor061306130613: Sessions length: ${sessions.length}`);
-			if (sessions.length === 0) {
-				this.switchPane('noSession');
-			}
-			else {
-				// If sessions exist, switch to main pane
-				this.switchPane('sessionHistory');
-			}
+			// Do not auto-open session history; stay on main. If there are no sessions, show chat with composer.
+			this.switchPane('main');
 
 			Zotero.debug(`DeepTutor: Successfully loaded ${sessions.length} sessions`);
 		}
@@ -1364,7 +1358,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 				// If we deleted the current session, handle the session switch
 				if (wasCurrentSession) {
 					if (updatedSessions.length === 0) {
-						this.switchPane('noSession');
+						// Show chat view with no active session
+						this.switchPane('main');
 					}
 					else {
 						// Load messages for the most recent session and switch to main pane
