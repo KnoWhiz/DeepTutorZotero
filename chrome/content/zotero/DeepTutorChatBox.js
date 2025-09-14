@@ -220,8 +220,8 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 			padding: '0.375rem',
 		},
 		settingsIconImage: {
-			width: '1.25rem',
-			height: '1.25rem',
+			width: '1.5rem',
+			height: '1.5rem',
 			objectFit: 'contain',
 		},
 		renameIcon: {
@@ -2545,22 +2545,6 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 				`
 			}} />
             
-			{/* Composer at top when new session (no messages) */}
-			{messages.length === 0 && (
-				<DeepTutorComposer
-					sessionId={sessionId}
-					userId={userId}
-					selectedDocumentIds={documentIds}
-					onDocumentsChange={nextIds => setDocumentIds(nextIds)}
-					onSend={async (text) => {
-						setIsManuallyStopped(false);
-						await userSendMessage(text);
-					}}
-					onStop={handleStopStreaming}
-					isBusy={iniWait || hasActiveStream || waitingStreaming}
-				/>
-			)}
-
 			{/* Session Tabs and Functional Buttons Row */}
 			<div style={styles.sessionNameDiv}>
 				{/* Session Tabs */}
@@ -2633,6 +2617,22 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 					</button>
 				</div>
 			</div>
+
+			{/* Composer below session tabs when new session (no messages) */}
+			{messages.length === 0 && (
+				<DeepTutorComposer
+					sessionId={sessionId}
+					userId={userId}
+					selectedDocumentIds={documentIds}
+					onDocumentsChange={nextIds => setDocumentIds(nextIds)}
+					onSend={async (text) => {
+						setIsManuallyStopped(false);
+						await userSendMessage(text);
+					}}
+					onStop={handleStopStreaming}
+					isBusy={iniWait || hasActiveStream || waitingStreaming}
+				/>
+			)}
 
 			<div
 				ref={chatLogRef}
