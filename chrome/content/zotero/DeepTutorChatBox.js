@@ -111,7 +111,7 @@ const MessageRole = {
 
 // const SendIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_SEND.svg';
 // const StopIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_STOP.svg';
-const ArrowDownPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/CHAT_ARROWDOWN.svg';
+// const ArrowDownPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/CHAT_ARROWDOWN.svg';
 const HistoryIconPath = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_HISTORY_NEW.svg';
 const HistoryIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_HISTORY_DARK.svg';
 const SettingsIconPath = 'chrome://zotero/content/DeepTutorMaterials/Settings/SETTINGS_BUTTON.svg';
@@ -121,7 +121,7 @@ const PlusIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_NEW
 const CloseIconPath = 'chrome://zotero/content/DeepTutorMaterials/Main/MAIN_CLOSE.svg';
 const CloseIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Main/CLOSE_DARK.svg';
 
-const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onInitWaitChange, handleShowNoteSavePopup, _onShowRenamePopup, onOpenSessionHistory, onToggleSettingsPopup, onToggleModelSelectionPopup, onDeleteSession, userIdFromParent, onCreateSessionFromId }) => {
+const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onInitWaitChange, handleShowNoteSavePopup, _onShowRenamePopup, onOpenSessionHistory, onToggleSettingsPopup, onToggleModelSelectionPopup, onDeleteSession, userIdFromParent, onCreateSessionFromId, subscriptionType = 'BASIC', usageSummary = null, hasActiveSubscription = false, onShowFileSizeWarning, onShowPageLimitWarning, onShowSubscriptionPopup, refreshUsageSummary }) => {
 	const { colors, theme, isDark } = useDeepTutorTheme();
 	
 	// State for managing hover states
@@ -583,14 +583,14 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 	const [curSessionType, setcurSessionType] = useState(SessionType.BASIC);
 	const chatLogRef = useRef(null);
 	const contextPopupRef = useRef(null);
-	const [hoveredContextDoc, setHoveredContextDoc] = useState(null);
+	const [_hoveredContextDoc, _setHoveredContextDoc] = useState(null);
 	const [hoveredQuestion, setHoveredQuestion] = useState(null);
 	const [iniWait, setInitWait] = useState(false);
 	const [isStreaming, setIsStreaming] = useState(false);
 	const streamReaderRef = useRef(null);
 	const isAutoScrollingRef = useRef(true);
 	const [showContextPopup, setShowContextPopup] = useState(false);
-	const [contextDocuments, setContextDocuments] = useState([]);
+	const [_contextDocuments, _setContextDocuments] = useState([]);
 	const [currentSourceIndices, setCurrentSourceIndices] = useState([]);
 	const sessionIdRef = useRef(null);
 	const [isManuallyStopped, setIsManuallyStopped] = useState(false);
@@ -966,6 +966,8 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 	useEffect(() => {
 		const loadMessages = async () => {
 			if (!sessionId) return;
+			// Skip fetching for placeholder draft sessions
+			if (typeof sessionId === 'string' && sessionId.startsWith('__DRAFT__')) return;
 
 			try {
 				const sessionMessages = await getMessagesBySessionId(sessionId);
@@ -1101,7 +1103,30 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 			if (!userId) throw new Error("No active user ID");
 			let effectiveSessionId = sessionId;
 			// If no session exists yet, create one now using any selected context
-			if (!effectiveSessionId) {
+			if (!effectiveSessionId || (typeof effectiveSessionId === 'string' && effectiveSessionId.startsWith('__DRAFT__'))) {
+				Zotero.debug('DeepTutorChatBox: No real session yet (draft or null). Attempting to create session...');
+				// Usage pre-check similar to model selection
+				try {
+					const latest = typeof refreshUsageSummary === 'function' ? await refreshUsageSummary() : usageSummary;
+					const summary = latest || usageSummary || null;
+					const subType = (subscriptionType || '').toUpperCase();
+					const isPro = Boolean(hasActiveSubscription) && ["BASIC", "PLUS"].includes(subType);
+					const isPremium = Boolean(hasActiveSubscription) && subType === "PREMIUM";
+					if (!isPremium && summary) {
+						const weeklyTotalUsed = Number(summary.weeklyLiteCount || 0) + Number(summary.weeklyBasicCount || 0);
+						const cycleTotalUsed = Number(summary.liteCount || 0) + Number(summary.basicCount || 0);
+						const wouldHitWeeklyLimit = !hasActiveSubscription && weeklyTotalUsed >= 5; // Free: 5/week
+						const wouldHitCycleLimit = isPro && cycleTotalUsed >= 200; // Pro: 200/cycle
+						if (wouldHitWeeklyLimit || wouldHitCycleLimit) {
+							if (typeof onShowSubscriptionPopup === 'function') {
+								onShowSubscriptionPopup();
+							}
+							Zotero.debug('DeepTutorChatBox: Usage limit reached; aborting session create');
+							return; // Do not create a new session
+						}
+					}
+				}
+				catch {}
 				const sessionData = {
 					userId: userId,
 					sessionName: 'New Session',
@@ -1113,7 +1138,11 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 					statusTimeline: [],
 					generateHash: null
 				};
-				const created = await createSession(sessionData);
+				Zotero.debug(`DeepTutorChatBox: Creating session with ${documentIds?.length || 0} documents`);
+				const created = await createSession(sessionData).catch((err) => {
+					Zotero.debug(`DeepTutorChatBox: createSession failed: ${err?.message}`);
+					throw err;
+				});
 				if (!created || !created.id) throw new Error('Failed to create session');
 				setSessionId(created.id);
 				effectiveSessionId = created.id;
@@ -1176,7 +1205,11 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 			setLatestMessageId(userMessage.id);
 
 			// Send to API and handle response
-			const _response = await sendToAPI(userMessage);
+			Zotero.debug(`DeepTutorChatBox: Sending message to API for session ${effectiveSessionId}`);
+			const _response = await sendToAPI(userMessage).catch((err) => {
+				Zotero.debug(`DeepTutorChatBox: createMessage/stream failed: ${err?.message}`);
+				throw err;
+			});
 
 			// After first send, try renaming session to first file's title (best effort)
 			if (messages.length === 0 && (documentIds && documentIds.length > 0)) {
@@ -1314,11 +1347,14 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 					Zotero.debug(error);
 				}
 			}
-            
+			
+			// Use message.sessionId if present (just created), fall back to state sessionId
+			const sessionForStream = message && message.sessionId ? message.sessionId : sessionId;
+			
 			// Update conversation state
 			const newState = new Conversation({
 				userId: userId,
-				sessionId: sessionId,
+				sessionId: sessionForStream,
 				ragSessionId: null,
 				storagePaths: newDocumentFiles2.map(doc => doc.storagePath),
 				history: messages,
@@ -1589,32 +1625,9 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 		await userSendMessage(question);
 	};
 
-	const handleContextButtonClick = () => {
-		setShowContextPopup(!showContextPopup);
-	};
+	const _handleContextButtonClick = () => {};
 
-	const handleContextDocumentClick = async (contextDoc) => {
-		try {
-			// Get the item and open it
-			const item = Zotero.Items.get(contextDoc.zoteroAttachmentId);
-			if (!item) {
-				return;
-			}
-
-			// Open the document in the reader at first page
-			await Zotero.FileHandlers.open(item, {
-				location: {
-					pageIndex: 0 // Start at first page
-				}
-			});
-            
-			// Close the popup after opening document
-			setShowContextPopup(false);
-		}
-		catch (error) {
-			Zotero.debug(error);
-		}
-	};
+	const _handleContextDocumentClick = async (_contextDoc) => {};
 
 	const renderMessage = (message, index) => {
 		return (
@@ -1696,10 +1709,10 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 	useEffect(() => {
 		const loadContextDocuments = async () => {
 			if (!documentIds?.length || !sessionId) {
-				setContextDocuments([]);
+				_setContextDocuments([]);
 				return;
 			}
-            
+			
 			try {
 				const mapping = getDocumentMapping();
 				const contextDocs = await Promise.allSettled(
@@ -1715,12 +1728,12 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 					.filter(result => result.status === "rejected")
 					.forEach(result => Zotero.debug(result.reason));
 
-				setContextDocuments(successfulDocs);
+				_setContextDocuments(successfulDocs);
 				setNoteContainerFromDocuments(successfulDocs);
 			}
 			catch (error) {
 				Zotero.debug(`DeepTutorChatBox: Error loading context documents: ${error.message}`);
-				setContextDocuments([]);
+				_setContextDocuments([]);
 				setNoteContainer(null);
 			}
 		};
@@ -1912,7 +1925,7 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 		const loadContextDocuments = async () => {
 			if (!documentIds || documentIds.length === 0 || !sessionId) {
 				// Zotero.debug(`DeepTutorChatBox: No documentIds or sessionId available for context loading`);
-				setContextDocuments([]);
+				_setContextDocuments([]);
 				return;
 			}
 
@@ -2005,7 +2018,7 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 				}
 
 				// Zotero.debug(`DeepTutorChatBox: Loaded ${contextDocs.length} context documents`);
-				setContextDocuments(contextDocs);
+				_setContextDocuments(contextDocs);
 				
 				// Set noteContainer to the parent of the first document (or the first document itself if it's a regular item)
 				if (contextDocs.length > 0) {
@@ -2049,7 +2062,7 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 			}
 			catch {
 				// Zotero.debug(`DeepTutorChatBox: Error loading context documents: ${error.message}`);
-				setContextDocuments([]);
+				_setContextDocuments([]);
 				setNoteContainer(null);
 			}
 		};
@@ -2621,10 +2634,16 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 			{/* Composer below session tabs when new session (no messages) */}
 			{messages.length === 0 && (
 				<DeepTutorComposer
-					sessionId={sessionId}
+					sessionId={(sessionId && !(String(sessionId).startsWith('__DRAFT__'))) ? sessionId : null}
 					userId={userId}
 					selectedDocumentIds={documentIds}
 					onDocumentsChange={nextIds => setDocumentIds(nextIds)}
+					subscriptionType={subscriptionType}
+					usageSummary={usageSummary}
+					hasActiveSubscription={hasActiveSubscription}
+					onShowFileSizeWarning={onShowFileSizeWarning}
+					onShowPageLimitWarning={onShowPageLimitWarning}
+					onShowSubscriptionPopup={onShowSubscriptionPopup}
 					onSend={async (text) => {
 						setIsManuallyStopped(false);
 						await userSendMessage(text);
@@ -2656,10 +2675,16 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 
 			{messages.length > 0 && (
 				<DeepTutorComposer
-					sessionId={sessionId}
+					sessionId={(sessionId && !(String(sessionId).startsWith('__DRAFT__'))) ? sessionId : null}
 					userId={userId}
 					selectedDocumentIds={documentIds}
 					onDocumentsChange={nextIds => setDocumentIds(nextIds)}
+					subscriptionType={subscriptionType}
+					usageSummary={usageSummary}
+					hasActiveSubscription={hasActiveSubscription}
+					onShowFileSizeWarning={onShowFileSizeWarning}
+					onShowPageLimitWarning={onShowPageLimitWarning}
+					onShowSubscriptionPopup={onShowSubscriptionPopup}
 					onSend={async (text) => {
 						setIsManuallyStopped(false);
 						await userSendMessage(text);
@@ -2686,7 +2711,14 @@ DeepTutorChatBox.propTypes = {
 	onToggleModelSelectionPopup: PropTypes.func,
 	onDeleteSession: PropTypes.func,
 	userIdFromParent: PropTypes.string,
-	onCreateSessionFromId: PropTypes.func
+	onCreateSessionFromId: PropTypes.func,
+	subscriptionType: PropTypes.string,
+	usageSummary: PropTypes.object,
+	hasActiveSubscription: PropTypes.bool,
+	onShowFileSizeWarning: PropTypes.func,
+	onShowPageLimitWarning: PropTypes.func,
+	onShowSubscriptionPopup: PropTypes.func,
+	refreshUsageSummary: PropTypes.func
 };
 
 export default DeepTutorChatBox;

@@ -612,10 +612,28 @@ var DeepTutor = class DeepTutor extends React.Component {
 		this.setState(_prevState => ({
 			// Repurpose model selection toggle to start a fresh chat session without popup
 			showModelSelectionPopup: false,
-			currentSession: null,
-			messages: [],
-			documentIds: [],
-			currentPane: 'main'
+			// Create a placeholder draft session tab labeled "New Session" until first send
+			...(() => {
+				const draftId = `__DRAFT__${Date.now()}`;
+				const draftSession = new DeepTutorSession({
+					id: draftId,
+					userId: this.state.userData ? this.state.userData.id : 0,
+					sessionName: 'New Session',
+					documentIds: [],
+					status: SessionStatus.CREATED,
+					type: SessionType.BASIC
+				});
+				const newMap = new Map(this.state.sesIdToObj);
+				newMap.set(draftId, draftSession);
+				return {
+					currentSession: draftSession,
+					messages: [],
+					documentIds: [],
+					sesIdToObj: newMap,
+					sessions: [...this.state.sessions, draftSession],
+					currentPane: 'main'
+				};
+			})()
 		}));
 	};
 
@@ -1265,6 +1283,22 @@ var DeepTutor = class DeepTutor extends React.Component {
 
 	handleSessionSelect = async (sessionId) => {
 		try {
+			// Ignore drafts for backend calls; just bind locally
+			if (typeof sessionId === 'string' && sessionId.startsWith('__DRAFT__')) {
+				Zotero.debug(`DeepTutor: Draft session selected: ${sessionId} (skipping backend fetch)`);
+				const session = this.state.sesIdToObj.get(sessionId) || null;
+				if (!session) {
+					Zotero.debug(`DeepTutor: No draft session object found for: ${sessionId}`);
+					return;
+				}
+				this.setState({
+					currentSession: session,
+					messages: [],
+					documentIds: session.documentIds || []
+				});
+				this.switchPane('main');
+				return;
+			}
 			const session = this.state.sesIdToObj.get(sessionId);
 			if (!session) {
 				Zotero.debug(`DeepTutor: No session object found for: ${sessionId}`);
@@ -1278,7 +1312,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 				// Zotero.debug(`DeepTutor: Messages content: ${JSON.stringify(messages)}`);
 
 				// Update state with current session and messages
-				await this.setState({
+				this.setState({
 					currentSession: session,
 					messages: messages,
 					documentIds: session.documentIds || []
@@ -1317,9 +1351,15 @@ var DeepTutor = class DeepTutor extends React.Component {
 		try {
 			Zotero.debug(`DeepTutor: Deleting session: ${sessionId}`);
 
-			// Call the API to delete the session
-			await deleteSessionById(sessionId);
-			Zotero.debug(`DeepTutor: Session ${sessionId} deleted successfully from backend`);
+			// If this is a draft session (no backend id), skip API call
+			if (typeof sessionId === 'string' && sessionId.startsWith('__DRAFT__')) {
+				Zotero.debug('DeepTutor: Draft session detected; skipping backend delete');
+			}
+			else {
+				// Call the API to delete the session
+				await deleteSessionById(sessionId);
+				Zotero.debug(`DeepTutor: Session ${sessionId} deleted successfully from backend`);
+			}
 
 			// Update local state by removing the session
 			const updatedSessions = this.state.sessions.filter(session => session.id !== sessionId);
@@ -1656,15 +1696,19 @@ var DeepTutor = class DeepTutor extends React.Component {
 					try {
 						const sessionData = await getSessionById(sessionId);
 						const session = new DeepTutorSession(sessionData);
-						const newsesIdToObj = new Map(this.state.sesIdToObj);
-						newsesIdToObj.set(session.id, session);
+						// Remove draft placeholder if present, then add real session
+						const filteredSessions = this.state.sessions.filter(s => !(typeof s.id === 'string' && s.id.startsWith('__DRAFT__')));
+						const filteredMap = new Map(
+							Array.from(this.state.sesIdToObj.entries()).filter(([key]) => !(typeof key === 'string' && key.startsWith('__DRAFT__')))
+						);
+						filteredMap.set(session.id, session);
 						
 						await this.setState({
 							currentSession: session,
 							messages: [],
 							documentIds: session.documentIds || [],
-							sesIdToObj: newsesIdToObj,
-							sessions: [...this.state.sessions, session]
+							sesIdToObj: filteredMap,
+							sessions: [...filteredSessions, session]
 						});
 						
 						await this.handleSessionSelect(session.id);
@@ -1673,6 +1717,33 @@ var DeepTutor = class DeepTutor extends React.Component {
 					}
 					catch (error) {
 						Zotero.debug("Error creating session:", error);
+					}
+				}}
+				handleCreateSessionFromId={async (sessionId) => {
+					try {
+						Zotero.debug(`DeepTutor: Creating session from ID: ${sessionId}`);
+						const sessionData = await getSessionById(sessionId);
+						const session = new DeepTutorSession(sessionData);
+						
+						// Remove any draft placeholder sessions before adding the real one
+						const filteredSessions = this.state.sessions.filter(s => !(typeof s.id === 'string' && s.id.startsWith('__DRAFT__')));
+						const filteredMap = new Map(
+							Array.from(this.state.sesIdToObj.entries()).filter(([key]) => !(typeof key === 'string' && key.startsWith('__DRAFT__')))
+						);
+						filteredMap.set(session.id, session);
+						
+						this.setState({
+							currentSession: session,
+							messages: [],
+							documentIds: session.documentIds || [],
+							sesIdToObj: filteredMap,
+							sessions: [...filteredSessions, session]
+						});
+						
+						Zotero.debug(`DeepTutor: Session ${sessionId} created and set as current`);
+					}
+					catch (error) {
+						Zotero.debug(`DeepTutor: Error creating session from ID: ${error.message}`);
 					}
 				}}
 				handleSignInSuccess={this.handleSignInSuccess}

@@ -17,7 +17,13 @@ const DeepTutorComposer = ({
 	onDocumentsChange,
 	onSend,
 	onStop,
-	isBusy
+	isBusy,
+	subscriptionType = 'BASIC',
+	usageSummary: _usageSummary = null,
+	hasActiveSubscription: _hasActiveSubscription = false,
+	onShowFileSizeWarning,
+	onShowPageLimitWarning,
+	onShowSubscriptionPopup
 }) => {
 	const { colors, theme, isDark } = useDeepTutorTheme();
 
@@ -34,6 +40,76 @@ const DeepTutorComposer = ({
 	const [askMode, setAskMode] = useState('standard'); // standard | advanced
 	const searchPopupRef = useRef(null);
 	const isSessionActive = Boolean(sessionId);
+	const contextDisabled = isSessionActive; // disable add/remove after session created
+
+	// Limits helpers (mirror ModelSelection)
+	const getFileCountLimit = () => {
+		switch ((subscriptionType || '').toUpperCase()) {
+			case 'BASIC':
+				return 1;
+			case 'PLUS':
+				return 10;
+			case 'PREMIUM':
+				return 20;
+			default:
+				return 1;
+		}
+	};
+	const getFileSizeLimitMB = () => {
+		switch ((subscriptionType || '').toUpperCase()) {
+			case 'BASIC':
+				return 10;
+			case 'PLUS':
+				return 50;
+			case 'PREMIUM':
+				return 100;
+			default:
+				return 10;
+		}
+	};
+	const getPageLimit = () => 500;
+	const canAddMoreFiles = () => selectedDocumentIds.length < getFileCountLimit();
+
+	const validateFileSize = async (pdf, fileName = null) => {
+		try {
+			const filePath = await pdf.getFilePathAsync();
+			if (filePath) {
+				const fileStats = await IOUtils.stat(filePath);
+				const fileSizeMB = fileStats.size / (1024 * 1024);
+				const sizeLimitMB = getFileSizeLimitMB();
+				if (fileSizeMB > sizeLimitMB) {
+					const displayName = fileName || pdf.name || 'PDF';
+					if (typeof onShowFileSizeWarning === 'function') {
+						onShowFileSizeWarning({ fileName: displayName, fileSizeMB, sizeLimitMB });
+					}
+					return false;
+				}
+			}
+			return true;
+		}
+		catch {
+			return true;
+		}
+	};
+	const validatePageCount = async (pdf, fileName = null) => {
+		try {
+			const { totalPages } = await Zotero.PDFWorker.getFullText(pdf.id, 1);
+			if (typeof totalPages === 'number') {
+				const limit = getPageLimit();
+				if (totalPages > limit) {
+					const displayName = fileName || pdf.name || 'PDF';
+					if (typeof onShowPageLimitWarning === 'function') {
+						onShowPageLimitWarning({ fileName: displayName, pageCount: totalPages, pageLimit: limit });
+					}
+					return false;
+				}
+			}
+			return true;
+		}
+		catch {
+			return true;
+		}
+	};
 
 	// Load persisted selections per session
 	useEffect(() => {
@@ -338,6 +414,14 @@ const DeepTutorComposer = ({
 
 	const handleSelectContainer = async (container) => {
 		try {
+			if (!canAddMoreFiles()) {
+				if (typeof onShowSubscriptionPopup === 'function') {
+					onShowSubscriptionPopup();
+				}
+				setShowContextSearch(false);
+				setSearchValue('');
+				return;
+			}
 			const item = Zotero.Items.get(container.id);
 			if (!item || !item.isRegularItem()) return;
 			const pdfAttachments = item.getAttachments().map(x => Zotero.Items.get(x)).filter(x => x && x.isPDFAttachment && x.isPDFAttachment());
@@ -348,13 +432,20 @@ const DeepTutorComposer = ({
 			try { mapping = JSON.parse(Zotero.Prefs.get(mappingKey) || '{}'); } catch { mapping = {}; }
 
 			const addedAzureIds = [];
-			for (let i = 0; i < pdfAttachments.length; i++) {
+			const limit = getFileCountLimit();
+			const availableSlots = Math.max(0, limit - selectedDocumentIds.length);
+			const maxToAdd = Math.min(pdfAttachments.length, availableSlots);
+			for (let i = 0; i < maxToAdd; i++) {
 				const pdf = pdfAttachments[i];
 				let fileName = '';
 				try { fileName = pdf.attachmentFilename || pdf.getField('title') || ''; } catch { fileName = ''; }
 				if (!fileName || typeof fileName !== 'string' || fileName.trim() === '') fileName = 'Untitled';
 
-				// Read file into Blob
+				const sizeOk = await validateFileSize(pdf, fileName);
+				if (!sizeOk) { continue; }
+				const pagesOk = await validatePageCount(pdf, fileName);
+				if (!pagesOk) { continue; }
+
 				let blob;
 				try {
 					const filePath = await pdf.getFilePathAsync();
@@ -367,12 +458,11 @@ const DeepTutorComposer = ({
 				}
 				catch { continue; }
 
-				// Get presigned URL
 				let pre;
 				try {
 					pre = await getPreSignedUrl(userId, encodeURIComponent(fileName));
 				}
-				catch (apiError) {
+				catch {
 					try {
 						const sanitized = fileName.replace(/[;:&<>]/g, '_');
 						pre = await getPreSignedUrl(userId, sanitized);
@@ -380,7 +470,6 @@ const DeepTutorComposer = ({
 					catch { continue; }
 				}
 
-				// Upload
 				try {
 					const resp = await window.fetch(pre.preSignedUrl, {
 						method: 'PUT',
@@ -397,7 +486,6 @@ const DeepTutorComposer = ({
 				catch { continue; }
 			}
 
-			// Persist mapping and update selection
 			try { Zotero.Prefs.set(mappingKey, JSON.stringify(mapping)); } catch {}
 			if (addedAzureIds.length) {
 				const next = [...selectedDocumentIds, ...addedAzureIds];
@@ -416,12 +504,11 @@ const DeepTutorComposer = ({
 		setInputValue('');
 	};
 
-	// Render
 	return (
 		<div style={styles.container}>
 			<div style={styles.chipsRow}>
 				<div style={{ position: 'relative' }} ref={searchPopupRef}>
-					<button style={styles.atButton} onClick={() => setShowContextSearch(v => !v)} title="Add papers via search">@</button>
+					<button style={{ ...styles.atButton, opacity: contextDisabled ? 0.5 : 1, cursor: contextDisabled ? 'not-allowed' : 'pointer' }} onClick={() => { if (!contextDisabled) setShowContextSearch(v => !v); }} title="Add papers via search" disabled={contextDisabled}>@</button>
 					{showContextSearch && (
 						<div style={styles.searchPopup}>
 							<div style={styles.searchHeader}>
@@ -473,8 +560,9 @@ const DeepTutorComposer = ({
 									...styles.chipClose,
 									...(isHovered ? styles.chipCloseVisible : {})
 								}}
-								onClick={() => handleRemoveDoc(azureId)}
+								onClick={() => { if (!contextDisabled) handleRemoveDoc(azureId); }}
 								title="Remove"
+								disabled={contextDisabled}
 							>
 								×
 							</button>
@@ -484,13 +572,13 @@ const DeepTutorComposer = ({
 
 				{overflowCount > 0 && (
 					<div style={{ position: 'relative' }}>
-						<button style={styles.overflowChip} onClick={() => setShowOverflow(v => !v)} title="More context">+{overflowCount}</button>
+						<button style={{ ...styles.overflowChip, opacity: contextDisabled ? 0.5 : 1, cursor: contextDisabled ? 'not-allowed' : 'pointer' }} onClick={() => { if (!contextDisabled) setShowOverflow(v => !v); }} title="More context" disabled={contextDisabled}>+{overflowCount}</button>
 						{showOverflow && (
 							<div style={{ ...styles.searchPopup, left: 'auto', right: 0 }}>
 								{selectedDocumentIds.slice(4).map((azureId) => (
 									<div key={azureId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', padding: '0.375rem 0.5rem' }}>
 										<span style={{ ...styles.chipText, maxWidth: '12rem' }} title={docNames[azureId] || azureId}>{docNames[azureId] || 'PDF'}</span>
-										<button style={{ ...styles.chipClose, display: 'block' }} onClick={() => handleRemoveDoc(azureId)} title="Remove">×</button>
+										<button style={{ ...styles.chipClose, display: 'block', opacity: contextDisabled ? 0.5 : 1, cursor: contextDisabled ? 'not-allowed' : 'pointer' }} onClick={() => { if (!contextDisabled) handleRemoveDoc(azureId); }} title="Remove" disabled={contextDisabled}>×</button>
 									</div>
 								))}
 							</div>
@@ -545,7 +633,7 @@ const DeepTutorComposer = ({
 
 				<button
 					style={styles.sendButton}
-					onClick={() => { isBusy ? onStop() : handleSendClick(); }}
+					onClick={() => { if (isBusy) { onStop(); } else { handleSendClick(); } }}
 					title={isBusy ? 'Stop' : 'Send'}
 				>
 					<img src={isBusy ? StopIconPath : SendIconPath} alt={isBusy ? 'Stop' : 'Send'} style={{ width: '1.25rem', height: '1.25rem' }} />
@@ -562,7 +650,13 @@ DeepTutorComposer.propTypes = {
 	onDocumentsChange: PropTypes.func.isRequired,
 	onSend: PropTypes.func.isRequired,
 	onStop: PropTypes.func.isRequired,
-	isBusy: PropTypes.bool.isRequired
+	isBusy: PropTypes.bool.isRequired,
+	subscriptionType: PropTypes.string,
+	usageSummary: PropTypes.object,
+	hasActiveSubscription: PropTypes.bool,
+	onShowFileSizeWarning: PropTypes.func,
+	onShowPageLimitWarning: PropTypes.func,
+	onShowSubscriptionPopup: PropTypes.func
 };
 
 export default DeepTutorComposer;

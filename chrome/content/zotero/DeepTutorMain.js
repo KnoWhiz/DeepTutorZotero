@@ -277,9 +277,25 @@ const DeepTutorMain = (props) => {
 							onOpenSessionHistory={() => props.switchPane('sessionHistory')}
 							onToggleSettingsPopup={props.toggleSettingsPopup}
 							onToggleModelSelectionPopup={props.toggleModelSelectionPopup}
-							onDeleteSession={props.handleShowDeletePopup}
+							onDeleteSession={(id) => {
+								if (typeof id === 'string' && id.startsWith('__DRAFT__')) {
+									// Close draft session immediately without popup
+									props.handleConfirmDelete(id);
+								}
+								else {
+									props.handleShowDeletePopup(id);
+								}
+							}}
 							userIdFromParent={props.userData && props.userData.id}
-							onCreateSessionFromId={props.handleModelSelectionSubmit}
+							onCreateSessionFromId={props.handleCreateSessionFromId}
+							// Subscription & limits props forwarded for consistent behavior
+							subscriptionType={props.activeSubscription?.type || 'BASIC'}
+							usageSummary={props.usageSummary}
+							hasActiveSubscription={Boolean(props.activeSubscription && props.activeSubscription.id)}
+							onShowFileSizeWarning={props.openFileSizeWarningPopup}
+							onShowPageLimitWarning={props.openPageLimitWarningPopup}
+							onShowSubscriptionPopup={props.toggleSubscriptionPopup}
+							refreshUsageSummary={props.refreshUsageSummary}
 						/>
 					)}
 					{props.currentPane === 'sessionHistory'
@@ -990,6 +1006,7 @@ DeepTutorMain.propTypes = {
 	handleSessionSelect: PropTypes.func.isRequired,
 	handleInitWaitChange: PropTypes.func.isRequired,
 	handleModelSelectionSubmit: PropTypes.func.isRequired,
+	handleCreateSessionFromId: PropTypes.func.isRequired,
 	handleSignInSuccess: PropTypes.func.isRequired,
 
 	handleSignOut: PropTypes.func.isRequired,
