@@ -1,8 +1,11 @@
-let { Cc, Ci } = require('chrome');
+let { Cc, Ci, Cu } = require('chrome'); // eslint-disable-line no-unused-vars
+
+// Import the StreamingSubprocess module
+const StreamingSubprocess = require('./ClaudeCliStreamingProcess.js');
 
 const ClaudeCliWrapper = {
 	_subprocessAvailable: function() {
-		return !!(Zotero.Utilities && Zotero.Utilities.Internal && typeof Zotero.Utilities.Internal.subprocess === 'function');
+		return StreamingSubprocess.isAvailable();
 	},
 
 	// Execute the local "claude" or "codex" CLI with optional args and stdin
@@ -40,6 +43,8 @@ const ClaudeCliWrapper = {
 		// Add system prompt if provided (only for Claude, not Codex)
 		if (systemPrompt && typeof systemPrompt === 'string' && systemPrompt.trim() && cliChoice !== 'codex') {
 			safeArgs.push('--append-system-prompt', systemPrompt.trim());
+			safeArgs.push('--output-format=stream-json');
+			safeArgs.push('--verbose');
 			// Zotero.debug(`ClaudeCliWrapper.runClaude: Added system prompt for Claude: ${systemPrompt.trim()}`);
 		} else if (cliChoice === 'codex') {
 			//Zotero.debug(`ClaudeCliWrapper.runClaude: Skipping system prompt for Codex`);
@@ -55,8 +60,11 @@ const ClaudeCliWrapper = {
 			//Zotero.debug(`ClaudeCliWrapper.runClaude: Modified prompt: ${finalStdinText}`);
 		}
 
-		// Helper: build a space-joined args string without shell interpolation (best-effort quoting per shell below if needed)
-		const joinArgs = (arr) => (arr && arr.length) ? (' ' + arr.join(' ')) : '';
+		// Helper: build space-joined args with proper shell quoting
+		const quoteBashArg = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
+		const joinArgsBash = (arr) => (arr && arr.length) ? (' ' + arr.map(quoteBashArg).join(' ')) : '';
+		const quoteCmdArg = (s) => `"${String(s).replace(/"/g, '""')}"`;
+		const joinArgsCmd = (arr) => (arr && arr.length) ? (' ' + arr.map(quoteCmdArg).join(' ')) : '';
 
 		// Helper: minimal escape for bash double-quoted string used with printf
 		const escapeForBashDoubleQuoted = (text) => String(text).replace(/["\\`$]/g, ch => '\\' + ch);
@@ -72,6 +80,8 @@ const ClaudeCliWrapper = {
 				return { error: new Error('Subprocess API not available') };
 			}
 
+			// Note: In Zotero extension environment, we'll use Node.js flags as a precaution for Web Streams API compatibility
+
 			let command;
 			let spArgs;
 			let options = { timeout };
@@ -79,7 +89,7 @@ const ClaudeCliWrapper = {
 					// Get API key from Zotero preferences for immediate use (only for Claude)
 		let storedApiKey = null, apiKeyEnvVar = null;
 		let baseCommand;
-		
+
 		if (cliChoice === 'codex') {
 			// For Codex, we need to construct the command as "codex exec 'COMMAND'"
 			// where COMMAND is the finalStdinText - NO API KEY INJECTION
@@ -103,31 +113,35 @@ const ClaudeCliWrapper = {
 		if (wslInfo) {
 			// Execute inside WSL bash, optionally cd to linuxDir
 			command = "C:\\Windows\\System32\\wsl.exe";
-			const joined = joinArgs(safeArgs);
+			const joined = joinArgsBash(safeArgs);
 			const shBody = (finalStdinText != null)
 				? `printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand}${joined}`
 				: `${baseCommand}${joined}`;
-			// Inject API key for immediate use (only for Claude, not Codex)
-			const envCmd = (storedApiKey && apiKeyEnvVar) ? `${apiKeyEnvVar}="${storedApiKey}" ${shBody}` : shBody;
-			const shLine = workingDirPath ? `cd "${wslInfo.linuxDir}" && ${envCmd}` : envCmd;
+			// Export environment variables so they apply to the whole pipeline
+			const exports = [];
+			if (storedApiKey && apiKeyEnvVar) exports.push(`export ${apiKeyEnvVar}="${storedApiKey}"`);
+			// exports.push(`export NODE_OPTIONS="--experimental-web-streams"`);
+			const prefix = exports.join('; ') + '; ';
+			const shLine = prefix + (workingDirPath ? `cd "${wslInfo.linuxDir}" && ` : '') + shBody;
 			spArgs = ["-d", wslInfo.distro, "--", "bash", "-lc", shLine];
 		}
 		else if (Zotero.isWin) {
 			// Native Windows CMD
 			command = "C:\\Windows\\System32\\cmd.exe";
-			const joined = joinArgs(safeArgs);
+			const joined = joinArgsCmd(safeArgs);
 			const body = (finalStdinText != null)
 				? `echo ${escapeForCmdEcho(finalStdinText)} | ${baseCommand}${joined}`
 				: `${baseCommand}${joined}`;
-			// Inject API key for immediate use (only for Claude, not Codex)
-			const envBody = (storedApiKey && apiKeyEnvVar) ? `set ${apiKeyEnvVar}=${storedApiKey} && ${body}` : body;
-			const line = workingDirPath ? `cd /d "${workingDirPath}" && ${envBody}` : envBody;
+			// Use setlocal to scope environment variables
+			const apiKeySet = (storedApiKey && apiKeyEnvVar) ? `set ${apiKeyEnvVar}=${storedApiKey} && ` : '';
+			const envBody = `setlocal && ${apiKeySet} ${ (workingDirPath ? `cd /d "${workingDirPath}" && ` : '') }${body} && endlocal`;
+			const line = envBody;
 			spArgs = ["/d", "/s", "/c", line];
 		}
 		else {
 			// Unix-like shells
 			command = "/bin/sh";
-			const joined = joinArgs(safeArgs);
+			const joined = joinArgsBash(safeArgs);
 			const baseCmd = workingDirPath
 				? (finalStdinText != null
 					? `cd "${workingDirPath}" && printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand}${joined}`
@@ -135,15 +149,22 @@ const ClaudeCliWrapper = {
 				: (finalStdinText != null
 					? `printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand}${joined}`
 					: `${baseCommand}${joined}`);
-			// Inject API key for immediate use (only for Claude, not Codex)
-			const line = (storedApiKey && apiKeyEnvVar) ? `${apiKeyEnvVar}="${storedApiKey}" ${baseCmd}` : baseCmd;
-			spArgs = ["-lc", line];
+			// Export env so they apply to the pipeline
+			const exports = [];
+			if (storedApiKey && apiKeyEnvVar) exports.push(`export ${apiKeyEnvVar}="${storedApiKey}"`);
+			// exports.push(`export NODE_OPTIONS="--experimental-web-streams"`);
+			const line = exports.join('; ') + '; ' + baseCmd;
+			// const line = ["for i in {1..5}; do echo \"Line $i: $(date)\"; sleep 1; done"];
+
+			spArgs = ["-c", line];
 		}
 			// Zotero.debug(`TTTTTTTTTTTT ClaudeCliWrapper.runClaude: command=${command}, spArgs=${JSON.stringify(spArgs)}, options=${JSON.stringify(options)}`);
 
-			const res = await Zotero.Utilities.Internal.subprocess(command, spArgs, options);
+			// Real-time stdout reading implementation
+			let res = await StreamingSubprocess.run(command, spArgs);
+			Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: raw result:", res);
 			// Zotero.debug("ClaudeCliWrapper.runClaude: result:", JSON.stringify(res));
-			
+
 			// Save response to note if requested and conditions are met
 			// Zotero.debug(`ClaudeCliWrapper.runClaude: saveClaudeResponse=${saveClaudeResponse}, noteContainer=${noteContainer}, res=${JSON.stringify(res)}`);
 			if (saveClaudeResponse && noteContainer && res) {
@@ -277,8 +298,10 @@ const ClaudeCliWrapper = {
 				const shBody = (finalStdinText != null)
 					? `printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand}${joined}`
 					: `${baseCommand}${joined}`;
-				// Inject API key for immediate use (only for Claude, not Codex)
-				const envCmd = (storedApiKey && apiKeyEnvVar) ? `${apiKeyEnvVar}="${storedApiKey}" ${shBody}` : shBody;
+				// Inject API key and Node.js compatibility flags for immediate use (only for Claude, not Codex)
+				// const nodeOptions = 'NODE_OPTIONS="--experimental-web-streams"';
+				const apiKeyCmd = (storedApiKey && apiKeyEnvVar) ? `${apiKeyEnvVar}="${storedApiKey}"` : '';
+				const envCmd = apiKeyCmd ? `${apiKeyCmd} ${nodeOptions} ${shBody}` : `${nodeOptions} ${shBody}`;
 				const shLine = workingDirPath ? `cd "${wslInfo.linuxDir}" && ${envCmd}` : envCmd;
 				spArgs = ["-d", wslInfo.distro, "--", "bash", "-lc", shLine];
 			}
@@ -289,14 +312,16 @@ const ClaudeCliWrapper = {
 				const body = (finalStdinText != null)
 					? `echo ${escapeForCmdEcho(finalStdinText)} | ${baseCommand}${joined}`
 					: `${baseCommand}${joined}`;
-				// Inject API key for immediate use (only for Claude, not Codex)
-				const envBody = (storedApiKey && apiKeyEnvVar) ? `set ${apiKeyEnvVar}=${storedApiKey} && ${body}` : body;
+				// Inject API key and Node.js compatibility flags for immediate use (only for Claude, not Codex)
+				// const nodeOptions = 'set NODE_OPTIONS=--experimental-web-streams';
+				const apiKeyCmd = (storedApiKey && apiKeyEnvVar) ? `set ${apiKeyEnvVar}=${storedApiKey} && ` : '';
+				const envBody = `${apiKeyCmd}${nodeOptions} && ${body}`;
 				const line = workingDirPath ? `cd /d "${workingDirPath}" && ${envBody}` : envBody;
 				spArgs = ["/d", "/s", "/c", line];
 			}
 			else {
 				// Unix-like shells
-				command = "/bin/sh";
+				command = "/bin/bash";
 				const joined = joinArgs(safeArgs);
 				const baseCmd = workingDirPath
 					? (finalStdinText != null
@@ -305,9 +330,11 @@ const ClaudeCliWrapper = {
 					: (finalStdinText != null
 						? `printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand}${joined}`
 						: `${baseCommand}${joined}`);
-				// Inject API key for immediate use (only for Claude, not Codex)
-				const line = (storedApiKey && apiKeyEnvVar) ? `${apiKeyEnvVar}="${storedApiKey}" ${baseCmd}` : baseCmd;
-				spArgs = ["-lc", line];
+				// Inject API key and Node.js compatibility flags for immediate use (only for Claude, not Codex)
+				// const nodeOptions = 'NODE_OPTIONS="--experimental-web-streams"';
+				const apiKeyCmd = (storedApiKey && apiKeyEnvVar) ? `${apiKeyEnvVar}="${storedApiKey}"` : '';
+				const line = apiKeyCmd ? `${apiKeyCmd} ${nodeOptions} ${baseCmd}` : `${nodeOptions} ${baseCmd}`;
+				spArgs = ["-c", line];
 			}
 			
 			// Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: command=${command}, spArgs=${JSON.stringify(spArgs)}, options=${JSON.stringify(options)}`);
@@ -316,7 +343,12 @@ const ClaudeCliWrapper = {
 			// Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: About to execute subprocess with command: ${command}`);
 			// Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: subprocess args: ${JSON.stringify(spArgs)}`);
 			
-			const res = await Zotero.Utilities.Internal.subprocess(command, spArgs, options);
+			// const res = await Zotero.Utilities.Internal.subprocess(command, spArgs, options);
+			Zotero.debug("Run here 1");
+			command = "/bin/sh";
+			spArgs = ["-c"];
+			const res = await StreamingSubprocess.run(command, spArgs);
+			Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: raw result:", JSON.stringify(res));
 			
 			// Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: raw result type:", typeof res);
 			// Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: raw result:", JSON.stringify(res));
@@ -663,10 +695,14 @@ const ClaudeCliWrapper = {
 				command = "/bin/sh";
 				const locator = 'which claude';
 				const line = workingDirPath ? `cd "${workingDirPath}" && ${locator}` : locator;
-				spArgs = ["-lc", line];
+				spArgs = ["-c", line];
 			}
 
-			const res = await Zotero.Utilities.Internal.subprocess(command, spArgs, options);
+			Zotero.debug("Run here 2");
+			command = "/bin/sh";
+			spArgs = ["-c"];
+			const res = await StreamingSubprocess.run(command, spArgs);
+			Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: raw result:", JSON.stringify(res));
 			// Zotero.debug(`ClaudeCliWrapper.checkClaude: stdout=${JSON.stringify(res.trim())}`);
 			if (res && !/not found|could not be found|no such file|INFO:/i.test(res.trim())) {
 				return { exists: true, path: res.trim() };
@@ -741,10 +777,14 @@ const ClaudeCliWrapper = {
 				const installLine = workingDirPath
 					? `cd "${workingDirPath}" && npm install -g @anthropic-ai/claude-code`
 					: `npm install -g @anthropic-ai/claude-code`;
-				spArgs = ["-lc", installLine];
+				spArgs = ["-c", installLine];
 			}
 
-			installResult = await Zotero.Utilities.Internal.subprocess(command, spArgs, options);
+			Zotero.debug("Run here 3");
+			command = "/bin/sh";
+			spArgs = ["-c"];
+			installResult = await StreamingSubprocess.run(command, spArgs);
+			Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: raw result:", JSON.stringify(installResult));
 			// Zotero.debug("ClaudeCliWrapper.installClaude: npm install result:", JSON.stringify(installResult));
 			
 			// Check if installation was successful
