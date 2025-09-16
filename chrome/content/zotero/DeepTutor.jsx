@@ -1681,7 +1681,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 				noteSaveContainerName={this.state.noteSaveContainerName}
 				
 				// Feature flags
-				modelSelectionFrozen={this.state.modelSelectionFrozen}
+				modelSelectionFrozen={this.state.modelSelectionFrozen || Boolean(this.state.currentSession)}
 				localhostServer={this.localhostServer}
 				
 				// Refs

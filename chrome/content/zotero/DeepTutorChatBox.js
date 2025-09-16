@@ -241,7 +241,6 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 		},
 		chatLog: {
 			width: '100%',
-			borderRadius: '0.625rem',
 			overflowY: 'auto',
 			overflowX: 'hidden',
 			background: colors.background.tertiary,
@@ -542,7 +541,7 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 			// Keep fade effect on hover
 		},
 		sessionTabText: {
-			color: isDark ? '#a0a0a0' : colors.text.tertiary,
+			color: isDark ? '#808080' : '#6B7280',
 			fontWeight: 500,
 			fontSize: '12px',
 			lineHeight: '1.2',

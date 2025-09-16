@@ -7,7 +7,8 @@ const BasicPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_S
 const BasicDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_STANDARD_DARK.svg';
 const AdvancedPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_ADVANCED.svg';
 const AdvancedDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_ADVANCED_DARK.svg';
-const SendIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_SEND.svg';
+const SendIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/SEND.svg';
+const GraySendIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/GRAY_SEND.svg';
 const StopIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_STOP.svg';
 
 const DeepTutorComposer = ({
@@ -316,7 +317,9 @@ const DeepTutorComposer = ({
 			display: 'flex',
 			alignItems: 'center',
 			justifyContent: 'center',
-			borderColor: colors.border.tertiary
+			borderColor: colors.border.tertiary,
+			padding: 0,
+			margin: 0
 		}
 	};
 
@@ -558,7 +561,7 @@ const DeepTutorComposer = ({
 							<button
 								style={{
 									...styles.chipClose,
-									...(isHovered ? styles.chipCloseVisible : {})
+									...(isHovered && !contextDisabled ? styles.chipCloseVisible : {})
 								}}
 								onClick={() => { if (!contextDisabled) handleRemoveDoc(azureId); }}
 								title="Remove"
@@ -578,7 +581,7 @@ const DeepTutorComposer = ({
 								{selectedDocumentIds.slice(4).map((azureId) => (
 									<div key={azureId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', padding: '0.375rem 0.5rem' }}>
 										<span style={{ ...styles.chipText, maxWidth: '12rem' }} title={docNames[azureId] || azureId}>{docNames[azureId] || 'PDF'}</span>
-										<button style={{ ...styles.chipClose, display: 'block', opacity: contextDisabled ? 0.5 : 1, cursor: contextDisabled ? 'not-allowed' : 'pointer' }} onClick={() => { if (!contextDisabled) handleRemoveDoc(azureId); }} title="Remove" disabled={contextDisabled}>×</button>
+										<button style={{ ...styles.chipClose, display: contextDisabled ? 'none' : 'block', opacity: contextDisabled ? 0.5 : 1, cursor: contextDisabled ? 'not-allowed' : 'pointer' }} onClick={() => { if (!contextDisabled) handleRemoveDoc(azureId); }} title="Remove" disabled={contextDisabled}>×</button>
 									</div>
 								))}
 							</div>
@@ -636,7 +639,11 @@ const DeepTutorComposer = ({
 					onClick={() => { if (isBusy) { onStop(); } else { handleSendClick(); } }}
 					title={isBusy ? 'Stop' : 'Send'}
 				>
-					<img src={isBusy ? StopIconPath : SendIconPath} alt={isBusy ? 'Stop' : 'Send'} style={{ width: '1.25rem', height: '1.25rem' }} />
+					<img
+						src={isBusy ? StopIconPath : (inputValue.trim() ? SendIconPath : GraySendIconPath)}
+						alt={isBusy ? 'Stop' : 'Send'}
+						style={{ width: '2.1rem', height: '2.1rem' }}
+					/>
 				</button>
 			</div>
 		</div>
