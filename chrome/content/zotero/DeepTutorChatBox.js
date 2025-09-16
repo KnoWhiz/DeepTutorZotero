@@ -149,12 +149,13 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 		},
 		sessionNameDiv: {
 			width: '100%',
-			marginBottom: '1.25rem',
 			display: 'flex',
 			alignItems: 'center',
 			justifyContent: 'space-between',
 			gap: '0.75rem',
-			minHeight: '2rem',
+			minHeight: '1.5rem',
+			marginBottom: '0.5rem',
+			padding: '0rem 0.5rem 0rem 0rem',
 		},
 		sessionNameText: {
 			color: colors.text.allText,
@@ -189,8 +190,8 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 			alignItems: 'center',
 		},
 		iconButton: {
-			width: '2rem',
-			height: '2rem',
+			width: '24px',
+			height: '24px',
 			background: colors.background.tertiary,
 			border: 'none',
 			borderRadius: '0.375rem',
@@ -199,16 +200,16 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 			alignItems: 'center',
 			justifyContent: 'center',
 			transition: 'background-color 0.2s ease',
-			padding: '0.375rem',
+			padding: '1rem',
 		},
 		iconImage: {
-			width: '1.25rem',
-			height: '1.25rem',
+			width: '1.4rem',
+			height: '1.4rem',
 			objectFit: 'contain',
 		},
 		settingsButton: {
-			width: '2rem',
-			height: '2rem',
+			width: '2.5rem',
+			height: '2.5rem',
 			background: colors.background.tertiary,
 			border: 'none',
 			borderRadius: '0.375rem',
@@ -217,11 +218,10 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 			alignItems: 'center',
 			justifyContent: 'center',
 			transition: 'background-color 0.2s ease',
-			padding: '0.375rem',
 		},
 		settingsIconImage: {
-			width: '1.5rem',
-			height: '1.5rem',
+			width: '2rem',
+			height: '2rem',
 			objectFit: 'contain',
 		},
 		renameIcon: {
@@ -519,52 +519,62 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 			display: 'flex',
 			alignItems: 'center',
 			justifyContent: 'space-between',
-			background: colors.background.quaternary,
-			border: `1px solid ${colors.border.primary}`,
+			background: isDark ? '#2a2a2a' : colors.background.tertiary,
+			border: `1px solid ${isDark ? '#404040' : '#d0d0d0'}`,
 			borderRadius: '0.375rem',
-			padding: '0.375rem 0.5rem',
+			padding: '0.125rem 0.75rem',
 			cursor: 'pointer',
 			transition: 'all 0.2s ease',
 			minWidth: '0',
 			flex: '1',
 			maxWidth: '150px',
 			position: 'relative',
-			height: '2rem',
+			height: '20px',
 		},
 		sessionTabActive: {
-			background: colors.button.primary,
-			borderColor: colors.button.primary,
+			background: isDark ? '#404040' : '#ffffff',
+			borderColor: isDark ? '#606060' : '#e0e0e0',
 		},
 		sessionTabHovered: {
 			background: colors.border.quaternary,
 		},
+		sessionTabTextHovered: {
+			// Keep fade effect on hover
+		},
 		sessionTabText: {
-			color: colors.text.allText,
+			color: isDark ? '#a0a0a0' : colors.text.tertiary,
 			fontWeight: 500,
-			fontSize: '0.75rem',
+			fontSize: '12px',
 			lineHeight: '1.2',
 			overflow: 'hidden',
-			textOverflow: 'ellipsis',
 			whiteSpace: 'nowrap',
 			flex: 1,
-			marginRight: '0.375rem',
+			position: 'relative',
+			background: `linear-gradient(to right, currentColor 0%, currentColor 85%, transparent 100%)`,
+			WebkitBackgroundClip: 'text',
+			backgroundClip: 'text',
+			WebkitTextFillColor: 'transparent',
 		},
 		sessionTabActiveText: {
-			color: colors.button.primaryText,
+			color: isDark ? '#d0d0d0' : colors.text.allText,
 		},
 		sessionTabCloseButton: {
-			width: '0.875rem',
-			height: '0.875rem',
-			background: 'transparent',
+			width: '1.25rem',
+			height: '1.25rem',
 			border: 'none',
+			borderRadius: '0.25rem',
 			cursor: 'pointer',
 			display: 'flex',
 			alignItems: 'center',
 			justifyContent: 'center',
-			padding: 0,
+			padding: '0.125rem',
 			flexShrink: 0,
 			opacity: 0,
 			transition: 'opacity 0.2s ease',
+			position: 'absolute',
+			right: '0.25rem',
+			top: '50%',
+			transform: 'translateY(-50%)',
 		},
 		sessionTabCloseButtonVisible: {
 			opacity: 1,
@@ -2582,6 +2592,7 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 									<div style={{
 										...styles.sessionTabText,
 										...(isActive ? styles.sessionTabActiveText : {}),
+										...(isHovered ? styles.sessionTabTextHovered : {}),
 									}}>
 										{displayName}
 									</div>
@@ -2589,6 +2600,9 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 										style={{
 											...styles.sessionTabCloseButton,
 											...(isHovered ? styles.sessionTabCloseButtonVisible : {}),
+											background: isActive
+												? (isDark ? '#404040' : '#ffffff')
+												: colors.border.quaternary,
 										}}
 										onClick={e => handleTabClose(e, session.id)}
 										title="Delete Session"
