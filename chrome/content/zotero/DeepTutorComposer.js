@@ -378,7 +378,9 @@ const DeepTutorComposer = ({
 							try {
 								name = item.attachmentFilename || item.getField('title') || '';
 							}
-							catch { name = ''; }
+							catch {
+								name = '';
+							}
 							updated[azureId] = name && name.trim() !== '' ? name : 'Untitled';
 						}
 					}
@@ -403,7 +405,12 @@ const DeepTutorComposer = ({
 						if (pdfs.length) {
 							seen.add(item.id);
 							let name = '';
-							try { name = item.getField('title') || ''; } catch { name = ''; }
+							try {
+								name = item.getField('title') || '';
+							}
+							catch {
+								name = '';
+							}
 							arr.push({ id: item.id, name: name && name.trim() !== '' ? name : 'Untitled' });
 						}
 					}
@@ -411,7 +418,9 @@ const DeepTutorComposer = ({
 				}, []);
 				setContainers(list);
 			}
-			catch (e) { Zotero.debug(e); }
+			catch (e) {
+				Zotero.debug(e);
+			}
 		};
 		loadContainers();
 	}, []);
@@ -423,9 +432,13 @@ const DeepTutorComposer = ({
 			setFilteredContainers([]);
 			return;
 		}
-		setFilteredContainers(containers.filter(c => {
-			try { return String(c.name).toLowerCase().includes(term); }
-			catch { return false; }
+		setFilteredContainers(containers.filter((c) => {
+			try {
+				return String(c.name).toLowerCase().includes(term);
+			}
+			catch {
+				return false;
+			}
 		}));
 	}, [searchValue, containers]);
 
@@ -462,7 +475,12 @@ const DeepTutorComposer = ({
 
 			const mappingKey = sessionId ? `deeptutor_mapping_${sessionId}` : 'deeptutor_mapping_draft';
 			let mapping = {};
-			try { mapping = JSON.parse(Zotero.Prefs.get(mappingKey) || '{}'); } catch { mapping = {}; }
+			try {
+				mapping = JSON.parse(Zotero.Prefs.get(mappingKey) || '{}');
+			}
+			catch {
+				mapping = {};
+			}
 
 			const addedAzureIds = [];
 			const limit = getFileCountLimit();
@@ -471,13 +489,22 @@ const DeepTutorComposer = ({
 			for (let i = 0; i < maxToAdd; i++) {
 				const pdf = pdfAttachments[i];
 				let fileName = '';
-				try { fileName = pdf.attachmentFilename || pdf.getField('title') || ''; } catch { fileName = ''; }
+				try {
+					fileName = pdf.attachmentFilename || pdf.getField('title') || '';
+				}
+				catch {
+					fileName = '';
+				}
 				if (!fileName || typeof fileName !== 'string' || fileName.trim() === '') fileName = 'Untitled';
 
 				const sizeOk = await validateFileSize(pdf, fileName);
-				if (!sizeOk) { continue; }
+				if (!sizeOk) {
+					continue;
+				}
 				const pagesOk = await validatePageCount(pdf, fileName);
-				if (!pagesOk) { continue; }
+				if (!pagesOk) {
+					continue;
+				}
 
 				let blob;
 				try {
@@ -489,7 +516,9 @@ const DeepTutorComposer = ({
 					const BlobConstructor = Zotero.getMainWindow().Blob;
 					blob = new BlobConstructor([data], { type: 'application/pdf' });
 				}
-				catch { continue; }
+				catch {
+					continue;
+				}
 
 				let pre;
 				try {
@@ -500,7 +529,9 @@ const DeepTutorComposer = ({
 						const sanitized = fileName.replace(/[;:&<>]/g, '_');
 						pre = await getPreSignedUrl(userId, sanitized);
 					}
-					catch { continue; }
+					catch {
+						continue;
+					}
 				}
 
 				try {
@@ -516,10 +547,15 @@ const DeepTutorComposer = ({
 					addedAzureIds.push(pre.documentId);
 					mapping[pre.documentId] = pdf.id;
 				}
-				catch { continue; }
+				catch {
+					continue;
+				}
 			}
 
-			try { Zotero.Prefs.set(mappingKey, JSON.stringify(mapping)); } catch {}
+			try {
+				Zotero.Prefs.set(mappingKey, JSON.stringify(mapping));
+			}
+			catch {}
 			if (addedAzureIds.length) {
 				const next = [...selectedDocumentIds, ...addedAzureIds];
 				onDocumentsChange(next);
@@ -527,7 +563,9 @@ const DeepTutorComposer = ({
 			setShowContextSearch(false);
 			setSearchValue('');
 		}
-		catch (e) { Zotero.debug(e); }
+		catch (e) {
+			Zotero.debug(e);
+		}
 	};
 
 	const handleSendClick = async () => {
@@ -541,7 +579,9 @@ const DeepTutorComposer = ({
 		<div style={styles.container}>
 			<div style={styles.chipsRow}>
 				<div style={{ position: 'relative' }} ref={searchPopupRef}>
-					<button style={{ ...styles.atButton, opacity: contextDisabled ? 0.5 : 1, cursor: contextDisabled ? 'not-allowed' : 'pointer' }} onClick={() => { if (!contextDisabled) setShowContextSearch(v => !v); }} title="Add papers via search" disabled={contextDisabled}>@</button>
+					<button style={{ ...styles.atButton, opacity: contextDisabled ? 0.5 : 1, cursor: contextDisabled ? 'not-allowed' : 'pointer' }} onClick={() => {
+						if (!contextDisabled) setShowContextSearch(v => !v);
+					}} title="Add papers via search" disabled={contextDisabled}>@</button>
 					{showContextSearch && (
 						<div style={styles.searchPopup}>
 							<div style={styles.searchHeader}>
@@ -593,7 +633,9 @@ const DeepTutorComposer = ({
 									...styles.chipClose,
 									...(isHovered && !contextDisabled ? styles.chipCloseVisible : {})
 								}}
-								onClick={() => { if (!contextDisabled) handleRemoveDoc(azureId); }}
+								onClick={() => {
+									if (!contextDisabled) handleRemoveDoc(azureId);
+								}}
 								title="Remove"
 								disabled={contextDisabled}
 							>
@@ -605,13 +647,17 @@ const DeepTutorComposer = ({
 
 				{overflowCount > 0 && (
 					<div style={{ position: 'relative' }}>
-						<button style={{ ...styles.overflowChip, opacity: contextDisabled ? 0.5 : 1, cursor: contextDisabled ? 'not-allowed' : 'pointer' }} onClick={() => { if (!contextDisabled) setShowOverflow(v => !v); }} title="More context" disabled={contextDisabled}>+{overflowCount}</button>
+						<button style={{ ...styles.overflowChip, opacity: contextDisabled ? 0.5 : 1, cursor: contextDisabled ? 'not-allowed' : 'pointer' }} onClick={() => {
+							if (!contextDisabled) setShowOverflow(v => !v);
+						}} title="More context" disabled={contextDisabled}>+{overflowCount}</button>
 						{showOverflow && (
 							<div style={{ ...styles.searchPopup, left: 'auto', right: 0 }}>
-								{selectedDocumentIds.slice(4).map((azureId) => (
+								{selectedDocumentIds.slice(4).map(azureId => (
 									<div key={azureId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', padding: '0.375rem 0.5rem' }}>
 										<span style={{ ...styles.chipText, maxWidth: '12rem' }} title={docNames[azureId] || azureId}>{docNames[azureId] || 'PDF'}</span>
-										<button style={{ ...styles.chipClose, display: contextDisabled ? 'none' : 'block', opacity: contextDisabled ? 0.5 : 1, cursor: contextDisabled ? 'not-allowed' : 'pointer' }} onClick={() => { if (!contextDisabled) handleRemoveDoc(azureId); }} title="Remove" disabled={contextDisabled}>×</button>
+										<button style={{ ...styles.chipClose, display: contextDisabled ? 'none' : 'block', opacity: contextDisabled ? 0.5 : 1, cursor: contextDisabled ? 'not-allowed' : 'pointer' }} onClick={() => {
+											if (!contextDisabled) handleRemoveDoc(azureId);
+										}} title="Remove" disabled={contextDisabled}>×</button>
 									</div>
 								))}
 							</div>
@@ -667,7 +713,14 @@ const DeepTutorComposer = ({
 
 				<button
 					style={styles.sendButton}
-					onClick={() => { if (isBusy) { onStop(); } else { handleSendClick(); } }}
+					onClick={() => {
+						if (isBusy) {
+							onStop();
+						}
+						else {
+							handleSendClick();
+						}
+					}}
 					title={isBusy ? 'Stop' : 'Send'}
 				>
 					<img

@@ -1105,6 +1105,8 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 		if (!messageString.trim()) {
 			return;
 		}
+		// Capture whether this is the very first message in the session BEFORE we mutate state
+		const hadNoMessagesBeforeSend = messages.length === 0;
 		// Always enable auto-scrolling when user sends a message (which will trigger streaming)
 		isAutoScrollingRef.current = true;
 
@@ -1215,55 +1217,74 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 
 			// Send to API and handle response
 			Zotero.debug(`DeepTutorChatBox: Sending message to API for session ${effectiveSessionId}`);
-			const _response = await sendToAPI(userMessage).catch((err) => {
+			const _response = await sendToAPI(userMessage, { isFirstSend: hadNoMessagesBeforeSend }).catch((err) => {
 				Zotero.debug(`DeepTutorChatBox: createMessage/stream failed: ${err?.message}`);
 				throw err;
 			});
 
-			// After first send, try renaming session to first file's title (best effort)
-			if (messages.length === 0 && (documentIds && documentIds.length > 0)) {
+			// After first send, try renaming session (best effort)
+			if (hadNoMessagesBeforeSend) {
 				try {
-					let fileTitle = '';
-					const firstAzureId = documentIds[0];
-					// Try Zotero mapping first
-					let mapping = {};
-					try {
-						mapping = JSON.parse(Zotero.Prefs.get(`deeptutor_mapping_${effectiveSessionId}`) || '{}');
-					}
-					catch {
-						mapping = {};
-					}
-					if (!mapping[firstAzureId]) {
+					let newTitle = '';
+					// Prefer first attached document title if available
+					if (documentIds && documentIds.length > 0) {
+						let fileTitle = '';
+						const firstAzureId = documentIds[0];
+						// Try Zotero mapping first
+						let mapping = {};
 						try {
-							mapping = JSON.parse(Zotero.Prefs.get('deeptutor_mapping_draft') || '{}');
+							mapping = JSON.parse(Zotero.Prefs.get(`deeptutor_mapping_${effectiveSessionId}`) || '{}');
 						}
 						catch {
 							mapping = {};
 						}
-					}
-					const zoteroPdfId = mapping[firstAzureId];
-					if (zoteroPdfId) {
-						const item = Zotero.Items.get(zoteroPdfId);
-						if (item) {
+						if (!mapping[firstAzureId]) {
 							try {
-								fileTitle = item.attachmentFilename || item.getField('title') || '';
+								mapping = JSON.parse(Zotero.Prefs.get('deeptutor_mapping_draft') || '{}');
 							}
 							catch {
-								fileTitle = '';
+								mapping = {};
 							}
 						}
-					}
-					if (!fileTitle) {
-						try {
-							const docData = await getDocumentById(firstAzureId);
-							fileTitle = (docData && (docData.name || docData.fileName || docData.title)) || '';
+						const zoteroPdfId = mapping[firstAzureId];
+						if (zoteroPdfId) {
+							const item = Zotero.Items.get(zoteroPdfId);
+							if (item) {
+								try {
+									fileTitle = item.attachmentFilename || item.getField('title') || '';
+								}
+								catch {
+									fileTitle = '';
+								}
+							}
 						}
-						catch {}
+						if (!fileTitle) {
+							try {
+								const docData = await getDocumentById(firstAzureId);
+								fileTitle = (docData && (docData.name || docData.fileName || docData.title)) || '';
+							}
+							catch {}
+						}
+						newTitle = (fileTitle || '').trim();
 					}
-					fileTitle = (fileTitle || '').trim();
-					if (fileTitle) {
+
+					// Fallback to a snippet of the user's first message
+					if (!newTitle) {
+						const trimmed = (messageString || '').trim().replace(/\s+/g, ' ');
+						newTitle = trimmed.slice(0, 60) + (trimmed.length > 60 ? '…' : '');
+					}
+
+					newTitle = (newTitle || '').trim();
+					if (newTitle) {
 						try {
-							await updateSessionName(effectiveSessionId, fileTitle);
+							await updateSessionName(effectiveSessionId, newTitle);
+							// Ask parent to refresh sessions so the updated title is reflected in UI immediately
+							if (onCreateSessionFromId) {
+								try {
+									await onCreateSessionFromId(effectiveSessionId);
+								}
+								catch {}
+							}
 						}
 						catch {}
 					}
@@ -1338,7 +1359,11 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 		setHasActiveStream(false);
 	};
 
-	const sendToAPI = async (message) => {
+	const sendToAPI = async (message, options = {}) => {
+		const isFirstSend = Boolean(options.isFirstSend);
+		const hasContextDocs = Array.isArray(documentIds) && documentIds.length > 0;
+		// Determine target session for streaming early so it is available in error paths
+		const sessionForStream = (message && message.sessionId) ? message.sessionId : sessionId;
 		try {
 			setIsStreaming(true); // Set streaming to true at start
 			setHasActiveStream(true); // Set active stream flag
@@ -1357,8 +1382,7 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 				}
 			}
 			
-			// Use message.sessionId if present (just created), fall back to state sessionId
-			const sessionForStream = message && message.sessionId ? message.sessionId : sessionId;
+			// sessionForStream already computed above
 			
 			// Update conversation state
 			const newState = new Conversation({
@@ -1371,7 +1395,15 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 				streaming: true,
 				type: curSessionType || SessionType.BASIC
 			});
-            
+
+			// Optional pre-stream delay for the first response when context docs are present
+			if (isFirstSend && hasContextDocs) {
+				try {
+					await new Promise(resolve => setTimeout(resolve, 3000));
+				}
+				catch {}
+			}
+				
 			// Subscribe to chat stream with timeout
 			const streamResponse = await subscribeToChat(newState);
 
@@ -1494,7 +1526,7 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 			// Fetch message history for the session
 			await new Promise(resolve => setTimeout(resolve, 3000));
             
-			const historyData = await getMessagesBySessionId(sessionId);
+			const historyData = await getMessagesBySessionId(sessionForStream);
 			
 			// Preserve streaming message data when updating from server
 			setMessages((prevMessages) => {
@@ -1561,7 +1593,7 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 			try {
 				await new Promise(resolve => setTimeout(resolve, 1000)); // Shorter wait for error case
 				
-				const historyData = await getMessagesBySessionId(sessionId);
+				const historyData = await getMessagesBySessionId(sessionForStream);
 				if (historyData && historyData.length > 0) {
 					setMessages(historyData);
 					setLatestMessageId(historyData[historyData.length - 1].id);
