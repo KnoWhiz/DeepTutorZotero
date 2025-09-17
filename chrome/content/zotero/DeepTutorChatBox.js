@@ -1190,6 +1190,63 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 					}
 				}
 				catch {}
+				// Try to rename session based on first file name (best effort)
+				if (documentIds && documentIds.length > 0) {
+					try {
+						let fileTitle = '';
+						const firstAzureId = documentIds[0];
+						// Try Zotero mapping first
+						let mapping = {};
+						try {
+							mapping = JSON.parse(Zotero.Prefs.get(`deeptutor_mapping_${created.id}`) || '{}');
+						}
+						catch {
+							mapping = {};
+						}
+						if (!mapping[firstAzureId]) {
+							try {
+								mapping = JSON.parse(Zotero.Prefs.get('deeptutor_mapping_draft') || '{}');
+							}
+							catch {
+								mapping = {};
+							}
+						}
+						const zoteroPdfId = mapping[firstAzureId];
+						if (zoteroPdfId) {
+							const item = Zotero.Items.get(zoteroPdfId);
+							if (item) {
+								try {
+									fileTitle = item.attachmentFilename || item.getField('title') || '';
+								}
+								catch {
+									fileTitle = '';
+								}
+							}
+						}
+						if (!fileTitle) {
+							try {
+								const docData = await getDocumentById(firstAzureId);
+								fileTitle = (docData && (docData.name || docData.fileName || docData.title)) || '';
+							}
+							catch {}
+						}
+						
+						const newTitle = (fileTitle || '').trim();
+						if (newTitle) {
+							try {
+								await updateSessionName(created.id, newTitle);
+								Zotero.debug(`DeepTutorChatBox: Renamed session to: ${newTitle}`);
+							}
+							catch (renameError) {
+								Zotero.debug(`DeepTutorChatBox: Failed to rename session: ${renameError.message}`);
+							}
+						}
+					}
+					catch (error) {
+						Zotero.debug(`DeepTutorChatBox: Error getting file title for session rename: ${error.message}`);
+					}
+				}
+
 				// Inform parent so it registers the new session and loads messages thereafter
 				if (onCreateSessionFromId) {
 					try {
@@ -1231,76 +1288,6 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 				Zotero.debug(`DeepTutorChatBox: createMessage/stream failed: ${err?.message}`);
 				throw err;
 			});
-
-			// After first send, try renaming session (best effort)
-			if (hadNoMessagesBeforeSend) {
-				try {
-					let newTitle = '';
-					// Prefer first attached document title if available
-					if (documentIds && documentIds.length > 0) {
-						let fileTitle = '';
-						const firstAzureId = documentIds[0];
-						// Try Zotero mapping first
-						let mapping = {};
-						try {
-							mapping = JSON.parse(Zotero.Prefs.get(`deeptutor_mapping_${effectiveSessionId}`) || '{}');
-						}
-						catch {
-							mapping = {};
-						}
-						if (!mapping[firstAzureId]) {
-							try {
-								mapping = JSON.parse(Zotero.Prefs.get('deeptutor_mapping_draft') || '{}');
-							}
-							catch {
-								mapping = {};
-							}
-						}
-						const zoteroPdfId = mapping[firstAzureId];
-						if (zoteroPdfId) {
-							const item = Zotero.Items.get(zoteroPdfId);
-							if (item) {
-								try {
-									fileTitle = item.attachmentFilename || item.getField('title') || '';
-								}
-								catch {
-									fileTitle = '';
-								}
-							}
-						}
-						if (!fileTitle) {
-							try {
-								const docData = await getDocumentById(firstAzureId);
-								fileTitle = (docData && (docData.name || docData.fileName || docData.title)) || '';
-							}
-							catch {}
-						}
-						newTitle = (fileTitle || '').trim();
-					}
-
-					// Fallback to a snippet of the user's first message
-					if (!newTitle) {
-						const trimmed = (messageString || '').trim().replace(/\s+/g, ' ');
-						newTitle = trimmed.slice(0, 60) + (trimmed.length > 60 ? '…' : '');
-					}
-
-					newTitle = (newTitle || '').trim();
-					if (newTitle) {
-						try {
-							await updateSessionName(effectiveSessionId, newTitle);
-							// Ask parent to refresh sessions so the updated title is reflected in UI immediately
-							if (onCreateSessionFromId) {
-								try {
-									await onCreateSessionFromId(effectiveSessionId);
-								}
-								catch {}
-							}
-						}
-						catch {}
-					}
-				}
-				catch {}
-			}
 		}
 		catch (error) {
 			Zotero.debug(error);
@@ -2617,7 +2604,7 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 						{recentSessions.map((session) => {
 							const isActive = currentSession?.id === session.id;
 							const isHovered = hoveredTabId === session.id;
-							const displayName = (isActive && messages.length === 0) ? 'New Session' : (session.sessionName || 'Unnamed Session');
+							const displayName = session.sessionName || 'Unnamed Session';
 							return (
 								<div
 									key={session.id}
