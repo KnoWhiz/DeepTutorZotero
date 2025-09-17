@@ -377,9 +377,38 @@ var DeepTutor = class DeepTutor extends React.Component {
 				    this._isInitializingData = false;
 				    this._blockingAuthStateChanges = false;
 
-				    this.setState({
-					    currentPane: this.getSessionHistoryPaneOrNoSession()
-				    });
+				    // Auto-select most recent session if available, otherwise show appropriate pane
+				    if (this.state.sessions && this.state.sessions.length > 0) {
+				        const sortedSessions = this.state.sessions.sort((a, b) => new Date(b.lastUpdatedTime || 0) - new Date(a.lastUpdatedTime || 0));
+				        const mostRecentSession = sortedSessions[0];
+				        
+				        Zotero.debug(`DeepTutor: Auto-selecting most recent session during initialization: ${mostRecentSession.id} (${mostRecentSession.sessionName})`);
+				        
+				        this.setState({
+				            currentSession: mostRecentSession,
+				            messages: [],
+				            documentIds: mostRecentSession.documentIds || [],
+				            currentPane: 'main'
+				        }, async () => {
+				            // Load messages for the most recent session
+				            try {
+				                const messages = await getMessagesBySessionId(mostRecentSession.id);
+				                Zotero.debug(`DeepTutor: Successfully fetched ${messages.length} messages for most recent session during initialization`);
+				                
+				                this.setState({
+				                    messages: messages
+				                });
+				            }
+				            catch (error) {
+				                Zotero.debug(`DeepTutor: Error loading messages for most recent session during initialization: ${error.message}`);
+				            }
+				        });
+				    }
+				    else {
+				        this.setState({
+				            currentPane: this.getSessionHistoryPaneOrNoSession()
+				        });
+				    }
 				});
 				return;
 			}
@@ -404,9 +433,39 @@ var DeepTutor = class DeepTutor extends React.Component {
 					// This ensures only one pane switch happens after all async operations finish
 					this._isInitializingData = false;
 					this._blockingAuthStateChanges = false;
-					this.setState({
-						currentPane: this.getSessionHistoryPaneOrNoSession()
-					});
+					
+					// Auto-select most recent session if available, otherwise show appropriate pane
+					if (this.state.sessions && this.state.sessions.length > 0) {
+						const sortedSessions = this.state.sessions.sort((a, b) => new Date(b.lastUpdatedTime || 0) - new Date(a.lastUpdatedTime || 0));
+						const mostRecentSession = sortedSessions[0];
+						
+						Zotero.debug(`DeepTutor: Auto-selecting most recent session during initialization: ${mostRecentSession.id} (${mostRecentSession.sessionName})`);
+						
+						this.setState({
+							currentSession: mostRecentSession,
+							messages: [],
+							documentIds: mostRecentSession.documentIds || [],
+							currentPane: 'main'
+						}, async () => {
+							// Load messages for the most recent session
+							try {
+								const messages = await getMessagesBySessionId(mostRecentSession.id);
+								Zotero.debug(`DeepTutor: Successfully fetched ${messages.length} messages for most recent session during initialization`);
+								
+								this.setState({
+									messages: messages
+								});
+							}
+							catch (error) {
+								Zotero.debug(`DeepTutor: Error loading messages for most recent session during initialization: ${error.message}`);
+							}
+						});
+					}
+					else {
+						this.setState({
+							currentPane: this.getSessionHistoryPaneOrNoSession()
+						});
+					}
 				});
 			}
 			else {
@@ -530,7 +589,34 @@ var DeepTutor = class DeepTutor extends React.Component {
 					if (!this.state.isLoadingSessions) {
 						await this.loadSession();
 					}
-					// this.switchPane(this.getSessionHistoryPaneOrNoSession());
+					
+					// Auto-select most recent session if available after sign-in
+					if (this.state.sessions && this.state.sessions.length > 0) {
+						const sortedSessions = this.state.sessions.sort((a, b) => new Date(b.lastUpdatedTime || 0) - new Date(a.lastUpdatedTime || 0));
+						const mostRecentSession = sortedSessions[0];
+						
+						Zotero.debug(`DeepTutor: Auto-selecting most recent session after sign-in: ${mostRecentSession.id} (${mostRecentSession.sessionName})`);
+						
+						this.setState({
+							currentSession: mostRecentSession,
+							messages: [],
+							documentIds: mostRecentSession.documentIds || [],
+							currentPane: 'main'
+						}, async () => {
+							// Load messages for the most recent session
+							try {
+								const messages = await getMessagesBySessionId(mostRecentSession.id);
+								Zotero.debug(`DeepTutor: Successfully fetched ${messages.length} messages for most recent session after sign-in`);
+								
+								this.setState({
+									messages: messages
+								});
+							}
+							catch (error) {
+								Zotero.debug(`DeepTutor: Error loading messages for most recent session after sign-in: ${error.message}`);
+							}
+						});
+					}
 				}
 				else {
 					// User signed out, clear data and show welcome
@@ -1267,8 +1353,42 @@ var DeepTutor = class DeepTutor extends React.Component {
 			// If no sessions, switch to model selection pane
 			Zotero.debug(`DeepTutor061306130613: Switching to model selection pane: ${sessions}`);
 			Zotero.debug(`DeepTutor061306130613: Sessions length: ${sessions.length}`);
-			// Do not auto-open session history; stay on main. If there are no sessions, show chat with composer.
-			this.switchPane('main');
+			
+			// Automatically select the most recent session if sessions exist
+			if (sessions && sessions.length > 0) {
+				// Sort sessions by lastUpdatedTime to get the most recent one
+				const sortedSessions = sessions.sort((a, b) => new Date(b.lastUpdatedTime || 0) - new Date(a.lastUpdatedTime || 0));
+				const mostRecentSession = sortedSessions[0];
+				
+				Zotero.debug(`DeepTutor: Auto-selecting most recent session: ${mostRecentSession.id} (${mostRecentSession.sessionName})`);
+				
+				// Set the most recent session as current and switch to main pane
+				this.setState({
+					currentSession: mostRecentSession,
+					messages: [],
+					documentIds: mostRecentSession.documentIds || []
+				}, async () => {
+					// Load messages for the most recent session
+					try {
+						const messages = await getMessagesBySessionId(mostRecentSession.id);
+						Zotero.debug(`DeepTutor: Successfully fetched ${messages.length} messages for most recent session`);
+						
+						this.setState({
+							messages: messages
+						});
+					}
+					catch (error) {
+						Zotero.debug(`DeepTutor: Error loading messages for most recent session: ${error.message}`);
+					}
+					
+					// Switch to main pane to show the chat interface
+					this.switchPane('main');
+				});
+			}
+			else {
+				// No sessions exist, show chat with composer
+				this.switchPane('main');
+			}
 
 			Zotero.debug(`DeepTutor: Successfully loaded ${sessions.length} sessions`);
 		}

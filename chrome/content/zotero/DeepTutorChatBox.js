@@ -157,6 +157,16 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 			marginBottom: '0.5rem',
 			padding: '0rem 0.5rem 0rem 0rem',
 		},
+		sessionNameDivNoSessions: {
+			width: '100%',
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'flex-end',
+			gap: '0.75rem',
+			minHeight: '1.5rem',
+			marginBottom: '0.5rem',
+			padding: '0rem 0.5rem 0rem 0rem',
+		},
 		sessionNameText: {
 			color: colors.text.allText,
 			fontWeight: 500,
@@ -2600,7 +2610,7 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 			}} />
             
 			{/* Session Tabs and Functional Buttons Row */}
-			<div style={styles.sessionNameDiv}>
+			<div style={recentSessions.length > 0 ? styles.sessionNameDiv : styles.sessionNameDivNoSessions}>
 				{/* Session Tabs */}
 				{recentSessions.length > 0 && (
 					<div style={styles.sessionTabsContainer}>
