@@ -608,7 +608,33 @@ var DeepTutor = class DeepTutor extends React.Component {
 		}));
 	};
 
-	toggleModelSelectionPopup = () => {
+	toggleModelSelectionPopup = async () => {
+		// Check usage limits before creating a new session
+		try {
+			const { usageSummary, activeSubscription, subscriptionType } = this.state;
+			const summary = usageSummary;
+			const isPro = Boolean(activeSubscription) && ["BASIC", "PLUS"].includes((subscriptionType || "").toUpperCase());
+			const isPremium = Boolean(activeSubscription) && (subscriptionType || "").toUpperCase() === "PREMIUM";
+			
+			if (!isPremium && summary) {
+				const weeklyTotalUsed = Number(summary.weeklyLiteCount || 0) + Number(summary.weeklyBasicCount || 0);
+				const cycleTotalUsed = Number(summary.liteCount || 0) + Number(summary.basicCount || 0);
+				const wouldHitWeeklyLimit = !activeSubscription && weeklyTotalUsed >= 5; // Free: 5/week
+				const wouldHitCycleLimit = isPro && cycleTotalUsed >= 200; // Pro: 200/cycle
+				
+				if (wouldHitWeeklyLimit || wouldHitCycleLimit) {
+					// Show upgrade popup instead of creating new session
+					this.setState({ showSubscriptionPopup: true });
+					Zotero.debug('DeepTutor: Session limit reached; showing upgrade popup instead of creating new session');
+					return;
+				}
+			}
+		}
+		catch (error) {
+			Zotero.debug(`DeepTutor: Error checking session limits: ${error.message}`);
+			// Continue with session creation if limit check fails
+		}
+
 		this.setState(_prevState => ({
 			// Repurpose model selection toggle to start a fresh chat session without popup
 			showModelSelectionPopup: false,

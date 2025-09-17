@@ -43,6 +43,10 @@ const DeepTutorComposer = ({
 	const textareaRef = useRef(null);
 	const isSessionActive = Boolean(sessionId);
 	const contextDisabled = isSessionActive; // disable add/remove after session created
+	
+	// Check if user has free subscription (BASIC) - only allow standard mode
+	const isFreeSubscription = (subscriptionType || '').toUpperCase() === 'BASIC';
+	const modeToggleDisabled = isSessionActive || isFreeSubscription;
 
 	// Limits helpers (mirror ModelSelection)
 	const getFileCountLimit = () => {
@@ -159,6 +163,13 @@ const DeepTutorComposer = ({
 		}
 		catch {}
 	}, [askMode, sessionId]);
+
+	// Force free subscription users to use standard mode
+	useEffect(() => {
+		if (isFreeSubscription && askMode === 'advanced') {
+			setAskMode('standard');
+		}
+	}, [isFreeSubscription, askMode]);
 
 	// Auto-resize textarea when input value changes
 	useEffect(() => {
@@ -571,6 +582,12 @@ const DeepTutorComposer = ({
 	const handleSendClick = async () => {
 		const text = (inputValue || '').trim();
 		if (!text) return;
+		
+		// Prevent sending if no files are selected
+		if (!selectedDocumentIds || selectedDocumentIds.length === 0) {
+			return;
+		}
+		
 		setInputValue(''); // Clear input immediately
 		await onSend(text);
 	};
@@ -697,13 +714,18 @@ const DeepTutorComposer = ({
 					{/* Standard/Advanced when in Ask mode */}
 					<div style={{ position: 'relative' }}>
 						<button
-							style={{ ...styles.dropdownButton, opacity: (askType === 'ASK' && !isSessionActive) ? 1 : 0.6, cursor: (askType === 'ASK' && !isSessionActive) ? 'pointer' : 'not-allowed' }}
+							style={{
+								...styles.dropdownButton,
+								opacity: (askType === 'ASK' && !modeToggleDisabled) ? 1 : 0.6,
+								cursor: (askType === 'ASK' && !modeToggleDisabled) ? 'pointer' : 'not-allowed'
+							}}
 							onClick={(e) => {
 								e.preventDefault();
-								if (askType !== 'ASK' || isSessionActive) return;
+								if (askType !== 'ASK' || modeToggleDisabled) return;
 								setAskMode(askMode === 'standard' ? 'advanced' : 'standard');
 							}}
-							disabled={askType !== 'ASK' || isSessionActive}
+							disabled={askType !== 'ASK' || modeToggleDisabled}
+							title={isFreeSubscription ? 'Advanced mode requires a paid subscription' : (askType !== 'ASK' ? 'Switch to Ask mode to change settings' : (isSessionActive ? 'Cannot change mode during active session' : 'Switch between Standard and Advanced mode'))}
 						>
 							<img src={isDark ? (askMode === 'standard' ? BasicDarkPath : AdvancedDarkPath) : (askMode === 'standard' ? BasicPath : AdvancedPath)} alt="Mode" style={{ width: '1rem', height: '1rem' }} />
 							{askMode === 'standard' ? 'Standard' : 'Advanced'}
@@ -712,7 +734,11 @@ const DeepTutorComposer = ({
 				</div>
 
 				<button
-					style={styles.sendButton}
+					style={{
+						...styles.sendButton,
+						opacity: (!selectedDocumentIds || selectedDocumentIds.length === 0) ? 0.5 : 1,
+						cursor: (!selectedDocumentIds || selectedDocumentIds.length === 0) ? 'not-allowed' : 'pointer'
+					}}
 					onClick={() => {
 						if (isBusy) {
 							onStop();
@@ -721,7 +747,8 @@ const DeepTutorComposer = ({
 							handleSendClick();
 						}
 					}}
-					title={isBusy ? 'Stop' : 'Send'}
+					title={isBusy ? 'Stop' : ((!selectedDocumentIds || selectedDocumentIds.length === 0) ? 'Select files to send a message' : 'Send')}
+					disabled={(!selectedDocumentIds || selectedDocumentIds.length === 0) && !isBusy}
 				>
 					<img
 						src={isBusy ? StopIconPath : (inputValue.trim() ? SendIconPath : GraySendIconPath)}
