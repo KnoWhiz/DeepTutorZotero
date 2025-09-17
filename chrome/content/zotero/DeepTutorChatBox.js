@@ -932,14 +932,6 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 		};
 	}, [messages, sessionId]); // Added sessionId dependency
 
-	// Deprecated: composer manages input height
-	// const adjustTextareaHeight = () => {};
-
-	// Deprecated: composer manages its own sizing
-	// useEffect(() => {
-	// 	adjustTextareaHeight();
-	// }, [inputValue]);
-
 	// Handle session changes
 	useEffect(() => {
 		const loadSessionData = async () => {
@@ -1124,8 +1116,9 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 			if (!userId) throw new Error("No active user ID");
 			let effectiveSessionId = sessionId;
 			// If no session exists yet, create one now using any selected context
-			if (!effectiveSessionId || (typeof effectiveSessionId === 'string' && effectiveSessionId.startsWith('__DRAFT__'))) {
-				Zotero.debug('DeepTutorChatBox: No real session yet (draft or null). Attempting to create session...');
+			const shouldCreateSession = !effectiveSessionId || (typeof effectiveSessionId === 'string' && effectiveSessionId.startsWith('__DRAFT__'));
+			
+			if (shouldCreateSession) {
 				// Usage pre-check similar to model selection
 				try {
 					const latest = typeof refreshUsageSummary === 'function' ? await refreshUsageSummary() : usageSummary;
@@ -1142,12 +1135,12 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 							if (typeof onShowSubscriptionPopup === 'function') {
 								onShowSubscriptionPopup();
 							}
-							Zotero.debug('DeepTutorChatBox: Usage limit reached; aborting session create');
 							return; // Do not create a new session
 						}
 					}
 				}
 				catch {}
+				
 				const sessionData = {
 					userId: userId,
 					sessionName: 'New Session',
@@ -1159,9 +1152,7 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 					statusTimeline: [],
 					generateHash: null
 				};
-				Zotero.debug(`DeepTutorChatBox: Creating session with ${documentIds?.length || 0} documents`);
 				const created = await createSession(sessionData).catch((err) => {
-					Zotero.debug(`DeepTutorChatBox: createSession failed: ${err?.message}`);
 					throw err;
 				});
 				if (!created || !created.id) throw new Error('Failed to create session');
@@ -1176,6 +1167,7 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 					catch {
 						draftMapping = {};
 					}
+					
 					if (draftMapping && typeof draftMapping === 'object') {
 						const filtered = {};
 						(documentIds || []).forEach((azureId) => {
@@ -1235,15 +1227,14 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 						if (newTitle) {
 							try {
 								await updateSessionName(created.id, newTitle);
-								Zotero.debug(`DeepTutorChatBox: Renamed session to: ${newTitle}`);
 							}
-							catch (renameError) {
-								Zotero.debug(`DeepTutorChatBox: Failed to rename session: ${renameError.message}`);
+							catch (_renameError) {
+								// Silent fail for session rename
 							}
 						}
 					}
-					catch (error) {
-						Zotero.debug(`DeepTutorChatBox: Error getting file title for session rename: ${error.message}`);
+					catch (_error) {
+						// Silent fail for session rename
 					}
 				}
 
@@ -1283,7 +1274,6 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 			setLatestMessageId(userMessage.id);
 
 			// Send to API and handle response
-			Zotero.debug(`DeepTutorChatBox: Sending message to API for session ${effectiveSessionId}`);
 			const _response = await sendToAPI(userMessage, { isFirstSend: hadNoMessagesBeforeSend }).catch((err) => {
 				Zotero.debug(`DeepTutorChatBox: createMessage/stream failed: ${err?.message}`);
 				throw err;
