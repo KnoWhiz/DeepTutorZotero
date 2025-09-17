@@ -1,13 +1,16 @@
 /* eslint-disable no-loop-func */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import {
 	createMessage,
 	getMessagesBySessionId,
 	getDocumentById,
-	subscribeToChat
+	subscribeToChat,
+	createSession,
+	updateSessionName
 } from './api/libs/api';
 import DeepTutorChatBoxMessage from './DeepTutorChatBoxMessage';
+import DeepTutorComposer from './DeepTutorComposer.js';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 
 const markdownit = require('markdown-it');
@@ -106,13 +109,23 @@ const MessageRole = {
 };
 
 
-const SendIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_SEND.svg';
-const StopIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_STOP.svg';
-const ArrowDownPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/CHAT_ARROWDOWN.svg';
-const RenameIconPath = 'chrome://zotero/content/DeepTutorMaterials/History/RENAME_SESSION.svg';
-const RenameIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/History/RENAME_SESSION_DARK.svg';
-const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSavePopup, onShowRenamePopup }) => {
+// const SendIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_SEND.svg';
+// const StopIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_STOP.svg';
+// const ArrowDownPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/CHAT_ARROWDOWN.svg';
+const HistoryIconPath = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_HISTORY_NEW.svg';
+const HistoryIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_HISTORY_DARK.svg';
+const SettingsIconPath = 'chrome://zotero/content/DeepTutorMaterials/Settings/SETTINGS_BUTTON.svg';
+const SettingsIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Settings/SETTINGS_BUTTON_DARK.svg';
+const PlusIconPath = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_NEW.svg';
+const PlusIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Top/TOP_NEW_DARK.svg';
+const CloseIconPath = 'chrome://zotero/content/DeepTutorMaterials/Main/MAIN_CLOSE.svg';
+const CloseIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Main/CLOSE_DARK.svg';
+
+const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onInitWaitChange, handleShowNoteSavePopup, _onShowRenamePopup, onOpenSessionHistory, onToggleSettingsPopup, onToggleModelSelectionPopup, onDeleteSession, userIdFromParent, onCreateSessionFromId, subscriptionType = 'BASIC', usageSummary = null, hasActiveSubscription = false, onShowFileSizeWarning, onShowPageLimitWarning, onShowSubscriptionPopup, refreshUsageSummary }) => {
 	const { colors, theme, isDark } = useDeepTutorTheme();
+	
+	// State for managing hover states
+	const [hoveredTabId, setHoveredTabId] = useState(null);
 	
 	// Theme-aware styles
 	const styles = {
@@ -136,11 +149,23 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		},
 		sessionNameDiv: {
 			width: '100%',
-			marginBottom: '1.25rem',
 			display: 'flex',
 			alignItems: 'center',
-			justifyContent: 'flex-start',
-			gap: '10px',
+			justifyContent: 'space-between',
+			gap: '0.75rem',
+			minHeight: '1.5rem',
+			marginBottom: '0.5rem',
+			padding: '0rem 0.5rem 0rem 0rem',
+		},
+		sessionNameDivNoSessions: {
+			width: '100%',
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'flex-end',
+			gap: '0.75rem',
+			minHeight: '1.5rem',
+			marginBottom: '0.5rem',
+			padding: '0rem 0.5rem 0rem 0rem',
 		},
 		sessionNameText: {
 			color: colors.text.allText,
@@ -168,6 +193,47 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			flexShrink: 0,
 			marginRight: '0.75rem',
 		},
+		topRight: {
+			display: 'flex',
+			flexDirection: 'row',
+			gap: '0.25rem',
+			alignItems: 'center',
+		},
+		iconButton: {
+			width: '24px',
+			height: '24px',
+			background: colors.background.tertiary,
+			border: 'none',
+			borderRadius: '0.375rem',
+			cursor: 'pointer',
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'center',
+			transition: 'background-color 0.2s ease',
+			padding: '1rem',
+		},
+		iconImage: {
+			width: '1.4rem',
+			height: '1.4rem',
+			objectFit: 'contain',
+		},
+		settingsButton: {
+			width: '2.5rem',
+			height: '2.5rem',
+			background: colors.background.tertiary,
+			border: 'none',
+			borderRadius: '0.375rem',
+			cursor: 'pointer',
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'center',
+			transition: 'background-color 0.2s ease',
+		},
+		settingsIconImage: {
+			width: '2rem',
+			height: '2rem',
+			objectFit: 'contain',
+		},
 		renameIcon: {
 			width: '1rem',
 			height: '1rem',
@@ -185,7 +251,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		},
 		chatLog: {
 			width: '100%',
-			borderRadius: '0.625rem',
 			overflowY: 'auto',
 			overflowX: 'hidden',
 			background: colors.background.tertiary,
@@ -448,25 +513,103 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			marginRight: '1rem',
 		},
 		// renamePopupOverlay is managed by parent in DeepTutorMain
+		
+		// Session tabs styles
+		sessionTabsContainer: {
+			display: 'flex',
+			flexDirection: 'row',
+			gap: '0.25rem',
+			overflow: 'hidden',
+			flex: 1,
+			minWidth: 0,
+			alignItems: 'center',
+		},
+		sessionTab: {
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'space-between',
+			background: isDark ? '#2a2a2a' : colors.background.tertiary,
+			border: `1px solid ${isDark ? '#404040' : '#d0d0d0'}`,
+			borderRadius: '0.375rem',
+			padding: '0.125rem 0.75rem',
+			cursor: 'pointer',
+			transition: 'all 0.2s ease',
+			minWidth: '0',
+			flex: '1',
+			maxWidth: '150px',
+			position: 'relative',
+			height: '20px',
+		},
+		sessionTabActive: {
+			background: isDark ? '#404040' : '#ffffff',
+			borderColor: isDark ? '#606060' : '#e0e0e0',
+		},
+		sessionTabHovered: {
+			background: colors.border.quaternary,
+		},
+		sessionTabTextHovered: {
+			// Keep fade effect on hover
+		},
+		sessionTabText: {
+			color: isDark ? '#808080' : '#6B7280',
+			fontWeight: 500,
+			fontSize: '12px',
+			lineHeight: '1.2',
+			overflow: 'hidden',
+			whiteSpace: 'nowrap',
+			flex: 1,
+			position: 'relative',
+			background: `linear-gradient(to right, currentColor 0%, currentColor 85%, transparent 100%)`,
+			WebkitBackgroundClip: 'text',
+			backgroundClip: 'text',
+			WebkitTextFillColor: 'transparent',
+		},
+		sessionTabActiveText: {
+			color: isDark ? '#d0d0d0' : colors.text.allText,
+		},
+		sessionTabCloseButton: {
+			width: '1.25rem',
+			height: '1.25rem',
+			border: 'none',
+			borderRadius: '0.25rem',
+			cursor: 'pointer',
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'center',
+			padding: '0.125rem',
+			flexShrink: 0,
+			opacity: 0,
+			transition: 'opacity 0.2s ease',
+			position: 'absolute',
+			right: '0.25rem',
+			top: '50%',
+			transform: 'translateY(-50%)',
+		},
+		sessionTabCloseButtonVisible: {
+			opacity: 1,
+		},
+		sessionTabCloseIcon: {
+			width: '0.625rem',
+			height: '0.625rem',
+			objectFit: 'contain',
+		},
 	};
 	const [messages, setMessages] = useState([]);
-	const [inputValue, setInputValue] = useState('');
 	const [sessionId, setSessionId] = useState(null);
-	const [userId, setUserId] = useState(null);
+	const [userId, setUserId] = useState(userIdFromParent || null);
 	const [documentIds, setDocumentIds] = useState([]);
 	const [latestMessageId, setLatestMessageId] = useState(null);
 	const [curSessionType, setcurSessionType] = useState(SessionType.BASIC);
 	const chatLogRef = useRef(null);
 	const contextPopupRef = useRef(null);
-	const textareaRef = useRef(null);
-	const [hoveredContextDoc, setHoveredContextDoc] = useState(null);
+	const [_hoveredContextDoc, _setHoveredContextDoc] = useState(null);
 	const [hoveredQuestion, setHoveredQuestion] = useState(null);
 	const [iniWait, setInitWait] = useState(false);
 	const [isStreaming, setIsStreaming] = useState(false);
 	const streamReaderRef = useRef(null);
 	const isAutoScrollingRef = useRef(true);
 	const [showContextPopup, setShowContextPopup] = useState(false);
-	const [contextDocuments, setContextDocuments] = useState([]);
+	const [_contextDocuments, _setContextDocuments] = useState([]);
 	const [currentSourceIndices, setCurrentSourceIndices] = useState([]);
 	const sessionIdRef = useRef(null);
 	const [isManuallyStopped, setIsManuallyStopped] = useState(false);
@@ -483,8 +626,19 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 	const [streamingComponentVisibility, setStreamingComponentVisibility] = useState({});
 	// const [showRenamePopup, setShowRenamePopup] = useState(false); // deprecated - managed by parent
 	
-	// Choose rename icon based on theme
-	const renameIconPath = isDark ? RenameIconDarkPath : RenameIconPath;
+	// Choose icons based on theme
+	const historyIconPath = isDark ? HistoryIconDarkPath : HistoryIconPath;
+	const settingsIconPath = isDark ? SettingsIconDarkPath : SettingsIconPath;
+	const plusIconPath = isDark ? PlusIconDarkPath : PlusIconPath;
+	const closeIconPath = isDark ? CloseIconDarkPath : CloseIconPath;
+	
+	// Get the most recent 3 sessions, sorted by lastUpdatedTime
+	const recentSessions = useMemo(() => {
+		return sessions
+			.filter(session => session && session.id)
+			.sort((a, b) => new Date(b.lastUpdatedTime || 0) - new Date(a.lastUpdatedTime || 0))
+			.slice(0, 3);
+	}, [sessions]);
 
 	// Add state to track waiting for AI response (backend processing)
 	const [waitingStreaming, setWaitingStreaming] = useState(false);
@@ -778,49 +932,13 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		};
 	}, [messages, sessionId]); // Added sessionId dependency
 
-	// Function to adjust textarea height based on content
-	const adjustTextareaHeight = () => {
-		const textarea = textareaRef.current;
-		if (textarea) {
-			// Reset height to get the correct scrollHeight
-			textarea.style.height = 'auto';
-			
-			// Calculate the new height
-			const scrollHeight = textarea.scrollHeight;
-			const maxHeight = 83; // 10rem converted to pixels (assuming 16px base)
-			
-			// For empty or single-line content, use a fixed minimum height
-			// We detect single-line by checking if textarea value has newlines or if it's empty
-			const isEmpty = !textarea.value.trim();
-			const hasMultipleLines = textarea.value.includes('\n');
-			
-			let newHeight;
-			
-			if (isEmpty || (!hasMultipleLines && scrollHeight <= 50)) {
-				// Use minimum height for empty or short single-line content
-				newHeight = 24; // 1.5rem in pixels
-			}
-			else {
-				// Use scrollHeight for multi-line content, but cap at maxHeight
-				newHeight = Math.min(scrollHeight, maxHeight);
-			}
-			
-			textarea.style.height = newHeight + 'px';
-			
-			// Show/hide scrollbar based on content
-			if (scrollHeight > maxHeight) {
-				textarea.style.overflowY = 'scroll';
-			}
-			else {
-				textarea.style.overflowY = 'hidden';
-			}
-		}
-	};
+	// Deprecated: composer manages input height
+	// const adjustTextareaHeight = () => {};
 
-	// Adjust textarea height on mount and when inputValue changes
-	useEffect(() => {
-		adjustTextareaHeight();
-	}, [inputValue]);
+	// Deprecated: composer manages its own sizing
+	// useEffect(() => {
+	// 	adjustTextareaHeight();
+	// }, [inputValue]);
 
 	// Handle session changes
 	useEffect(() => {
@@ -867,6 +985,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 	useEffect(() => {
 		const loadMessages = async () => {
 			if (!sessionId) return;
+			// Skip fetching for placeholder draft sessions
+			if (typeof sessionId === 'string' && sessionId.startsWith('__DRAFT__')) return;
 
 			try {
 				const sessionMessages = await getMessagesBySessionId(sessionId);
@@ -922,8 +1042,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			await new Promise(resolve => setTimeout(resolve, 8000));
 			setMessages([]);
 			
-			// Send initial message
-			await userSendMessage('Based on the context provided, make a summary for the document. Begin with "Summary"');
+			// Do not auto-send summary; wait for user's first question
 			setInitWait(false);
 		};
 
@@ -958,11 +1077,26 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		}
 	};
 
-	// Handle rename functionality
-	const handleRenameClick = () => {
-		if (onShowRenamePopup && currentSession?.id) {
-			onShowRenamePopup(currentSession.id, 'chat');
+	// Session tab handlers
+	const handleTabClick = (sessionId) => {
+		if (onSessionSelect && sessionId !== currentSession?.id) {
+			onSessionSelect(sessionId);
 		}
+	};
+	
+	const handleTabClose = (e, sessionId) => {
+		e.stopPropagation();
+		if (onDeleteSession) {
+			onDeleteSession(sessionId);
+		}
+	};
+	
+	const handleTabMouseEnter = (sessionId) => {
+		setHoveredTabId(sessionId);
+	};
+	
+	const handleTabMouseLeave = () => {
+		setHoveredTabId(null);
 	};
 
 	// Handle scroll to detect if user scrolled back to bottom
@@ -981,20 +1115,98 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		if (!messageString.trim()) {
 			return;
 		}
-        
+		// Capture whether this is the very first message in the session BEFORE we mutate state
+		const hadNoMessagesBeforeSend = messages.length === 0;
 		// Always enable auto-scrolling when user sends a message (which will trigger streaming)
 		isAutoScrollingRef.current = true;
 
 		try {
-			if (!sessionId) throw new Error("No active session ID");
 			if (!userId) throw new Error("No active user ID");
+			let effectiveSessionId = sessionId;
+			// If no session exists yet, create one now using any selected context
+			if (!effectiveSessionId || (typeof effectiveSessionId === 'string' && effectiveSessionId.startsWith('__DRAFT__'))) {
+				Zotero.debug('DeepTutorChatBox: No real session yet (draft or null). Attempting to create session...');
+				// Usage pre-check similar to model selection
+				try {
+					const latest = typeof refreshUsageSummary === 'function' ? await refreshUsageSummary() : usageSummary;
+					const summary = latest || usageSummary || null;
+					const subType = (subscriptionType || '').toUpperCase();
+					const isPro = Boolean(hasActiveSubscription) && ["BASIC", "PLUS"].includes(subType);
+					const isPremium = Boolean(hasActiveSubscription) && subType === "PREMIUM";
+					if (!isPremium && summary) {
+						const weeklyTotalUsed = Number(summary.weeklyLiteCount || 0) + Number(summary.weeklyBasicCount || 0);
+						const cycleTotalUsed = Number(summary.liteCount || 0) + Number(summary.basicCount || 0);
+						const wouldHitWeeklyLimit = !hasActiveSubscription && weeklyTotalUsed >= 5; // Free: 5/week
+						const wouldHitCycleLimit = isPro && cycleTotalUsed >= 200; // Pro: 200/cycle
+						if (wouldHitWeeklyLimit || wouldHitCycleLimit) {
+							if (typeof onShowSubscriptionPopup === 'function') {
+								onShowSubscriptionPopup();
+							}
+							Zotero.debug('DeepTutorChatBox: Usage limit reached; aborting session create');
+							return; // Do not create a new session
+						}
+					}
+				}
+				catch {}
+				const sessionData = {
+					userId: userId,
+					sessionName: 'New Session',
+					type: curSessionType || SessionType.BASIC,
+					status: 'CREATED',
+					documentIds: documentIds || [],
+					creationTime: new Date().toISOString(),
+					lastUpdatedTime: new Date().toISOString(),
+					statusTimeline: [],
+					generateHash: null
+				};
+				Zotero.debug(`DeepTutorChatBox: Creating session with ${documentIds?.length || 0} documents`);
+				const created = await createSession(sessionData).catch((err) => {
+					Zotero.debug(`DeepTutorChatBox: createSession failed: ${err?.message}`);
+					throw err;
+				});
+				if (!created || !created.id) throw new Error('Failed to create session');
+				setSessionId(created.id);
+				effectiveSessionId = created.id;
+				// Migrate draft mapping to this session's mapping key
+				try {
+					let draftMapping = {};
+					try {
+						draftMapping = JSON.parse(Zotero.Prefs.get('deeptutor_mapping_draft') || '{}');
+					}
+					catch {
+						draftMapping = {};
+					}
+					if (draftMapping && typeof draftMapping === 'object') {
+						const filtered = {};
+						(documentIds || []).forEach((azureId) => {
+							if (draftMapping[azureId]) {
+								filtered[azureId] = draftMapping[azureId];
+							}
+						});
+						try {
+							Zotero.Prefs.set(`deeptutor_mapping_${created.id}`, JSON.stringify(filtered));
+						}
+						catch {}
+					}
+				}
+				catch {}
+				// Inform parent so it registers the new session and loads messages thereafter
+				if (onCreateSessionFromId) {
+					try {
+						await onCreateSessionFromId(created.id);
+					}
+					catch {
+						// ignore
+					}
+				}
+			}
 
 			// Create user message with proper structure
 			const userMessage = {
 				id: null,
 				parentMessageId: latestMessageId,
 				userId: userId,
-				sessionId: sessionId,
+				sessionId: effectiveSessionId,
 				subMessages: [{
 					text: messageString,
 					image: null,
@@ -1010,57 +1222,97 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 				role: MessageRole.USER
 			};
 
-			// Add user message to state and append to chatbox
-			// if it is the first message, don't append it to the chatbox
 			await _appendMessage("You", userMessage);
 			setLatestMessageId(userMessage.id);
 
 			// Send to API and handle response
-			const _response = await sendToAPI(userMessage);
+			Zotero.debug(`DeepTutorChatBox: Sending message to API for session ${effectiveSessionId}`);
+			const _response = await sendToAPI(userMessage, { isFirstSend: hadNoMessagesBeforeSend }).catch((err) => {
+				Zotero.debug(`DeepTutorChatBox: createMessage/stream failed: ${err?.message}`);
+				throw err;
+			});
 
+			// After first send, try renaming session (best effort)
+			if (hadNoMessagesBeforeSend) {
+				try {
+					let newTitle = '';
+					// Prefer first attached document title if available
+					if (documentIds && documentIds.length > 0) {
+						let fileTitle = '';
+						const firstAzureId = documentIds[0];
+						// Try Zotero mapping first
+						let mapping = {};
+						try {
+							mapping = JSON.parse(Zotero.Prefs.get(`deeptutor_mapping_${effectiveSessionId}`) || '{}');
+						}
+						catch {
+							mapping = {};
+						}
+						if (!mapping[firstAzureId]) {
+							try {
+								mapping = JSON.parse(Zotero.Prefs.get('deeptutor_mapping_draft') || '{}');
+							}
+							catch {
+								mapping = {};
+							}
+						}
+						const zoteroPdfId = mapping[firstAzureId];
+						if (zoteroPdfId) {
+							const item = Zotero.Items.get(zoteroPdfId);
+							if (item) {
+								try {
+									fileTitle = item.attachmentFilename || item.getField('title') || '';
+								}
+								catch {
+									fileTitle = '';
+								}
+							}
+						}
+						if (!fileTitle) {
+							try {
+								const docData = await getDocumentById(firstAzureId);
+								fileTitle = (docData && (docData.name || docData.fileName || docData.title)) || '';
+							}
+							catch {}
+						}
+						newTitle = (fileTitle || '').trim();
+					}
 
-			// Auto-scrolling is handled by useEffect hooks
+					// Fallback to a snippet of the user's first message
+					if (!newTitle) {
+						const trimmed = (messageString || '').trim().replace(/\s+/g, ' ');
+						newTitle = trimmed.slice(0, 60) + (trimmed.length > 60 ? '…' : '');
+					}
+
+					newTitle = (newTitle || '').trim();
+					if (newTitle) {
+						try {
+							await updateSessionName(effectiveSessionId, newTitle);
+							// Ask parent to refresh sessions so the updated title is reflected in UI immediately
+							if (onCreateSessionFromId) {
+								try {
+									await onCreateSessionFromId(effectiveSessionId);
+								}
+								catch {}
+							}
+						}
+						catch {}
+					}
+				}
+				catch {}
+			}
 		}
 		catch (error) {
 			Zotero.debug(error);
 			// Create error message
 			const errorMessage = {
 				subMessages: [{
-					text: "I apologize, but I encountered an error processing your request. Please try again.",
-					image: null,
-					audio: null,
-					contentType: ContentType.TEXT,
-					creationTime: new Date().toISOString(),
-					sources: []
+					text: error.message || 'Error sending message',
+					contentType: ContentType.TEXT
 				}],
-				role: MessageRole.TUTOR,
-				creationTime: new Date().toISOString(),
-				lastUpdatedTime: new Date().toISOString(),
-				status: MessageStatus.PROCESSING_ERROR
+				role: MessageRole.TUTOR
 			};
-			await _appendMessage("DeepTutor", errorMessage);
-		}
-	};
-
-	const handleInputChange = (e) => {
-		setInputValue(e.target.value);
-		// Adjust height after the value is set
-		setTimeout(adjustTextareaHeight, 0);
-	};
-
-	const handleSend = async () => {
-		setIsManuallyStopped(false);
-		const trimmedValue = inputValue.trim(); // Remove both leading and trailing spaces
-		if (trimmedValue) { // Only send if there's actual content after trimming
-			setInputValue('');
-			// Reset textarea height after clearing
-			setTimeout(adjustTextareaHeight, 0);
-			await userSendMessage(trimmedValue);
-		}
-		else {
-			setInputValue(''); // Clear input even if empty
-			// Reset textarea height after clearing
-			setTimeout(adjustTextareaHeight, 0);
+			setMessages(prev => [...prev, errorMessage]);
 		}
 	};
 
@@ -1117,7 +1369,11 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		setHasActiveStream(false);
 	};
 
-	const sendToAPI = async (message) => {
+	const sendToAPI = async (message, options = {}) => {
+		const isFirstSend = Boolean(options.isFirstSend);
+		const hasContextDocs = Array.isArray(documentIds) && documentIds.length > 0;
+		// Determine target session for streaming early so it is available in error paths
+		const sessionForStream = (message && message.sessionId) ? message.sessionId : sessionId;
 		try {
 			setIsStreaming(true); // Set streaming to true at start
 			setHasActiveStream(true); // Set active stream flag
@@ -1126,7 +1382,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			// Send message to API
 			const responseData = await createMessage(message);
 			const newDocumentFiles2 = [];
-			for (const documentId of currentSession.documentIds || []) {
+			for (const documentId of documentIds || []) {
 				try {
 					const docData = await getDocumentById(documentId);
 					newDocumentFiles2.push(docData);
@@ -1135,11 +1391,13 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 					Zotero.debug(error);
 				}
 			}
-            
+			
+			// sessionForStream already computed above
+			
 			// Update conversation state
 			const newState = new Conversation({
 				userId: userId,
-				sessionId: sessionId,
+				sessionId: sessionForStream,
 				ragSessionId: null,
 				storagePaths: newDocumentFiles2.map(doc => doc.storagePath),
 				history: messages,
@@ -1147,7 +1405,15 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 				streaming: true,
 				type: curSessionType || SessionType.BASIC
 			});
-            
+
+			// Optional pre-stream delay for the first response when context docs are present
+			if (isFirstSend && hasContextDocs) {
+				try {
+					await new Promise(resolve => setTimeout(resolve, 3000));
+				}
+				catch {}
+			}
+				
 			// Subscribe to chat stream with timeout
 			const streamResponse = await subscribeToChat(newState);
 
@@ -1270,7 +1536,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			// Fetch message history for the session
 			await new Promise(resolve => setTimeout(resolve, 3000));
             
-			const historyData = await getMessagesBySessionId(sessionId);
+			const historyData = await getMessagesBySessionId(sessionForStream);
 			
 			// Preserve streaming message data when updating from server
 			setMessages((prevMessages) => {
@@ -1337,7 +1603,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			try {
 				await new Promise(resolve => setTimeout(resolve, 1000)); // Shorter wait for error case
 				
-				const historyData = await getMessagesBySessionId(sessionId);
+				const historyData = await getMessagesBySessionId(sessionForStream);
 				if (historyData && historyData.length > 0) {
 					setMessages(historyData);
 					setLatestMessageId(historyData[historyData.length - 1].id);
@@ -1410,32 +1676,9 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		await userSendMessage(question);
 	};
 
-	const handleContextButtonClick = () => {
-		setShowContextPopup(!showContextPopup);
-	};
+	const _handleContextButtonClick = () => {};
 
-	const handleContextDocumentClick = async (contextDoc) => {
-		try {
-			// Get the item and open it
-			const item = Zotero.Items.get(contextDoc.zoteroAttachmentId);
-			if (!item) {
-				return;
-			}
-
-			// Open the document in the reader at first page
-			await Zotero.FileHandlers.open(item, {
-				location: {
-					pageIndex: 0 // Start at first page
-				}
-			});
-            
-			// Close the popup after opening document
-			setShowContextPopup(false);
-		}
-		catch (error) {
-			Zotero.debug(error);
-		}
-	};
+	const _handleContextDocumentClick = async (_contextDoc) => {};
 
 	const renderMessage = (message, index) => {
 		return (
@@ -1517,10 +1760,10 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 	useEffect(() => {
 		const loadContextDocuments = async () => {
 			if (!documentIds?.length || !sessionId) {
-				setContextDocuments([]);
+				_setContextDocuments([]);
 				return;
 			}
-            
+			
 			try {
 				const mapping = getDocumentMapping();
 				const contextDocs = await Promise.allSettled(
@@ -1536,12 +1779,12 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 					.filter(result => result.status === "rejected")
 					.forEach(result => Zotero.debug(result.reason));
 
-				setContextDocuments(successfulDocs);
+				_setContextDocuments(successfulDocs);
 				setNoteContainerFromDocuments(successfulDocs);
 			}
 			catch (error) {
 				Zotero.debug(`DeepTutorChatBox: Error loading context documents: ${error.message}`);
-				setContextDocuments([]);
+				_setContextDocuments([]);
 				setNoteContainer(null);
 			}
 		};
@@ -1733,7 +1976,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		const loadContextDocuments = async () => {
 			if (!documentIds || documentIds.length === 0 || !sessionId) {
 				// Zotero.debug(`DeepTutorChatBox: No documentIds or sessionId available for context loading`);
-				setContextDocuments([]);
+				_setContextDocuments([]);
 				return;
 			}
 
@@ -1826,7 +2069,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 				}
 
 				// Zotero.debug(`DeepTutorChatBox: Loaded ${contextDocs.length} context documents`);
-				setContextDocuments(contextDocs);
+				_setContextDocuments(contextDocs);
 				
 				// Set noteContainer to the parent of the first document (or the first document itself if it's a regular item)
 				if (contextDocs.length > 0) {
@@ -1870,7 +2113,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			}
 			catch {
 				// Zotero.debug(`DeepTutorChatBox: Error loading context documents: ${error.message}`);
-				setContextDocuments([]);
+				_setContextDocuments([]);
 				setNoteContainer(null);
 			}
 		};
@@ -2366,110 +2609,104 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 				`
 			}} />
             
-			<div style={styles.sessionNameDiv}>
-				<div style={styles.sessionNameText}>
-					{currentSession?.sessionName || "New Session"}
-				</div>
-				<button
-					style={styles.renameIconButton}
-					onClick={handleRenameClick}
-					title="Rename Session"
-				>
-					<img
-						src={renameIconPath}
-						alt="Rename"
-						style={styles.renameIcon}
-					/>
-				</button>
-			</div>
-
-			<div style={styles.viewContextContainer} ref={contextPopupRef}>
-				<button
-					style={styles.viewContextButton}
-					onClick={handleContextButtonClick}
-				>
-					<span style={styles.viewContextText}>View Context</span>
-					<img src={ArrowDownPath} alt="Arrow Down" />
-				</button>
-            
-				{showContextPopup && (
-					<div style={styles.contextPopup}>
-						{contextDocuments.length > 0
-							? contextDocuments.map((contextDoc, index) => (
-								<button
-									key={contextDoc.documentId}
+			{/* Session Tabs and Functional Buttons Row */}
+			<div style={recentSessions.length > 0 ? styles.sessionNameDiv : styles.sessionNameDivNoSessions}>
+				{/* Session Tabs */}
+				{recentSessions.length > 0 && (
+					<div style={styles.sessionTabsContainer}>
+						{recentSessions.map((session) => {
+							const isActive = currentSession?.id === session.id;
+							const isHovered = hoveredTabId === session.id;
+							const displayName = (isActive && messages.length === 0) ? 'New Session' : (session.sessionName || 'Unnamed Session');
+							return (
+								<div
+									key={session.id}
 									style={{
-										...styles.contextDocumentButton,
-										...(hoveredContextDoc === index
-											? {
-												...styles.contextDocumentButtonHover,
-												background: contextDoc.filePath
-													? (theme === 'light' ? '#F8F6F7' : colors.background.primary)
-													: colors.background.secondary, // Light mode pearl hover, dark mode theme-aware
-											}
-											: {
-												background: contextDoc.filePath
-													? (theme === 'light' ? '#FFFFFF' : colors.background.quaternary)
-													: colors.background.secondary // Light mode white, dark mode theme-aware
-											}),
-										borderBottom: index === contextDocuments.length - 1 ? "none" : `0.0625rem solid ${colors.border.primary}`,
-										flexDirection: "column",
-										alignItems: "flex-start",
-										padding: "0.75rem 0.9375rem",
-										minHeight: contextDoc.filePath ? "3rem" : "auto",
-										gap: "0.3125rem",
-										cursor: contextDoc.filePath ? 'pointer' : 'not-allowed', // Change cursor for null filePath
-										opacity: contextDoc.filePath ? 1 : 0.7, // Reduce opacity for null filePath
-										filter: contextDoc.filePath ? 'none' : 'grayscale(20%)' // Add grayscale effect for null filePath
+										...styles.sessionTab,
+										...(isActive ? styles.sessionTabActive : {}),
+										...(isHovered && !isActive ? styles.sessionTabHovered : {}),
 									}}
-									onClick={() => contextDoc.filePath && handleContextDocumentClick(contextDoc)} // Only allow click if filePath exists
-									onMouseEnter={() => setHoveredContextDoc(index)}
-									onMouseLeave={() => setHoveredContextDoc(null)}
-									title={contextDoc.filePath ? `${contextDoc.name}\n${contextDoc.filePath}` : `${contextDoc.name} (Not available)`} // Updated tooltip
+									onClick={() => handleTabClick(session.id)}
+									onMouseEnter={() => handleTabMouseEnter(session.id)}
+									onMouseLeave={handleTabMouseLeave}
 								>
 									<div style={{
-										fontSize: "1rem",
-										fontWeight: 400,
-										color: colors.text.primary,
-										lineHeight: "180%",
-										overflow: "hidden",
-										textOverflow: "ellipsis",
-										whiteSpace: "nowrap",
-										width: "100%"
+										...styles.sessionTabText,
+										...(isActive ? styles.sessionTabActiveText : {}),
+										...(isHovered ? styles.sessionTabTextHovered : {}),
 									}}>
-										{contextDoc.name}
+										{displayName}
 									</div>
-									{contextDoc.filePath && (
-										<div style={{
-											fontSize: "0.875rem",
-											fontWeight: 400,
-											color: colors.text.tertiary,
-											lineHeight: "135%",
-											overflow: "hidden",
-											textOverflow: "ellipsis",
-											whiteSpace: "nowrap",
-											width: "100%",
-											fontStyle: "italic"
-										}}>
-											{contextDoc.filePath}
-										</div>
-									)}
-								</button>
-							))
-							: (
-								<div style={{
-									padding: "0.75rem",
-									color: colors.text.tertiary,
-									fontSize: "0.875rem",
-									textAlign: "center",
-									fontStyle: "italic"
-								}}>
-                                    No documents available
+									<button
+										style={{
+											...styles.sessionTabCloseButton,
+											...(isHovered ? styles.sessionTabCloseButtonVisible : {}),
+											background: isActive
+												? (isDark ? '#404040' : '#ffffff')
+												: colors.border.quaternary,
+										}}
+										onClick={e => handleTabClose(e, session.id)}
+										title="Delete Session"
+									>
+										<img
+											src={closeIconPath}
+											alt="Close"
+											style={styles.sessionTabCloseIcon}
+										/>
+									</button>
 								</div>
-							)}
+							);
+						})}
 					</div>
 				)}
+				
+				{/* Top Right Buttons */}
+				<div style={styles.topRight}>
+					<button
+						style={styles.iconButton}
+						onClick={() => onOpenSessionHistory && onOpenSessionHistory()}
+						title="Session History"
+					>
+						<img src={historyIconPath} alt="History" style={styles.iconImage} />
+					</button>
+					<button
+						style={styles.settingsButton}
+						onClick={() => onToggleSettingsPopup && onToggleSettingsPopup()}
+						title="Settings"
+					>
+						<img src={settingsIconPath} alt="Settings" style={styles.settingsIconImage} />
+					</button>
+					<button
+						style={styles.iconButton}
+						onClick={() => onToggleModelSelectionPopup && onToggleModelSelectionPopup()}
+						title="Create New Session"
+					>
+						<img src={plusIconPath} alt="New Session" style={styles.iconImage} />
+					</button>
+				</div>
 			</div>
+
+			{/* Composer below session tabs when new session (no messages) */}
+			{messages.length === 0 && (
+				<DeepTutorComposer
+					sessionId={(sessionId && !(String(sessionId).startsWith('__DRAFT__'))) ? sessionId : null}
+					userId={userId}
+					selectedDocumentIds={documentIds}
+					onDocumentsChange={nextIds => setDocumentIds(nextIds)}
+					subscriptionType={subscriptionType}
+					usageSummary={usageSummary}
+					hasActiveSubscription={hasActiveSubscription}
+					onShowFileSizeWarning={onShowFileSizeWarning}
+					onShowPageLimitWarning={onShowPageLimitWarning}
+					onShowSubscriptionPopup={onShowSubscriptionPopup}
+					onSend={async (text) => {
+						setIsManuallyStopped(false);
+						await userSendMessage(text);
+					}}
+					onStop={handleStopStreaming}
+					isBusy={iniWait || hasActiveStream || waitingStreaming}
+				/>
+			)}
 
 			<div
 				ref={chatLogRef}
@@ -2478,7 +2715,6 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 				onScroll={handleScroll}
 			>
 				{messages.map((message, index) => renderMessage(message, index))}
-				{/* Show waiting message with thinking animation when backend is processing (but NOT during active streaming) */}
 				{waitingStreaming && !hasActiveStream && (() => {
 					Zotero.debug(`DeepTutorChatBox: Rendering waiting message with thinking animation`);
 					return renderMessage({
@@ -2492,53 +2728,26 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 				})()}
 			</div>
 
-			<div style={styles.bottomBar}>
-				<textarea
-					ref={textareaRef}
-					style={{
-						...styles.textInput,
-						opacity: iniWait ? 0.5 : 1,
-						cursor: iniWait ? "not-allowed" : "text",
-						color: colors.text.primary
+			{messages.length > 0 && (
+				<DeepTutorComposer
+					sessionId={(sessionId && !(String(sessionId).startsWith('__DRAFT__'))) ? sessionId : null}
+					userId={userId}
+					selectedDocumentIds={documentIds}
+					onDocumentsChange={nextIds => setDocumentIds(nextIds)}
+					subscriptionType={subscriptionType}
+					usageSummary={usageSummary}
+					hasActiveSubscription={hasActiveSubscription}
+					onShowFileSizeWarning={onShowFileSizeWarning}
+					onShowPageLimitWarning={onShowPageLimitWarning}
+					onShowSubscriptionPopup={onShowSubscriptionPopup}
+					onSend={async (text) => {
+						setIsManuallyStopped(false);
+						await userSendMessage(text);
 					}}
-					value={inputValue}
-					onChange={handleInputChange}
-					onKeyDown={(e) => {
-						if (e.key === "Enter" && !e.shiftKey && !iniWait && !isStreaming) {
-							e.preventDefault(); // Prevent adding a new line
-							handleSend();
-						}
-						// Shift+Enter allows new line (default behavior)
-					}}
-					placeholder={`Ask DeepTutor ${curSessionType === SessionType.LITE ? "Standard" : curSessionType === SessionType.BASIC ? "Advanced" : curSessionType.toLowerCase()}`}
-					rows={1}
-					disabled={iniWait}
+					onStop={handleStopStreaming}
+					isBusy={iniWait || hasActiveStream || waitingStreaming}
 				/>
-				<style>
-					{`
-					textarea::placeholder {
-						color: ${colors.text.tertiary} !important;
-						opacity: 1;
-					}
-					`}
-				</style>
-				<button
-					style={{
-						...styles.sendButton,
-						opacity: iniWait ? 0.5 : 1,
-						cursor: iniWait ? "not-allowed" : "pointer"
-					}}
-					onClick={(hasActiveStream || waitingStreaming) ? handleStopStreaming : handleSend}
-					disabled={iniWait}
-					title={(hasActiveStream || waitingStreaming) ? "Stop Thinking" : "Send"}
-				>
-					<img
-						src={(hasActiveStream || waitingStreaming) ? StopIconPath : SendIconPath}
-						alt={(hasActiveStream || waitingStreaming) ? "Stop" : "Send"}
-						style={styles.sendIcon}
-					/>
-				</button>
-			</div>
+			)}
 			
 			{/* Rename popup overlay is rendered by parent (DeepTutorMain) */}
 		</div>
@@ -2547,10 +2756,24 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 
 DeepTutorChatBox.propTypes = {
 	currentSession: PropTypes.object,
+	sessions: PropTypes.array,
 	onSessionSelect: PropTypes.func,
 	onInitWaitChange: PropTypes.func,
 	handleShowNoteSavePopup: PropTypes.func,
-	onShowRenamePopup: PropTypes.func
+	_onShowRenamePopup: PropTypes.func,
+	onOpenSessionHistory: PropTypes.func,
+	onToggleSettingsPopup: PropTypes.func,
+	onToggleModelSelectionPopup: PropTypes.func,
+	onDeleteSession: PropTypes.func,
+	userIdFromParent: PropTypes.string,
+	onCreateSessionFromId: PropTypes.func,
+	subscriptionType: PropTypes.string,
+	usageSummary: PropTypes.object,
+	hasActiveSubscription: PropTypes.bool,
+	onShowFileSizeWarning: PropTypes.func,
+	onShowPageLimitWarning: PropTypes.func,
+	onShowSubscriptionPopup: PropTypes.func,
+	refreshUsageSummary: PropTypes.func
 };
 
 export default DeepTutorChatBox;

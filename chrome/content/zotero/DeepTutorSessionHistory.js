@@ -12,7 +12,7 @@ function SessionHistory({ sessions = [], onSessionSelect, isLoading = false, err
 	const containerStyle = {
 		width: '100%',
 		minHeight: '100%',
-		padding: '0 1.25rem 0 1.25rem',
+		padding: '1.25rem 1.25rem 0 1.25rem',
 		borderWidth: '1px',
 		background: colors.background.tertiary,
 		borderRadius: '0.5rem',
