@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react"; // eslint-disable-line no-unused-vars
+import React, { useEffect, useMemo, useState, useRef } from "react"; // eslint-disable-line no-unused-vars
 import PropTypes from "prop-types";
 import { useDeepTutorTheme } from "./theme/useDeepTutorTheme.js";
 import { DT_BASE_URL } from "./api/libs/api.js";
@@ -28,10 +28,11 @@ export default function DeepTutorUsagePopup({ onClose, onUpgrade, userId: _userI
 
 	// Refresh usage data when popup opens
 	useEffect(() => {
+		// Call refresh when component mounts - parent component will handle preventing duplicates
 		if (onRefreshUsageSummary && typeof onRefreshUsageSummary === "function") {
 			onRefreshUsageSummary();
 		}
-	}, []); // Empty dependency array means this runs once when component mounts
+	}, [onRefreshUsageSummary]);
 
 	const styles = {
 		overlay: {

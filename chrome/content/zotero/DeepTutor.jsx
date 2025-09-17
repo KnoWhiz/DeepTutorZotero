@@ -234,6 +234,9 @@ var DeepTutor = class DeepTutor extends React.Component {
 		this._resizeDebounceTimer = null;
 		this.handleWindowResize = this.handleWindowResize.bind(this);
 
+		// Guard to prevent multiple usage summary refreshes
+		this._hasRefreshedUsageSummary = false;
+
 		// Initialize localhost server
 		console.log("🔧 DeepTutor: Initializing localhost server...");
 		this.localhostServer = new DeepTutorLocalhostServer();
@@ -768,9 +771,18 @@ var DeepTutor = class DeepTutor extends React.Component {
 	};
 
 	toggleSettingsPopup = () => {
-		this.setState(prevState => ({
-			showSettingsPopup: !prevState.showSettingsPopup
-		}));
+		this.setState((prevState) => {
+			const newShowSettingsPopup = !prevState.showSettingsPopup;
+			
+			// Reset refresh guard when closing settings popup
+			if (!newShowSettingsPopup) {
+				this._hasRefreshedUsageSummary = false;
+			}
+			
+			return {
+				showSettingsPopup: newShowSettingsPopup
+			};
+		});
 	};
 
 	toggleDeletePopup = () => {
@@ -1028,8 +1040,22 @@ var DeepTutor = class DeepTutor extends React.Component {
 				Zotero.debug("DeepTutor: Cannot refresh usage summary - no user ID");
 				return null;
 			}
+
+			// Prevent multiple refreshes when settings popup is open
+			if (this._hasRefreshedUsageSummary && this.state.showSettingsPopup) {
+				Zotero.debug("DeepTutor: Skipping usage summary refresh - already refreshed for settings popup");
+				return this.state.usageSummary;
+			}
+
+			Zotero.debug("DeepTutor: Refreshing usage summary - this will cause a re-render");
 			const summary = await getSessionUsageForUser(userId);
 			this.setState({ usageSummary: summary });
+			
+			// Mark as refreshed when settings popup is open
+			if (this.state.showSettingsPopup) {
+				this._hasRefreshedUsageSummary = true;
+			}
+			
 			return summary;
 		}
 		catch (error) {
@@ -1734,6 +1760,11 @@ var DeepTutor = class DeepTutor extends React.Component {
 	 * This ensures the DeepTutor pane adjusts properly when the window size changes
 	 */
 	handleWindowResize = () => {
+		// Don't update dimensions if settings popup is open to prevent re-renders
+		if (this.state.showSettingsPopup) {
+			return;
+		}
+
 		// Clear any existing timer
 		if (this._resizeDebounceTimer) {
 			clearTimeout(this._resizeDebounceTimer);
@@ -1781,6 +1812,11 @@ var DeepTutor = class DeepTutor extends React.Component {
 
 	render() {
 		Zotero.debug("DeepTutor: Render called");
+		
+		// Debug: Log state changes that might cause re-renders
+		if (this.state.showSettingsPopup) {
+			Zotero.debug("DeepTutor: Settings popup is open, checking for frequent state changes");
+		}
 
 		return (
 			<DeepTutorMain

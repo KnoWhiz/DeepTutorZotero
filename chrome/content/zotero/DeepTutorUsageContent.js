@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react"; // eslint-disable-line no-unused-vars
+import React, { useEffect, useMemo, useState, useRef, memo, useCallback } from "react"; // eslint-disable-line no-unused-vars
 import PropTypes from "prop-types";
 import { useDeepTutorTheme } from "./theme/useDeepTutorTheme.js";
 import { DT_BASE_URL } from "./api/libs/api.js";
@@ -8,22 +8,34 @@ import { DT_BASE_URL } from "./api/libs/api.js";
  * Inline, non-modal version of the usage UI for embedding in Settings.
  * Redesigned with 4 sections: Current Plan, Usage, Manage Subscription, and Promotion Code.
  */
-export default function DeepTutorUsageContent({ onUpgrade, activeSubscription, usageSummary, onRefreshUsageSummary, onClose }) {
+function DeepTutorUsageContent({ onUpgrade, activeSubscription, usageSummary, onRefreshUsageSummary, onClose }) {
 	const { colors, isDark } = useDeepTutorTheme();
 
 	const [isLoading] = useState(false);
 	const [error] = useState(null);
 	const [usageData, setUsageData] = useState(usageSummary || null);
 	const [copiedCode, setCopiedCode] = useState(false);
+	const copiedTimeoutRef = useRef(null);
+	const copiedStateRef = useRef(false);
 
 	useEffect(() => {
 		setUsageData(usageSummary || null);
 	}, [usageSummary]);
 
 	useEffect(() => {
+		// Call refresh when component mounts - parent component will handle preventing duplicates
 		if (onRefreshUsageSummary && typeof onRefreshUsageSummary === "function") {
 			onRefreshUsageSummary();
 		}
+	}, [onRefreshUsageSummary]);
+
+	// Cleanup timeout on unmount
+	useEffect(() => {
+		return () => {
+			if (copiedTimeoutRef.current) {
+				clearTimeout(copiedTimeoutRef.current);
+			}
+		};
 	}, []);
 
 	const styles = {
@@ -269,29 +281,61 @@ export default function DeepTutorUsageContent({ onUpgrade, activeSubscription, u
 		}
 	};
 
-	const handleCopyPromotionCode = () => {
+	const handleCopyPromotionCode = useCallback(() => {
 		const promotionCode = "DEEPTUTOR50"; // Placeholder code
+		
+		// Clear any existing timeout
+		if (copiedTimeoutRef.current) {
+			clearTimeout(copiedTimeoutRef.current);
+		}
+		
 		try {
 			if (navigator.clipboard) {
 				navigator.clipboard.writeText(promotionCode).then(() => {
+					copiedStateRef.current = true;
 					setCopiedCode(true);
-					setTimeout(() => setCopiedCode(false), 2000);
+					copiedTimeoutRef.current = setTimeout(() => {
+						copiedStateRef.current = false;
+						setCopiedCode(false);
+					}, 2000);
+				}).catch((error) => {
+					Zotero.debug("DeepTutor: Clipboard API failed: " + error.message);
+					// Fallback to legacy method
+					fallbackCopyToClipboard(promotionCode);
 				});
 			}
 			else {
 				// Fallback for older browsers
-				const textArea = document.createElement("textarea");
-				textArea.value = promotionCode;
-				document.body.appendChild(textArea);
-				textArea.select();
-				document.execCommand("copy");
-				document.body.removeChild(textArea);
-				setCopiedCode(true);
-				setTimeout(() => setCopiedCode(false), 2000);
+				fallbackCopyToClipboard(promotionCode);
 			}
 		}
 		catch (error) {
 			Zotero.debug("DeepTutor: Error copying promotion code: " + error.message);
+			fallbackCopyToClipboard(promotionCode);
+		}
+	}, []);
+
+	const fallbackCopyToClipboard = (text) => {
+		try {
+			const textArea = document.createElement("textarea");
+			textArea.value = text;
+			textArea.style.position = "fixed";
+			textArea.style.left = "-999999px";
+			textArea.style.top = "-999999px";
+			document.body.appendChild(textArea);
+			textArea.focus();
+			textArea.select();
+			document.execCommand("copy");
+			document.body.removeChild(textArea);
+			copiedStateRef.current = true;
+			setCopiedCode(true);
+			copiedTimeoutRef.current = setTimeout(() => {
+				copiedStateRef.current = false;
+				setCopiedCode(false);
+			}, 2000);
+		}
+		catch (error) {
+			Zotero.debug("DeepTutor: Fallback copy failed: " + error.message);
 		}
 	};
 
@@ -435,7 +479,7 @@ export default function DeepTutorUsageContent({ onUpgrade, activeSubscription, u
 							<div style={styles.codeDisplay}>
 								<div style={styles.codeText}>DEEPTUTOR50</div>
 								<button type="button" onClick={handleCopyPromotionCode} style={styles.copyButton}>
-									{copiedCode ? "Copied!" : "Copy"}
+									{(copiedCode || copiedStateRef.current) ? "Copied!" : "Copy"}
 								</button>
 							</div>
 							<div style={styles.promotionDescription}>
@@ -456,3 +500,6 @@ DeepTutorUsageContent.propTypes = {
 	onRefreshUsageSummary: PropTypes.func,
 	onClose: PropTypes.func,
 };
+
+// Memoize the component to prevent unnecessary re-renders
+export default memo(DeepTutorUsageContent);
