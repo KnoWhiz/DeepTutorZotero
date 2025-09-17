@@ -724,6 +724,21 @@ var DeepTutor = class DeepTutor extends React.Component {
 			// Continue with session creation if limit check fails
 		}
 
+		// Check if there's already a placeholder draft session
+		const existingDraftSession = this.state.sessions.find(session => typeof session.id === 'string' && session.id.startsWith('__DRAFT__'));
+
+		if (existingDraftSession) {
+			// Jump to existing draft session instead of creating a new one
+			Zotero.debug('DeepTutor: Found existing draft session, jumping to it instead of creating new one');
+			this.setState({
+				currentSession: existingDraftSession,
+				messages: [],
+				documentIds: existingDraftSession.documentIds || [],
+				currentPane: 'main'
+			});
+			return;
+		}
+
 		this.setState(_prevState => ({
 			// Repurpose model selection toggle to start a fresh chat session without popup
 			showModelSelectionPopup: false,
