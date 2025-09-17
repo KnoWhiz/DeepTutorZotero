@@ -40,6 +40,7 @@ const DeepTutorComposer = ({
 	const [askType, setAskType] = useState('ASK'); // ASK | AGENT (future)
 	const [askMode, setAskMode] = useState('standard'); // standard | advanced
 	const searchPopupRef = useRef(null);
+	const textareaRef = useRef(null);
 	const isSessionActive = Boolean(sessionId);
 	const contextDisabled = isSessionActive; // disable add/remove after session created
 
@@ -70,6 +71,24 @@ const DeepTutorComposer = ({
 	};
 	const getPageLimit = () => 500;
 	const canAddMoreFiles = () => selectedDocumentIds.length < getFileCountLimit();
+
+	// Auto-resize textarea function
+	const autoResizeTextarea = () => {
+		const textarea = textareaRef.current;
+		if (!textarea) return;
+		
+		// Reset height to auto to get the correct scrollHeight
+		textarea.style.height = 'auto';
+		
+		// Calculate the new height based on content
+		const scrollHeight = textarea.scrollHeight;
+		const minHeight = 6.5 * 16; // 6.5rem in pixels (assuming 16px base font size)
+		const maxHeight = 14 * 16; // 14rem in pixels
+		
+		// Set height within min/max bounds
+		const newHeight = Math.max(minHeight, Math.min(scrollHeight, maxHeight));
+		textarea.style.height = `${newHeight}px`;
+	};
 
 	const validateFileSize = async (pdf, fileName = null) => {
 		try {
@@ -140,6 +159,16 @@ const DeepTutorComposer = ({
 		}
 		catch {}
 	}, [askMode, sessionId]);
+
+	// Auto-resize textarea when input value changes
+	useEffect(() => {
+		autoResizeTextarea();
+	}, [inputValue]);
+
+	// Auto-resize textarea on component mount
+	useEffect(() => {
+		autoResizeTextarea();
+	}, []);
 
 	// Styles
 	const styles = {
@@ -262,13 +291,14 @@ const DeepTutorComposer = ({
 			borderRadius: '0.625rem',
 			border: 'none',
 			outline: 'none',
-			resize: 'vertical',
+			resize: 'none',
 			padding: '0.75rem 0.875rem',
 			boxSizing: 'border-box',
 			background: colors.background.primary,
 			color: colors.text.primary,
 			fontFamily: 'Roboto, sans-serif',
-			fontSize: '1rem'
+			fontSize: '1rem',
+			overflow: 'auto'
 		},
 		bottomRow: {
 			display: 'flex',
@@ -503,8 +533,8 @@ const DeepTutorComposer = ({
 	const handleSendClick = async () => {
 		const text = (inputValue || '').trim();
 		if (!text) return;
+		setInputValue(''); // Clear input immediately
 		await onSend(text);
-		setInputValue('');
 	};
 
 	return (
@@ -591,6 +621,7 @@ const DeepTutorComposer = ({
 			</div>
 
 			<textarea
+				ref={textareaRef}
 				style={styles.textarea}
 				placeholder={"Quick, academic-focused insights on one or a few documents, with rich support for tables, math, and source references."}
 				value={inputValue}
