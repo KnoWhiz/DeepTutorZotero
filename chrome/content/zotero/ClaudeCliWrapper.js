@@ -87,28 +87,29 @@ const ClaudeCliWrapper = {
 			let options = { timeout };
 
 					// Get API key from Zotero preferences for immediate use (only for Claude)
-		let storedApiKey = null, apiKeyEnvVar = null;
-		let baseCommand;
+			let storedApiKey = null, apiKeyEnvVar = null;
+			let baseCommand;
 
-		if (cliChoice === 'codex') {
-			// For Codex, we need to construct the command as "codex exec 'COMMAND'"
-			// where COMMAND is the finalStdinText - NO API KEY INJECTION
-			baseCommand = 'codex';
-			// For Codex, we don't use the args in the same way - we pass the stdinText as the command
-			if (finalStdinText) {
-				// Wrap the command with quotes to ensure proper structure: codex exec "COMMAND"
-				safeArgs = ['exec', `"${finalStdinText}"`];
-				finalStdinText = null; // Clear stdinText since we're passing it as args
+			if (cliChoice === 'codex') {
+				// For Codex, we need to construct the command as "codex exec 'COMMAND'"
+				// where COMMAND is the finalStdinText - NO API KEY INJECTION
+				baseCommand = 'codex';
+				// For Codex, we don't use the args in the same way - we pass the stdinText as the command
+				if (finalStdinText) {
+					// Wrap the command with quotes to ensure proper structure: codex exec "COMMAND"
+					safeArgs = ['exec', `"${finalStdinText}"`];
+					finalStdinText = null; // Clear stdinText since we're passing it as args
+				}
+				// No API key handling for Codex
+				// Zotero.debug(`ClaudeCliWrapper.runClaude: Using Codex - no API key injection`);
 			}
-			// No API key handling for Codex
-			// Zotero.debug(`ClaudeCliWrapper.runClaude: Using Codex - no API key injection`);
-		} else {
-			// For Claude, use the original logic with API key
-			baseCommand = 'claude';
-			storedApiKey = Zotero.Prefs.get('deeptutor.claude.apiKey');
-			apiKeyEnvVar = 'ANTHROPIC_API_KEY';
-			// Zotero.debug(`ClaudeCliWrapper.runClaude: Using Claude with stored API key: ${storedApiKey ? 'yes' : 'no'}`);
-		}
+			else {
+				// For Claude, use the original logic with API key
+				baseCommand = 'claude';
+				storedApiKey = Zotero.Prefs.get('deeptutor.claude.apiKey');
+				apiKeyEnvVar = 'ANTHROPIC_API_KEY';
+				// Zotero.debug(`ClaudeCliWrapper.runClaude: Using Claude with stored API key: ${storedApiKey ? 'yes' : 'no'}`);
+			}
 
 		if (wslInfo) {
 			// Execute inside WSL bash, optionally cd to linuxDir
@@ -163,13 +164,43 @@ const ClaudeCliWrapper = {
 			// Real-time stdout reading implementation
 			let res = await StreamingSubprocess.run(command, spArgs);
 			Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: raw result:", res);
-			// Zotero.debug("ClaudeCliWrapper.runClaude: result:", JSON.stringify(res));
+			
+			// Process the result to extract thinking process and final result
+			let finalResult = res;
+			let thinkingProcesses = [];
+			
+			if (res && typeof res === 'string' && res._streamMetadata) {
+				// Extract metadata from streaming result
+				const metadata = res._streamMetadata;
+				finalResult = metadata.finalResult || metadata.fullOutput;
+				thinkingProcesses = metadata.thinkingProcesses || [];
+				
+				Zotero.debug("ClaudeCliWrapper.runClaude: Extracted thinking processes:", thinkingProcesses);
+				Zotero.debug("ClaudeCliWrapper.runClaude: Final result:", finalResult);
+			}
+			else if (res && typeof res === 'object' && res._streamMetadata) {
+				// Handle case where res is an object with metadata
+				const metadata = res._streamMetadata;
+				finalResult = metadata.finalResult || metadata.fullOutput || String(res);
+				thinkingProcesses = metadata.thinkingProcesses || [];
+			}
+			
+			// Create enhanced result object
+			const enhancedResult = {
+				finalResult: finalResult,
+				thinkingProcesses: thinkingProcesses,
+				hasThinkingProcess: thinkingProcesses.length > 0,
+				// Maintain backward compatibility
+				toString: function() {
+					return this.finalResult || '';
+				}
+			};
 
 			// Save response to note if requested and conditions are met
 			// Zotero.debug(`ClaudeCliWrapper.runClaude: saveClaudeResponse=${saveClaudeResponse}, noteContainer=${noteContainer}, res=${JSON.stringify(res)}`);
-			if (saveClaudeResponse && noteContainer && res) {
+			if (saveClaudeResponse && noteContainer && finalResult) {
 				try {
-					await this.saveClaudeResponseToNote(res, noteContainer);
+					await this.saveClaudeResponseToNote(finalResult, noteContainer);
 					// Zotero.debug("ClaudeCliWrapper.runClaude: Response saved to note successfully");
 				}
 				catch (noteError) {
@@ -178,7 +209,7 @@ const ClaudeCliWrapper = {
 				}
 			}
 			
-			return res;
+			return enhancedResult;
 		}
 		catch (e) {
 			// Zotero.debug("ClaudeCliWrapper.runClaude: error:", e);
@@ -363,36 +394,58 @@ const ClaudeCliWrapper = {
 				}
 			}
 			
-			// Parse streaming JSON output
+				// Parse streaming JSON output with thinking process support
 			let fullResponse = '';
 			let accumulatedContent = '';
 			let isComplete = false;
+			let thinkingProcesses = [];
+			let finalResult = '';
 			
 			// Handle different response formats from subprocess
 			let responseText = '';
 			if (res) {
-				if (typeof res === 'string') {
+				// Check if the result has stream metadata
+				if (typeof res === 'string' && res._streamMetadata) {
+					const metadata = res._streamMetadata;
+					thinkingProcesses = metadata.thinkingProcesses || [];
+					finalResult = metadata.finalResult || metadata.fullOutput;
+					responseText = finalResult;
+					
+							// Call onChunk for thinking processes if callback is provided
+							if (onChunk && typeof onChunk === 'function') {
+								thinkingProcesses.forEach((thinking) => {
+									onChunk(`<thinking>${thinking}</thinking>`, false, accumulatedContent + thinking);
+									accumulatedContent += thinking;
+								});
+							}
+					
+					Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: Found ${thinkingProcesses.length} thinking processes`);
+				} else if (typeof res === 'string') {
 					// Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: res is string, length: ${res.length}`);
 					if (res.trim()) {
 						// Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: res content preview: ${res.substring(0, 200)}...`);
 					}
 					responseText = res;
+					finalResult = res;
 				} else if (res.stdout !== undefined) {
 					// Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: res has stdout, length: ${res.stdout ? res.stdout.length : 'null'}`);
 					if (res.stdout && res.stdout.trim()) {
 						// Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: stdout content preview: ${res.stdout.substring(0, 200)}...`);
 					}
 					responseText = res.stdout || '';
+					finalResult = res.stdout || '';
 				} else if (res.output !== undefined) {
 					// Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: res has output, length: ${res.output ? res.output.length : 'null'}`);
 					if (res.output && res.output.trim()) {
 						// Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: output content preview: ${res.output.substring(0, 200)}...`);
 					}
 					responseText = res.output || '';
+					finalResult = res.output || '';
 				} else {
 					// Fallback: convert to string if it's an object
 					// Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: res is object, converting to string`);
 					responseText = String(res);
+					finalResult = String(res);
 				}
 			} else {
 				// Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: res is null/undefined");
@@ -441,15 +494,26 @@ const ClaudeCliWrapper = {
 							// Format: {"text": "content"}
 							content = chunk.text;
 						} else if (chunk.message && chunk.message.content) {
-							// Format: {"message": {"content": "text"}}
+							// Format: {"message": {"content": "text"}} or array format
 							if (typeof chunk.message.content === 'string') {
 								content = chunk.message.content;
 							} else if (Array.isArray(chunk.message.content)) {
-								// Handle array of content blocks
+								// Handle array of content blocks - extract text content where type === "text"
 								content = chunk.message.content
-									.filter(block => block.type === 'text' && block.text)
-									.map(block => block.text)
-									.join('');
+									.filter(item => item.type === 'text' && item.text)
+									.map(item => item.text)
+									.join('\n'); // Use newline to separate multiple text blocks
+							}
+						} else if (chunk.type === 'assistant' && chunk.message && chunk.message.content) {
+							// Handle direct Claude API format: {"type": "assistant", "message": {"content": [...]}}
+							if (typeof chunk.message.content === 'string') {
+								content = chunk.message.content;
+							} else if (Array.isArray(chunk.message.content)) {
+								// Extract text content from content array where type === "text"
+								content = chunk.message.content
+									.filter(item => item.type === 'text' && item.text)
+									.map(item => item.text)
+									.join('\n'); // Use newline to separate multiple text blocks
 							}
 						} else if (typeof chunk === 'string') {
 							// Format: direct string
@@ -534,63 +598,74 @@ const ClaudeCliWrapper = {
 						fullResponse = fallbackContent;
 						accumulatedContent = fallbackContent;
 						
-						if (onChunk && typeof onChunk === 'function') {
-							onChunk(fallbackContent, true, accumulatedContent);
-						}
-					} else {
-						// No content at all - might be a command issue
-						const warningMsg = "Claude CLI command executed but returned no content. Check if Claude CLI is properly installed and configured.";
-						// Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: ${warningMsg}`);
-						
-						if (onError && typeof onError === 'function') {
-							onError(new Error(warningMsg));
-						}
+					if (onChunk && typeof onChunk === 'function') {
+						onChunk(fallbackContent, true, accumulatedContent);
 					}
 				} else {
-					// Completely null response
-					const errorMsg = "Claude CLI command failed to execute - no response received";
-					// Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: ${errorMsg}`);
+					// No content at all - might be a command issue
+					const warningMsg = "Claude CLI command executed but returned no content. Check if Claude CLI is properly installed and configured.";
+					// Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: ${warningMsg}`);
 					
 					if (onError && typeof onError === 'function') {
-						onError(new Error(errorMsg));
+						onError(new Error(warningMsg));
 					}
-					
-					return { error: new Error(errorMsg) };
 				}
+			} else {
+				// Completely null response
+				const errorMsg = "Claude CLI command failed to execute - no response received";
+				// Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: ${errorMsg}`);
+				
+				if (onError && typeof onError === 'function') {
+					onError(new Error(errorMsg));
+				}
+				
+				return { error: new Error(errorMsg) };
 			}
-			
-			// Call final chunk callback if provided
-			if (onChunk && typeof onChunk === 'function') {
+		}
+		
+		// Use finalResult if available, otherwise use fullResponse
+		const responseContent = finalResult || fullResponse;
+		
+		// Call final chunk callback if provided
+		if (onChunk && typeof onChunk === 'function') {
+			if (finalResult && !accumulatedContent) {
+				// If we have a final result but no accumulated content, call onChunk with it
+				onChunk(finalResult, true, finalResult);
+				accumulatedContent = finalResult;
+			} else {
 				onChunk('', true, accumulatedContent);
 			}
-			
-			// Save response to note if requested and conditions are met
-			// Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: saveClaudeResponse=${saveClaudeResponse}, noteContainer=${noteContainer}`);
-			if (saveClaudeResponse && noteContainer && fullResponse) {
-				try {
-					await this.saveClaudeResponseToNote(fullResponse, noteContainer);
-					// Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: Response saved to note successfully");
-				}
-				catch (noteError) {
-					// Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: Error saving to note:", noteError);
-					// Don't fail the main operation if note saving fails
-				}
+		}
+		
+		// Save response to note if requested and conditions are met
+		// Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: saveClaudeResponse=${saveClaudeResponse}, noteContainer=${noteContainer}`);
+		if (saveClaudeResponse && noteContainer && responseContent) {
+			try {
+				await this.saveClaudeResponseToNote(responseContent, noteContainer);
+				// Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: Response saved to note successfully");
 			}
-			
-			// Return result that's compatible with both object usage and direct string usage
-			const result = { 
-				success: true, 
-				content: fullResponse, 
-				accumulatedContent: accumulatedContent,
-				isComplete: true 
-			};
-			
-			// Add toString method to prevent [object Object] when used as string
-			result.toString = function() {
-				return this.content || '';
-			};
-			
-			return result;
+			catch (noteError) {
+				// Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: Error saving to note:", noteError);
+				// Don't fail the main operation if note saving fails
+			}
+		}
+		
+		// Return result that's compatible with both object usage and direct string usage
+		const result = { 
+			success: true, 
+			content: responseContent, 
+			accumulatedContent: accumulatedContent,
+			isComplete: true,
+			thinkingProcesses: thinkingProcesses,
+			hasThinkingProcess: thinkingProcesses.length > 0
+		};
+		
+		// Add toString method to prevent [object Object] when used as string
+		result.toString = function() {
+			return this.content || '';
+		};
+		
+		return result;
 		}
 		catch (e) {
 			// Zotero.debug("ClaudeCliWrapper.runClaudeStreaming: error:", e);

@@ -1371,8 +1371,9 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 						const separator = Zotero.isWin ? '\\' : '/';
 						workingDir = Zotero.DataDirectory.dir + separator + 'DeepTutorDataBase';
 					}
-				} catch (e) { 
-					Zotero.debug(e); 
+				}
+				catch (e) {
+					Zotero.debug(e);
 				}
 				
 				if (!workingDir) {
@@ -1412,17 +1413,30 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 				const claudeResult = await ClaudeCliWrapper.runClaude([], workingDir, messageText, null, false, systemPrompt, false, cliChoice);
 				
 				let responseText = '';
+				let thinkingProcesses = [];
+				
 				if (claudeResult && !claudeResult.error) {
-					responseText = String(claudeResult).trim();
-				} else if (claudeResult && claudeResult.error) {
+					// Check if the result has thinking processes
+					if (claudeResult.hasThinkingProcess && claudeResult.thinkingProcesses) {
+						thinkingProcesses = claudeResult.thinkingProcesses;
+						responseText = String(claudeResult.finalResult || claudeResult).trim();
+						Zotero.debug(`DeepTutorChatBox: Found ${thinkingProcesses.length} thinking processes`);
+						}
+						else {
+							responseText = String(claudeResult).trim();
+						}
+					}
+					else if (claudeResult && claudeResult.error) {
 					responseText = `Error: ${claudeResult.error}`;
-				} else {
-					responseText = 'No response from Claude CLI';
-				}
+					}
+					else {
+						responseText = 'No response from Claude CLI';
+					}
 
 				// Add tutor response to history and display
 				addToAgenticHistory(sessionId, 'TUTOR', responseText);
 				
+				// Create tutor message with thinking process support
 				const tutorMessage = {
 					id: `agentic_tutor_${Date.now()}`,
 					subMessages: [{
@@ -1435,12 +1449,16 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 					creationTime: new Date().toISOString(),
 					lastUpdatedTime: new Date().toISOString(),
 					status: MessageStatus.VIEWED,
-					followUpQuestions: []
+					followUpQuestions: [],
+					// Add thinking process data
+					thinkingProcesses: thinkingProcesses,
+					hasThinkingProcess: thinkingProcesses.length > 0
 				};
 
 				setMessages(prev => [...prev, tutorMessage]);
 
-			} catch (claudeError) {
+					}
+					catch (claudeError) {
 				Zotero.debug(`DeepTutorChatBox: Claude CLI error: ${claudeError.message}`);
 				
 				const errorText = `I encountered an error while processing your request: ${claudeError.message}`;
