@@ -13,90 +13,15 @@ import DeepTutorChatMessage from './DeepTutorChatMessage';
 import DeepTutorComposer from './DeepTutorChatComposer.js';
 import DeepTutorChatTop from './DeepTutorChatTop.js';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
+import {
+	RecentFilesManager,
+	getDocumentMapping,
+	processDocument,
+	getCurrentlyOpenedPDF,
+	setNoteContainerFromDocuments,
+	cleanupSourceData
+} from './DeepTutorHelperFunctions.js';
 
-/**
- * Utility functions for managing recently opened files
- */
-const RecentFilesManager = {
-
-	/**
-	 * Get the preference key for storing recent files
-	 * @returns {string} The preference key
-	 */
-	getPreferenceKey() {
-		return "deeptutor_recent_files";
-	},
-
-	/**
-	 * Get the maximum number of recent files to store
-	 * @returns {number} Maximum number of recent files
-	 */
-	getMaxRecentFiles() {
-		return 10; // Store more than we display to have a buffer
-	},
-
-	/**
-	 * Get recently opened files from preferences
-	 * @returns {Array} Array of recent file objects with {id, name, lastAccessed}
-	 */
-	getRecentFiles() {
-		try {
-			const recentFilesStr = Zotero.Prefs.get(this.getPreferenceKey());
-			if (!recentFilesStr) return [];
-			
-			const recentFiles = JSON.parse(recentFilesStr);
-			return Array.isArray(recentFiles) ? recentFiles : [];
-		}
-		catch (error) {
-			Zotero.debug(`Error getting recent files: ${error.message}`);
-			return [];
-		}
-	},
-
-	/**
-	 * Add or update a file in the recent files list
-	 * @param {number} itemId - The Zotero item ID
-	 * @param {string} fileName - The display name of the file
-	 */
-	addRecentFile(itemId, fileName) {
-		try {
-			const recentFiles = this.getRecentFiles();
-			const now = Date.now();
-			
-			// Remove existing entry if it exists
-			const filteredFiles = recentFiles.filter(file => file.id !== itemId);
-			
-			// Add new entry at the beginning
-			const newFile = {
-				id: itemId,
-				name: fileName || "Untitled",
-				lastAccessed: now
-			};
-			
-			filteredFiles.unshift(newFile);
-			
-			// Keep only the most recent files
-			const maxFiles = this.getMaxRecentFiles();
-			const trimmedFiles = filteredFiles.slice(0, maxFiles);
-			
-			// Save back to preferences
-			Zotero.Prefs.set(this.getPreferenceKey(), JSON.stringify(trimmedFiles));
-		}
-		catch (error) {
-			Zotero.debug(`Error adding recent file: ${error.message}`);
-		}
-	},
-
-	/**
-	 * Get the most recent files (up to a specified limit)
-	 * @param {number} limit - Maximum number of files to return
-	 * @returns {Array} Array of recent file objects
-	 */
-	getMostRecentFiles(limit = 5) {
-		const recentFiles = this.getRecentFiles();
-		return recentFiles.slice(0, limit);
-	}
-};
 
 const markdownit = require('markdown-it');
 // Try to require markdown-it-container, fallback to a simpler implementation if not available
@@ -602,25 +527,8 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 
 	// Function to get currently opened paper ID
 	const getCurrentlyOpenedPaperId = () => {
-		try {
-			const mainWindow = Zotero.getMainWindow();
-			if (!mainWindow) return null;
-			
-			const selectedTabID = mainWindow.Zotero_Tabs.selectedID;
-			if (!selectedTabID) return null;
-			
-			const reader = Zotero.Reader.getByTabID(selectedTabID);
-			if (!reader) return null;
-
-			const item = Zotero.Items.get(reader.itemID);
-			if (!item || !item.isPDFAttachment()) return null;
-
-			return item.id;
-		}
-		catch (error) {
-			Zotero.debug(`DeepTutorChat: Error getting currently opened paper ID: ${error.message}`);
-			return null;
-		}
+		const pdfData = getCurrentlyOpenedPDF();
+		return pdfData ? pdfData.itemId : null;
 	};
 
 	// Function to update paper context when paper changes
@@ -1913,106 +1821,11 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 					.forEach(result => Zotero.debug(result.reason));
 
 				_setContextDocuments(successfulDocs);
-				setNoteContainerFromDocuments(successfulDocs);
+				setNoteContainerFromDocuments(successfulDocs, setNoteContainer);
 			}
 			catch (error) {
 				Zotero.debug(`DeepTutorChat: Error loading context documents: ${error.message}`);
 				_setContextDocuments([]);
-				setNoteContainer(null);
-			}
-		};
-
-		const getDocumentMapping = () => {
-			const storageKey = `deeptutor_mapping_${sessionId}`;
-			const mappingStr = Zotero.Prefs.get(storageKey);
-			return mappingStr ? JSON.parse(mappingStr) : {};
-		};
-
-		const processDocument = async (documentId, mapping) => {
-			const zoteroAttachmentId = mapping[documentId] || documentId;
-			const item = Zotero.Items.get(zoteroAttachmentId);
-			
-			if (!item) {
-				return createFallbackDocument(documentId);
-			}
-
-			const documentName = getDocumentName(item);
-			const filePath = await getDocumentFilePath(item);
-
-			return {
-				documentId,
-				zoteroAttachmentId,
-				name: documentName,
-				filePath
-			};
-		};
-
-		const getDocumentName = (item) => {
-			return item.attachmentFilename
-				|| (item.getDisplayTitle && item.getDisplayTitle())
-				|| (item.parentItem && Zotero.Items.get(item.parentItem)?.getDisplayTitle?.())
-				|| "Document Not Found";
-		};
-
-		const getDocumentFilePath = async (item) => {
-			if (!item.isAttachment?.()) return null;
-			
-			try {
-				const filePath = await item.getFilePathAsync();
-				if (!filePath) return null;
-				
-				const maxPathLength = 60;
-				if (filePath.length <= maxPathLength) return filePath;
-				
-				const pathParts = filePath.split(/[/\\]/);
-				const filename = pathParts[pathParts.length - 1];
-				const pathPrefix = filePath.substring(0, maxPathLength - filename.length - 3);
-				return `${pathPrefix}...${filename}`;
-			}
-			catch (error) {
-				Zotero.debug(error);
-				return null;
-			}
-		};
-
-		const createFallbackDocument = documentId => ({
-			documentId,
-			zoteroAttachmentId: documentId,
-			name: "Document Not Found",
-			filePath: null
-		});
-
-		const setNoteContainerFromDocuments = (docs) => {
-			if (!docs.length) {
-				setNoteContainer(null);
-				return;
-			}
-
-			try {
-				const firstDoc = docs[0];
-				const firstItem = Zotero.Items.get(firstDoc.zoteroAttachmentId);
-				
-				if (!firstItem) {
-					setNoteContainer(null);
-					return;
-				}
-
-				let parentItemId = null;
-				
-				if (firstItem.isAttachment() && firstItem.parentID) {
-					const parentItem = Zotero.Items.get(firstItem.parentID);
-					if (parentItem?.isRegularItem()) {
-						parentItemId = firstItem.parentID;
-					}
-				}
-				else if (firstItem.isRegularItem()) {
-					parentItemId = firstItem.id;
-				}
-
-				setNoteContainer(parentItemId);
-			}
-			catch (error) {
-				Zotero.debug(error);
 				setNoteContainer(null);
 			}
 		};
@@ -2108,144 +1921,30 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 	useEffect(() => {
 		const loadContextDocuments = async () => {
 			if (!documentIds || documentIds.length === 0 || !sessionId) {
-				// Zotero.debug(`DeepTutorChat: No documentIds or sessionId available for context loading`);
 				_setContextDocuments([]);
 				return;
 			}
-
-			// Zotero.debug(`DeepTutorChat: Loading context documents for ${documentIds.length} documents`);
             
 			try {
-				// Try to get the mapping from local storage
-				const storageKey = `deeptutor_mapping_${sessionId}`;
-				const mappingStr = Zotero.Prefs.get(storageKey);
-				let mapping = {};
-                
-				if (mappingStr) {
-					mapping = JSON.parse(mappingStr);
-				}
-
-				const contextDocs = [];
-				for (const documentId of documentIds) {
-					try {
-						// Get the actual Zotero attachment ID
-						let zoteroAttachmentId = documentId;
-						if (mapping[documentId]) {
-							zoteroAttachmentId = mapping[documentId];
-							// Zotero.debug(`DeepTutorChat: Using mapped attachment ID: ${zoteroAttachmentId} for document ${documentId}`);
-						}
-
-						// Try to get the Zotero item to get the document name and path
-						const item = Zotero.Items.get(zoteroAttachmentId);
-						let documentName = "Document Not Found"; // fallback to "Document Not Found"
-						let filePath = null;
-
-						if (item) {
-							// Prioritize attachment filename first
-							if (item.attachmentFilename) {
-								documentName = item.attachmentFilename;
-							}
-							// Fall back to display title if no filename
-							else if (item.getDisplayTitle) {
-								documentName = item.getDisplayTitle();
-							}
-							// Finally try parent item title
-							else if (item.parentItem) {
-								const parentItem = Zotero.Items.get(item.parentItem);
-								if (parentItem && parentItem.getDisplayTitle) {
-									documentName = parentItem.getDisplayTitle();
-								}
-							}
-
-							// Get the file path if it's an attachment
-							if (item.isAttachment && item.isAttachment()) {
-								try {
-									filePath = await item.getFilePathAsync();
-									if (filePath) {
-										// Zotero.debug(`DeepTutorChat: Found file path: ${filePath}`);
-										// Optionally truncate long paths for display
-										const maxPathLength = 60;
-										if (filePath.length > maxPathLength) {
-											const pathParts = filePath.split(/[/\\]/);
-											const filename = pathParts[pathParts.length - 1];
-											const pathPrefix = filePath.substring(0, maxPathLength - filename.length - 3);
-											filePath = pathPrefix + "..." + filename;
-										}
-									}
-								}
-								catch {
-									// Zotero.debug(`DeepTutorChat: Error getting file path for ${zoteroAttachmentId}: ${error.message}`);
-								}
-							}
-						}
-						else {
-							// Zotero.debug(`DeepTutorChat: No item found for ID ${zoteroAttachmentId}, using document ID as name`);
-						}
-
-						contextDocs.push({
-							documentId: documentId,
-							zoteroAttachmentId: zoteroAttachmentId,
-							name: documentName,
-							filePath: filePath // Add file path to the context document object
-						});
-					}
-					catch {
-						// Zotero.debug(`DeepTutorChat: Error processing document ${documentId}: ${error.message}`);
-						// Add with fallback name
-						contextDocs.push({
-							documentId: documentId,
-							zoteroAttachmentId: documentId,
-							name: "Document Not Found",
-							filePath: null
-						});
-					}
-				}
-
-				// Zotero.debug(`DeepTutorChat: Loaded ${contextDocs.length} context documents`);
-				_setContextDocuments(contextDocs);
+				const mapping = getDocumentMapping(sessionId);
+				const contextDocs = await Promise.allSettled(
+					documentIds.map(id => processDocument(id, mapping))
+				);
 				
-				// Set noteContainer to the parent of the first document (or the first document itself if it's a regular item)
-				if (contextDocs.length > 0) {
-					try {
-						const firstDoc = contextDocs[0];
-						const firstItem = Zotero.Items.get(firstDoc.zoteroAttachmentId);
-						
-						if (firstItem) {
-							let parentItemId = null;
-							
-							// If the item is an attachment, get its parent
-							if (firstItem.isAttachment() && firstItem.parentID) {
-								parentItemId = firstItem.parentID;
-								const parentItem = Zotero.Items.get(parentItemId);
-								if (parentItem && parentItem.isRegularItem()) {
-									setNoteContainer(parentItemId);
-								}
-							}
-							// If the item is a regular item itself, use it as the container
-							else if (firstItem.isRegularItem()) {
-								parentItemId = firstItem.id;
-								setNoteContainer(parentItemId);
-							}
-							// If no suitable parent found, log this
-							else {
-								setNoteContainer(null);
-							}
-						}
-						else {
-							setNoteContainer(null);
-						}
-					}
-					catch (error) {
-						Zotero.debug(error);
-						setNoteContainer(null);
-					}
-				}
-				else {
-					setNoteContainer(null);
-				}
+				const successfulDocs = contextDocs
+					.filter(result => result.status === "fulfilled")
+					.map(result => result.value);
+				
+				// Log any failures
+				contextDocs
+					.filter(result => result.status === "rejected")
+					.forEach(result => Zotero.debug(result.reason));
+
+				_setContextDocuments(successfulDocs);
+				setNoteContainerFromDocuments(successfulDocs, setNoteContainer);
 			}
-			catch {
-				// Zotero.debug(`DeepTutorChat: Error loading context documents: ${error.message}`);
+			catch (error) {
+				Zotero.debug(`DeepTutorChat: Error loading context documents: ${error.message}`);
 				_setContextDocuments([]);
 				setNoteContainer(null);
 			}
@@ -2279,26 +1978,6 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 		}
 	}, [iniWait, onInitWaitChange]);
 
-	// Add cleanup function
-	const cleanupSourceData = (oldSessionId) => {
-		if (!oldSessionId) return;
-		
-		// Clean up source data for previous session, but preserve current session data
-		currentSourceIndices.forEach((sourceIndex) => {
-			const storageKey = `deeptutor_source_${oldSessionId}_${sourceIndex}`;
-			try {
-				if (Zotero.Prefs.get(storageKey)) {
-					Zotero.Prefs.clear(storageKey);
-				}
-			}
-			catch (error) {
-				Zotero.debug(error);
-			}
-		});
-		
-		// Reset source indices tracking
-		setCurrentSourceIndices([]);
-	};
 
 	// Add effect to handle session changes
 	useEffect(() => {
@@ -2309,7 +1988,8 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 			
 			// Clean up previous session's source data
 			if (prevSessionId && prevSessionId !== sessionId) {
-				cleanupSourceData(prevSessionId);
+				cleanupSourceData(prevSessionId, currentSourceIndices);
+				setCurrentSourceIndices([]);
 			}
 		}
 	}, [sessionId]);
@@ -2320,7 +2000,7 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 			if (sessionIdRef.current) {
 				// Only cleanup if we're actually unmounting, not just switching sessions
 				// This prevents removing source data that might be needed
-				cleanupSourceData(sessionIdRef.current);
+				cleanupSourceData(sessionIdRef.current, currentSourceIndices);
 			}
 		};
 	}, []);

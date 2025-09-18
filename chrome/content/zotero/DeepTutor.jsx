@@ -42,6 +42,10 @@ import {
 	getPreSignedUrl
 } from './api/libs/api.js';
 import {
+	getCurrentlyOpenedPDF,
+	uploadCurrentlyOpenedFile
+} from './DeepTutorHelperFunctions.js';
+import {
 	useAuthState,
 	getCurrentUser,
 	refreshSession,
@@ -110,235 +114,6 @@ class DeepTutorSession {
 		};
 	}
 }
-
-/**
- * Utility function to detect the currently opened PDF file in Zotero
- * @returns {Object|null} Object containing the opened PDF item and filename, or null if none found
- */
-const getCurrentlyOpenedPDF = () => {
-	try {
-		// Get the main window and tabs
-		const mainWindow = Zotero.getMainWindow();
-		if (!mainWindow) {
-			return null;
-		}
-		
-		const selectedTabID = mainWindow.Zotero_Tabs.selectedID;
-		if (!selectedTabID) {
-			return null;
-		}
-		
-		// Get the current reader instance
-		const reader = Zotero.Reader.getByTabID(selectedTabID);
-		if (!reader) {
-			return null;
-		}
-
-		// Get the item from the reader
-		const item = Zotero.Items.get(reader.itemID);
-		if (!item) {
-			return null;
-		}
-
-		// Check if it's a PDF attachment
-		if (!item.isPDFAttachment()) {
-			return null;
-		}
-
-		// Safe filename resolution with error handling
-		let fileName = '';
-		try {
-			fileName = item.attachmentFilename || item.getField('title') || '';
-		}
-		catch (_error) {
-			fileName = '';
-		}
-
-		// Ensure we have a valid string and fallback to "Untitled"
-		if (!fileName || typeof fileName !== 'string' || fileName.trim() === '') {
-			fileName = 'Untitled';
-		}
-
-		return {
-			item: item,
-			fileName: fileName,
-			itemId: item.id
-		};
-	}
-	catch (_error) {
-		return null;
-	}
-};
-
-/**
- * Get file size limit in MB based on subscription type
- * @param {string} subscriptionType - The subscription type
- * @returns {number} File size limit in MB
- */
-const getFileSizeLimitMB = (subscriptionType) => {
-	switch (subscriptionType) {
-		case "BASIC":
-			return 10;
-		case "PLUS":
-			return 50;
-		case "PREMIUM":
-			return 100;
-		default:
-			return 10; // Default to BASIC limit
-	}
-};
-
-/**
- * Get page limit for PDF files
- * @returns {number} Page limit
- */
-const getPageLimit = () => {
-	// For testing now, return 20; actual number should be 500
-	return 500;
-};
-
-/**
- * Validate file size for a PDF attachment
- * @param {Object} pdf - The PDF item
- * @param {string} fileName - The filename for display purposes
- * @param {string} subscriptionType - The subscription type
- * @returns {Promise<boolean>} True if file size is valid, false otherwise
- */
-const validateFileSize = async (pdf, _fileName = null, subscriptionType = 'BASIC') => {
-	try {
-		const filePath = await pdf.getFilePathAsync();
-		if (filePath) {
-			const fileStats = await IOUtils.stat(filePath);
-			const fileSizeBytes = fileStats.size;
-			const fileSizeMB = fileSizeBytes / (1024 * 1024);
-			
-			// Check subscription-based file size limit
-			const sizeLimitMB = getFileSizeLimitMB(subscriptionType);
-			if (fileSizeMB > sizeLimitMB) {
-				return false; // File size validation failed
-			}
-		}
-		return true; // File size validation passed
-	}
-	catch (_sizeError) {
-		// Continue processing if we can't check size
-		return true;
-	}
-};
-
-/**
- * Validate page count for a PDF attachment
- * @param {Object} pdf - The PDF item
- * @param {string} fileName - The filename for display purposes
- * @returns {Promise<boolean>} True if page count is valid, false otherwise
- */
-const validatePageCount = async (pdf, _fileName = null) => {
-	try {
-		// Extract minimal metadata by requesting 1 page; totalPages is included in response
-		const { totalPages } = await Zotero.PDFWorker.getFullText(pdf.id, 1);
-		if (typeof totalPages === 'number') {
-			const limit = getPageLimit();
-			if (totalPages > limit) {
-				return false; // Page count validation failed
-			}
-		}
-		return true;
-	}
-	catch (_e) {
-		// Continue processing if we can't check pages
-		return true;
-	}
-};
-
-/**
- * Upload a currently opened PDF file and return its document ID
- * @param {Object} pdfData - Object containing item, fileName, and itemId
- * @param {string} userId - The user ID
- * @param {string} subscriptionType - The subscription type
- * @returns {Promise<Object|null>} Object containing documentId and mapping, or null if upload failed
- */
-const uploadCurrentlyOpenedFile = async (pdfData, userId, subscriptionType) => {
-	try {
-		const { item, fileName } = pdfData;
-		
-		// Validate file size
-		const isFileSizeValid = await validateFileSize(item, fileName, subscriptionType);
-		if (!isFileSizeValid) {
-			return null;
-		}
-		
-		// Validate page count
-		const isPageCountValid = await validatePageCount(item, fileName);
-		if (!isPageCountValid) {
-			return null;
-		}
-		
-		// Read file data
-		let blob;
-		try {
-			const filePath = await item.getFilePathAsync();
-			if (!filePath) {
-				throw new Error(`No file path available for: ${fileName}`);
-			}
-			
-			// Check file existence
-			const fileExists = await IOUtils.exists(filePath);
-			if (!fileExists) {
-				throw new Error(`File not found on disk: ${filePath}`);
-			}
-			
-			// Read file data directly
-			const fileData = await IOUtils.read(filePath);
-			
-			// Create blob directly from file data
-			const BlobConstructor = Zotero.getMainWindow().Blob;
-			blob = new BlobConstructor([fileData], { type: 'application/pdf' });
-		}
-		catch (_fileError) {
-			return null;
-		}
-		
-		// Get pre-signed URL for the file
-		const encodedFileName = encodeURIComponent(fileName);
-		
-		let preSignedUrlData;
-		try {
-			preSignedUrlData = await getPreSignedUrl(userId, encodedFileName);
-		}
-		catch (_apiError) {
-			// Try with a sanitized filename as fallback
-			const sanitizedFileName = fileName.replace(/[;:&<>]/g, '_');
-			try {
-				preSignedUrlData = await getPreSignedUrl(userId, sanitizedFileName);
-			}
-			catch {
-				return null;
-			}
-		}
-		
-		// Upload file to Azure Blob Storage
-		const uploadResponse = await window.fetch(preSignedUrlData.preSignedUrl, {
-			method: 'PUT',
-			headers: {
-				'x-ms-blob-type': 'BlockBlob',
-				'Content-Type': 'application/pdf'
-			},
-			body: blob
-		});
-		
-		if (!uploadResponse.ok) {
-			return null;
-		}
-		
-		return {
-			documentId: preSignedUrlData.documentId,
-			mapping: { [preSignedUrlData.documentId]: item.id }
-		};
-	}
-	catch (_error) {
-		return null;
-	}
-};
 
 var DeepTutor = class DeepTutor extends React.Component {
 	// Initialize the DeepTutor React component in the given DOM element.
@@ -981,7 +756,8 @@ var DeepTutor = class DeepTutor extends React.Component {
 					const uploadResult = await uploadCurrentlyOpenedFile(
 						currentPDF,
 						this.state.userData ? this.state.userData.id : 0,
-						this.state.subscriptionType || 'BASIC'
+						this.state.subscriptionType || 'BASIC',
+						getPreSignedUrl
 					);
 					
 					if (uploadResult) {
@@ -995,12 +771,12 @@ var DeepTutor = class DeepTutor extends React.Component {
 						catch {}
 					}
 				}
-				catch (_uploadError) {
+				catch {
 					// Continue with session creation even if upload fails
 				}
 			}
 		}
-		catch (_error) {
+		catch {
 			// Continue with session creation even if PDF detection fails
 		}
 

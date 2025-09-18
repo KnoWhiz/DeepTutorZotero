@@ -2,90 +2,16 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'; // eslint-d
 import PropTypes from 'prop-types';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 import { getPreSignedUrl } from './api/libs/api.js';
+import {
+	RecentFilesManager,
+	getFileCountLimit,
+	validateFileSize,
+	validatePageCount,
+	getDocumentMapping,
+	loadContainersWithPDFs,
+	useAutoResizeTextarea
+} from './DeepTutorHelperFunctions.js';
 
-/**
- * Utility functions for managing recently opened files
- */
-const RecentFilesManager = {
-
-	/**
-	 * Get the preference key for storing recent files
-	 * @returns {string} The preference key
-	 */
-	getPreferenceKey() {
-		return "deeptutor_recent_files";
-	},
-
-	/**
-	 * Get the maximum number of recent files to store
-	 * @returns {number} Maximum number of recent files
-	 */
-	getMaxRecentFiles() {
-		return 10; // Store more than we display to have a buffer
-	},
-
-	/**
-	 * Get recently opened files from preferences
-	 * @returns {Array} Array of recent file objects with {id, name, lastAccessed}
-	 */
-	getRecentFiles() {
-		try {
-			const recentFilesStr = Zotero.Prefs.get(this.getPreferenceKey());
-			if (!recentFilesStr) return [];
-			
-			const recentFiles = JSON.parse(recentFilesStr);
-			return Array.isArray(recentFiles) ? recentFiles : [];
-		}
-		catch (error) {
-			Zotero.debug(`Error getting recent files: ${error.message}`);
-			return [];
-		}
-	},
-
-	/**
-	 * Add or update a file in the recent files list
-	 * @param {number} itemId - The Zotero item ID
-	 * @param {string} fileName - The display name of the file
-	 */
-	addRecentFile(itemId, fileName) {
-		try {
-			const recentFiles = this.getRecentFiles();
-			const now = Date.now();
-			
-			// Remove existing entry if it exists
-			const filteredFiles = recentFiles.filter(file => file.id !== itemId);
-			
-			// Add new entry at the beginning
-			const newFile = {
-				id: itemId,
-				name: fileName || "Untitled",
-				lastAccessed: now
-			};
-			
-			filteredFiles.unshift(newFile);
-			
-			// Keep only the most recent files
-			const maxFiles = this.getMaxRecentFiles();
-			const trimmedFiles = filteredFiles.slice(0, maxFiles);
-			
-			// Save back to preferences
-			Zotero.Prefs.set(this.getPreferenceKey(), JSON.stringify(trimmedFiles));
-		}
-		catch (error) {
-			Zotero.debug(`Error adding recent file: ${error.message}`);
-		}
-	},
-
-	/**
-	 * Get the most recent files (up to a specified limit)
-	 * @param {number} limit - Maximum number of files to return
-	 * @returns {Array} Array of recent file objects
-	 */
-	getMostRecentFiles(limit = 5) {
-		const recentFiles = this.getRecentFiles();
-		return recentFiles.slice(0, limit);
-	}
-};
 
 const BasicPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_STANDARD.svg';
 const BasicDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_STANDARD_DARK.svg';
@@ -133,92 +59,8 @@ const DeepTutorComposer = ({
 	const isFreeSubscription = (subscriptionType || '').toUpperCase() === 'BASIC';
 	const modeToggleDisabled = isSessionActive || isFreeSubscription;
 
-	// Limits helpers (mirror ModelSelection)
-	const getFileCountLimit = () => {
-		switch ((subscriptionType || '').toUpperCase()) {
-			case 'BASIC':
-				return 1;
-			case 'PLUS':
-				return 10;
-			case 'PREMIUM':
-				return 20;
-			default:
-				return 1;
-		}
-	};
-	const getFileSizeLimitMB = () => {
-		switch ((subscriptionType || '').toUpperCase()) {
-			case 'BASIC':
-				return 10;
-			case 'PLUS':
-				return 50;
-			case 'PREMIUM':
-				return 100;
-			default:
-				return 10;
-		}
-	};
-	const getPageLimit = () => 500;
-	const canAddMoreFiles = () => selectedDocumentIds.length < getFileCountLimit();
-
-	// Auto-resize textarea function
-	const autoResizeTextarea = () => {
-		const textarea = textareaRef.current;
-		if (!textarea) return;
-		
-		// Reset height to auto to get the correct scrollHeight
-		textarea.style.height = 'auto';
-		
-		// Calculate the new height based on content
-		const scrollHeight = textarea.scrollHeight;
-		const minHeight = 6.5 * 16; // 6.5rem in pixels (assuming 16px base font size)
-		const maxHeight = 14 * 16; // 14rem in pixels
-		
-		// Set height within min/max bounds
-		const newHeight = Math.max(minHeight, Math.min(scrollHeight, maxHeight));
-		textarea.style.height = `${newHeight}px`;
-	};
-
-	const validateFileSize = async (pdf, fileName = null) => {
-		try {
-			const filePath = await pdf.getFilePathAsync();
-			if (filePath) {
-				const fileStats = await IOUtils.stat(filePath);
-				const fileSizeMB = fileStats.size / (1024 * 1024);
-				const sizeLimitMB = getFileSizeLimitMB();
-				if (fileSizeMB > sizeLimitMB) {
-					const displayName = fileName || pdf.name || 'PDF';
-					if (typeof onShowFileSizeWarning === 'function') {
-						onShowFileSizeWarning({ fileName: displayName, fileSizeMB, sizeLimitMB });
-					}
-					return false;
-				}
-			}
-			return true;
-		}
-		catch {
-			return true;
-		}
-	};
-	const validatePageCount = async (pdf, fileName = null) => {
-		try {
-			const { totalPages } = await Zotero.PDFWorker.getFullText(pdf.id, 1);
-			if (typeof totalPages === 'number') {
-				const limit = getPageLimit();
-				if (totalPages > limit) {
-					const displayName = fileName || pdf.name || 'PDF';
-					if (typeof onShowPageLimitWarning === 'function') {
-						onShowPageLimitWarning({ fileName: displayName, pageCount: totalPages, pageLimit: limit });
-					}
-					return false;
-				}
-			}
-			return true;
-		}
-		catch {
-			return true;
-		}
-	};
+	// Limits helpers
+	const canAddMoreFiles = () => selectedDocumentIds.length < getFileCountLimit(subscriptionType);
 
 	// Load persisted selections per session
 	useEffect(() => {
@@ -256,15 +98,8 @@ const DeepTutorComposer = ({
 		}
 	}, [isFreeSubscription, askMode]);
 
-	// Auto-resize textarea when input value changes
-	useEffect(() => {
-		autoResizeTextarea();
-	}, [inputValue]);
-
-	// Auto-resize textarea on component mount
-	useEffect(() => {
-		autoResizeTextarea();
-	}, []);
+	// Auto-resize textarea
+	useAutoResizeTextarea(textareaRef, inputValue);
 
 	// Styles
 	const styles = {
@@ -492,26 +327,7 @@ const DeepTutorComposer = ({
 	useEffect(() => {
 		const loadContainers = async () => {
 			try {
-				const libraryID = Zotero.Libraries.userLibraryID;
-				const items = await Zotero.Items.getAll(libraryID);
-				const seen = new Set();
-				const list = items.reduce((arr, item) => {
-					if (item.isRegularItem() && !seen.has(item.id)) {
-						const pdfs = item.getAttachments().map(x => Zotero.Items.get(x)).filter(x => x && x.isPDFAttachment && x.isPDFAttachment());
-						if (pdfs.length) {
-							seen.add(item.id);
-							let name = '';
-							try {
-								name = item.getField('title') || '';
-							}
-							catch {
-								name = '';
-							}
-							arr.push({ id: item.id, name: name && name.trim() !== '' ? name : 'Untitled' });
-						}
-					}
-					return arr;
-				}, []);
+				const list = await loadContainersWithPDFs();
 				setContainers(list);
 			}
 			catch (e) {
@@ -595,17 +411,10 @@ const DeepTutorComposer = ({
 			const updatedRecentFiles = RecentFilesManager.getMostRecentFiles(5);
 			setRecentFiles(updatedRecentFiles);
 
-			const mappingKey = sessionId ? `deeptutor_mapping_${sessionId}` : 'deeptutor_mapping_draft';
-			let mapping = {};
-			try {
-				mapping = JSON.parse(Zotero.Prefs.get(mappingKey) || '{}');
-			}
-			catch {
-				mapping = {};
-			}
+			const mapping = getDocumentMapping(sessionId);
 
 			const addedAzureIds = [];
-			const limit = getFileCountLimit();
+			const limit = getFileCountLimit(subscriptionType);
 			const availableSlots = Math.max(0, limit - selectedDocumentIds.length);
 			const maxToAdd = Math.min(pdfAttachments.length, availableSlots);
 			for (let i = 0; i < maxToAdd; i++) {
@@ -619,11 +428,11 @@ const DeepTutorComposer = ({
 				}
 				if (!fileName || typeof fileName !== 'string' || fileName.trim() === '') fileName = 'Untitled';
 
-				const sizeOk = await validateFileSize(pdf, fileName);
+				const sizeOk = await validateFileSize(pdf, fileName, subscriptionType, onShowFileSizeWarning);
 				if (!sizeOk) {
 					continue;
 				}
-				const pagesOk = await validatePageCount(pdf, fileName);
+				const pagesOk = await validatePageCount(pdf, fileName, onShowPageLimitWarning);
 				if (!pagesOk) {
 					continue;
 				}
@@ -675,6 +484,7 @@ const DeepTutorComposer = ({
 			}
 
 			try {
+				const mappingKey = sessionId ? `deeptutor_mapping_${sessionId}` : 'deeptutor_mapping_draft';
 				Zotero.Prefs.set(mappingKey, JSON.stringify(mapping));
 			}
 			catch {}
