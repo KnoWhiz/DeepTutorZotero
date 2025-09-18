@@ -2,12 +2,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import {
-	createMessage,
-	getMessagesBySessionId,
-	getDocumentById,
-	subscribeToChat,
-	createSession,
-	updateSessionName
+    createMessage,
+    getMessagesBySessionId,
+    getDocumentById,
+    subscribeToChat,
+    createSession,
+    updateSessionName,
+    getPreSignedUrl
 } from './api/libs/api';
 import DeepTutorChatBoxMessage from './DeepTutorChatBoxMessage';
 import DeepTutorComposer from './DeepTutorComposer.js';
@@ -616,6 +617,61 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 	const isManuallyStoppedRef = useRef(isManuallyStopped);
 	const [_time, setTime] = useState(new Date());
 
+	// Separate state for the currently-opened file context slot
+	// This is kept distinct from user-added context in documentIds
+	const [currentContextDocumentId, setCurrentContextDocumentId] = useState(null);
+	const [includeCurrentContext, setIncludeCurrentContext] = useState(true);
+
+	/**
+	 * Build a combined, de-duplicated list of context document IDs with the
+	 * current-opened file (if included) appearing first, followed by user-added files.
+	 */
+	const combinedDocumentIds = useMemo(() => {
+		const base = Array.isArray(documentIds) ? documentIds : [];
+		const currentArray = (includeCurrentContext && typeof currentContextDocumentId === 'string' && currentContextDocumentId.length > 0)
+			? [currentContextDocumentId]
+			: [];
+
+		// Load mappings for dedupe across temp/azure IDs using underlying Zotero attachment
+		let draftMapping = {};
+		let sessionMapping = {};
+		try {
+			draftMapping = JSON.parse(Zotero.Prefs.get('deeptutor_mapping_draft') || '{}');
+		}
+		catch {}
+		try {
+			if (sessionId) {
+				sessionMapping = JSON.parse(Zotero.Prefs.get(`deeptutor_mapping_${sessionId}`) || '{}');
+			}
+		}
+		catch {}
+
+		const resolveZoteroAttachmentId = (id) => {
+			if (!id) return null;
+			if (draftMapping[id]) return draftMapping[id];
+			if (sessionMapping[id]) return sessionMapping[id];
+			return null;
+		};
+
+		const seenIds = new Set();
+		const seenZotero = new Set();
+		const result = [];
+		const pushIfUnique = (id) => {
+			if (!id) return;
+			const zotId = resolveZoteroAttachmentId(id);
+			const zotKey = typeof zotId === 'number' || typeof zotId === 'string' ? String(zotId) : null;
+			if (seenIds.has(id)) return;
+			if (zotKey && seenZotero.has(zotKey)) return;
+			seenIds.add(id);
+			if (zotKey) seenZotero.add(zotKey);
+			result.push(id);
+		};
+
+		currentArray.forEach(pushIfUnique);
+		base.forEach(pushIfUnique);
+		return result;
+	}, [documentIds, currentContextDocumentId, includeCurrentContext, sessionId]);
+
 	// Add state for note container (parent item ID for creating notes)
 	const [noteContainer, setNoteContainer] = useState(null);
 
@@ -646,12 +702,134 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 	// Add state to track if we have an active stream connection (vs just backend processing)
 	const [hasActiveStream, setHasActiveStream] = useState(false);
 
+	// Add state to track the currently opened paper for change detection
+	const [currentOpenedPaperId, setCurrentOpenedPaperId] = useState(null);
+
 	// Toggle streaming component visibility for a specific message
 	const toggleStreamingComponent = (messageId) => {
 		setStreamingComponentVisibility(prev => ({
 			...prev,
 			[messageId]: !prev[messageId]
 		}));
+	};
+
+	// Function to get currently opened paper ID
+	const getCurrentlyOpenedPaperId = () => {
+		try {
+			const mainWindow = Zotero.getMainWindow();
+			if (!mainWindow) return null;
+			
+			const selectedTabID = mainWindow.Zotero_Tabs.selectedID;
+			if (!selectedTabID) return null;
+			
+			const reader = Zotero.Reader.getByTabID(selectedTabID);
+			if (!reader) return null;
+
+			const item = Zotero.Items.get(reader.itemID);
+			if (!item || !item.isPDFAttachment()) return null;
+
+			return item.id;
+		}
+		catch (error) {
+			Zotero.debug(`DeepTutorChatBox: Error getting currently opened paper ID: ${error.message}`);
+			return null;
+		}
+	};
+
+	// Function to update paper context when paper changes
+	const updatePaperContext = async (newPaperId) => {
+		try {
+			if (!newPaperId || !userId) return;
+
+			// Only update paper context for placeholder sessions
+			const isPlaceholderSession = sessionId && typeof sessionId === 'string' && sessionId.startsWith('__DRAFT__');
+			if (!isPlaceholderSession) {
+				Zotero.debug(`DeepTutorChatBox: Not a placeholder session, skipping paper context update`);
+				return;
+			}
+
+			// Get the new paper item
+			const newItem = Zotero.Items.get(newPaperId);
+			if (!newItem || !newItem.isPDFAttachment()) return;
+
+			// Get filename for the new paper
+			let fileName = '';
+			try {
+				fileName = newItem.attachmentFilename || newItem.getField('title') || '';
+			}
+			catch (error) {
+				Zotero.debug(`DeepTutorChatBox: Error getting filename for new paper: ${error.message}`);
+				fileName = '';
+			}
+
+			if (!fileName || typeof fileName !== 'string' || fileName.trim() === '') {
+				fileName = 'Untitled';
+			}
+
+			// For placeholder sessions, we don't upload yet - just update the display
+			// We use a temporary ID based on the Zotero item ID for the current-opened slot
+			const tempDocumentId = `temp_${newPaperId}`;
+
+
+			// Determine if this Zotero item is already represented in the user-added list via mapping
+			// If so, do not add a separate current-opened slot to avoid duplicates
+			let willDuplicateExisting = false;
+			try {
+				const candidateIds = Array.isArray(documentIds) ? documentIds : [];
+				for (const id of candidateIds) {
+					if (updatedMapping[id] && updatedMapping[id] === newPaperId) {
+						willDuplicateExisting = true;
+						break;
+					}
+				}
+			}
+			catch {}
+
+			if (willDuplicateExisting) {
+				// The file is already in the added list; keep current slot empty to avoid duplicates
+				setCurrentContextDocumentId(null);
+				setIncludeCurrentContext(false);
+				Zotero.debug(`DeepTutorChatBox: Current-opened paper already in user-added context; skipping current slot`);
+			}
+			else {
+				// Save current-opened document in its own slot and ensure it is included
+				setCurrentContextDocumentId(tempDocumentId);
+				setIncludeCurrentContext(true);
+			}
+
+			// Update the mapping for display purposes
+			const mappingKey = 'deeptutor_mapping_draft';
+			let existingMapping = {};
+			try {
+				const mappingStr = Zotero.Prefs.get(mappingKey) || '{}';
+				existingMapping = JSON.parse(mappingStr);
+			}
+			catch {
+				existingMapping = {};
+			}
+
+			// If we are replacing a previously-set current temp document, remove its mapping
+			try {
+				if (typeof currentContextDocumentId === 'string' && currentContextDocumentId.startsWith('temp_') && currentContextDocumentId !== tempDocumentId) {
+					delete existingMapping[currentContextDocumentId];
+				}
+			}
+			catch {}
+
+			// Add the new mapping while preserving existing ones
+			const updatedMapping = { ...existingMapping, [tempDocumentId]: newPaperId };
+			try {
+				Zotero.Prefs.set(mappingKey, JSON.stringify(updatedMapping));
+			}
+			catch (error) {
+				Zotero.debug(`DeepTutorChatBox: Error updating temp mapping: ${error.message}`);
+			}
+
+			Zotero.debug(`DeepTutorChatBox: Set current-opened paper in context: ${fileName} (temp ID: ${tempDocumentId})`);
+		}
+		catch (error) {
+			Zotero.debug(`DeepTutorChatBox: Error updating paper context: ${error.message}`);
+		}
 	};
 
 	// Helper function to check if we should continue checking for responses (within 10 minutes)
@@ -762,11 +940,11 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
             	? source.refinedIndex
             	: source.index;
 
-		if (docIdx === undefined || docIdx === null || docIdx < 0 || docIdx >= documentIds.length) {
+		if (docIdx === undefined || docIdx === null || docIdx < 0 || docIdx >= combinedDocumentIds.length) {
 			return;
 		}
 
-		const attachmentId = documentIds[docIdx];
+		const attachmentId = combinedDocumentIds[docIdx];
 		if (!attachmentId) {
 			return;
 		}
@@ -856,7 +1034,7 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 				delete window.handleDeepTutorSourceClick;
 			}
 		};
-	}, [sessionId, documentIds]); // Re-setup when session or documents change
+	}, [sessionId, combinedDocumentIds]); // Re-setup when session or documents change
 
 	// Re-enable placeholder to button conversion now that XML parsing is fixed
 	// Convert placeholder spans to actual buttons after React renders
@@ -892,6 +1070,7 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 								if (subMessage.sources && subMessage.sources[sourceIndex]) {
 									const source = subMessage.sources[sourceIndex];
 									sourceData = JSON.stringify({
+										// remap index to combinedDocumentIds order when available
 										index: source.index || sourceIndex,
 										refinedIndex: source.refinedIndex !== undefined ? source.refinedIndex : source.index || sourceIndex,
 										page: source.page || 1,
@@ -971,6 +1150,55 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 			}
 		}, 100); // Small delay to ensure state updates are processed
 	}, [currentSession, messages, checkTime]);
+
+	// Monitor for paper changes during placeholder stage
+	useEffect(() => {
+		// Only monitor for paper changes if we're in a placeholder session (draft session)
+		const isPlaceholderSession = currentSession?.id && typeof currentSession.id === 'string' && currentSession.id.startsWith('__DRAFT__');
+		
+		if (!isPlaceholderSession) {
+			return;
+		}
+
+		let timeoutId;
+		
+		const checkForPaperChange = () => {
+			const currentPaperId = getCurrentlyOpenedPaperId();
+			
+			// If we have a current paper ID and it's different from what we're tracking
+			if (currentPaperId && currentPaperId !== currentOpenedPaperId) {
+				Zotero.debug(`DeepTutorChatBox: Paper change detected from ${currentOpenedPaperId} to ${currentPaperId}`);
+				
+				// Update the tracked paper ID
+				setCurrentOpenedPaperId(currentPaperId);
+				
+				// Update the paper context
+				updatePaperContext(currentPaperId);
+			}
+			// If we don't have a current paper ID but we were tracking one, clear it
+			else if (!currentPaperId && currentOpenedPaperId) {
+				Zotero.debug(`DeepTutorChatBox: No paper currently opened, clearing tracked paper ID`);
+				setCurrentOpenedPaperId(null);
+			}
+
+			// Schedule next check
+			timeoutId = setTimeout(checkForPaperChange, 2000);
+		};
+
+		// Set initial paper ID
+		const initialPaperId = getCurrentlyOpenedPaperId();
+		setCurrentOpenedPaperId(initialPaperId);
+
+		// Start checking for paper changes
+		timeoutId = setTimeout(checkForPaperChange, 2000);
+
+		// eslint-disable-next-line consistent-return
+		return () => {
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+			}
+		};
+	}, [currentSession, currentOpenedPaperId, userId, subscriptionType]);
 
 
 	// Handle message updates
@@ -1146,7 +1374,7 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 					sessionName: 'New Session',
 					type: curSessionType || SessionType.BASIC,
 					status: 'CREATED',
-					documentIds: documentIds || [],
+					documentIds: combinedDocumentIds || [],
 					creationTime: new Date().toISOString(),
 					lastUpdatedTime: new Date().toISOString(),
 					statusTimeline: [],
@@ -1170,7 +1398,7 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 					
 					if (draftMapping && typeof draftMapping === 'object') {
 						const filtered = {};
-						(documentIds || []).forEach((azureId) => {
+						(combinedDocumentIds || documentIds || []).forEach((azureId) => {
 							if (draftMapping[azureId]) {
 								filtered[azureId] = draftMapping[azureId];
 							}
@@ -1183,10 +1411,10 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 				}
 				catch {}
 				// Try to rename session based on first file name (best effort)
-				if (documentIds && documentIds.length > 0) {
+				if (combinedDocumentIds && combinedDocumentIds.length > 0) {
 					try {
 						let fileTitle = '';
-						const firstAzureId = documentIds[0];
+						const firstAzureId = (combinedDocumentIds && combinedDocumentIds.length > 0) ? combinedDocumentIds[0] : (documentIds && documentIds[0]);
 						// Try Zotero mapping first
 						let mapping = {};
 						try {
@@ -1228,12 +1456,12 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 							try {
 								await updateSessionName(created.id, newTitle);
 							}
-							catch (_renameError) {
+							catch {
 								// Silent fail for session rename
 							}
 						}
 					}
-					catch (_error) {
+					catch {
 						// Silent fail for session rename
 					}
 				}
@@ -1348,7 +1576,7 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 
 	const sendToAPI = async (message, options = {}) => {
 		const isFirstSend = Boolean(options.isFirstSend);
-		const hasContextDocs = Array.isArray(documentIds) && documentIds.length > 0;
+			const hasContextDocs = Array.isArray(combinedDocumentIds) && combinedDocumentIds.length > 0;
 		// Determine target session for streaming early so it is available in error paths
 		const sessionForStream = (message && message.sessionId) ? message.sessionId : sessionId;
 		try {
@@ -1357,9 +1585,10 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 			setWaitingStreaming(false); // Clear waiting state when normal streaming starts
 			isAutoScrollingRef.current = true; // Re-enable auto-scrolling for new stream
 			// Send message to API
-			const responseData = await createMessage(message);
+			// Ensure message uses combined de-duplicated context IDs
+			const responseData = await createMessage({ ...message, contextDocumentIds: combinedDocumentIds });
 			const newDocumentFiles2 = [];
-			for (const documentId of documentIds || []) {
+			for (const documentId of combinedDocumentIds || []) {
 				try {
 					const docData = await getDocumentById(documentId);
 					newDocumentFiles2.push(docData);
@@ -1391,8 +1620,8 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 				catch {}
 			}
 				
-			// Subscribe to chat stream with timeout
-			const streamResponse = await subscribeToChat(newState);
+				// Subscribe to chat stream with timeout
+				const streamResponse = await subscribeToChat(newState);
 
 			if (!streamResponse.ok) {
 				setIsStreaming(false); // Set streaming to false on error
@@ -1653,6 +1882,57 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 		await userSendMessage(question);
 	};
 
+	// Handle add/remove changes initiated from Composer against the combined list
+	const handleDocumentsChange = (nextCombinedIds) => {
+		try {
+			const prevCombined = combinedDocumentIds;
+			const removed = prevCombined.filter(id => !nextCombinedIds.includes(id));
+			const added = nextCombinedIds.filter(id => !prevCombined.includes(id));
+
+			// Process removals first
+			if (removed.length > 0) {
+				removed.forEach((id) => {
+					if (typeof id === 'string' && id === currentContextDocumentId) {
+						// Removing the current-opened slot only affects the current slot
+						setIncludeCurrentContext(false);
+						setCurrentContextDocumentId(null);
+						// Clean draft mapping for the temp id if present
+						try {
+							const mappingKey = 'deeptutor_mapping_draft';
+							const mapping = JSON.parse(Zotero.Prefs.get(mappingKey) || '{}');
+							if (mapping[id]) {
+								delete mapping[id];
+								Zotero.Prefs.set(mappingKey, JSON.stringify(mapping));
+							}
+						}
+						catch {}
+					}
+					else {
+						// Remove from user-added list
+						setDocumentIds((prev) => prev.filter(x => x !== id));
+					}
+				});
+			}
+
+			// Then process additions (ignore temp ids here)
+			if (added.length > 0) {
+				const toAdd = added.filter(id => !(typeof id === 'string' && id.startsWith('temp_')));
+				if (toAdd.length > 0) {
+					setDocumentIds((prev) => {
+						const next = Array.isArray(prev) ? [...prev] : [];
+						for (const id of toAdd) {
+							if (!next.includes(id)) next.push(id);
+						}
+						return next;
+					});
+				}
+			}
+		}
+		catch (e) {
+			Zotero.debug(e);
+		}
+	};
+
 	const _handleContextButtonClick = () => {};
 
 	const _handleContextDocumentClick = async (_contextDoc) => {};
@@ -1685,7 +1965,7 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 	// Add new useEffect after the existing one
 	useEffect(() => {
 		const openAllDocuments = async () => {
-			if (documentIds && documentIds.length > 0 && sessionId) {
+			if (combinedDocumentIds && combinedDocumentIds.length > 0 && sessionId) {
 				// Try to get the mapping from local storage
 				const storageKey = `deeptutor_mapping_${sessionId}`;
 				const mappingStr = Zotero.Prefs.get(storageKey);
@@ -1696,8 +1976,8 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 				}
 
 				// Open all documents in order
-				for (let i = 0; i < documentIds.length; i++) {
-					const documentId = documentIds[i];
+				for (let i = 0; i < combinedDocumentIds.length; i++) {
+					const documentId = combinedDocumentIds[i];
 					try {
 						let zoteroAttachmentId = documentId;
 
@@ -1720,7 +2000,7 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 						});
 						
 						// Add a small delay between opening documents to avoid overwhelming the UI
-						if (i < documentIds.length - 1) {
+						if (i < combinedDocumentIds.length - 1) {
 							await new Promise(resolve => setTimeout(resolve, 500));
 						}
 					}
@@ -1731,12 +2011,12 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 			}
 		};
 		openAllDocuments();
-	}, [documentIds, sessionId]); // Dependencies array
+	}, [combinedDocumentIds, sessionId]); // Dependencies array
 
 	// Load context documents when documentIds change
 	useEffect(() => {
 		const loadContextDocuments = async () => {
-			if (!documentIds?.length || !sessionId) {
+			if (!combinedDocumentIds?.length || !sessionId) {
 				_setContextDocuments([]);
 				return;
 			}
@@ -1744,7 +2024,7 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 			try {
 				const mapping = getDocumentMapping();
 				const contextDocs = await Promise.allSettled(
-					documentIds.map(id => processDocument(id, mapping))
+					combinedDocumentIds.map(id => processDocument(id, mapping))
 				);
 				
 				const successfulDocs = contextDocs
@@ -1862,7 +2142,7 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 		};
 
 		loadContextDocuments();
-	}, [documentIds, sessionId]);
+	}, [combinedDocumentIds, sessionId]);
 
 	// Handle click outside context popup
 	useEffect(() => {
@@ -2668,8 +2948,8 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 				<DeepTutorComposer
 					sessionId={(sessionId && !(String(sessionId).startsWith('__DRAFT__'))) ? sessionId : null}
 					userId={userId}
-					selectedDocumentIds={documentIds}
-					onDocumentsChange={nextIds => setDocumentIds(nextIds)}
+					selectedDocumentIds={combinedDocumentIds}
+					onDocumentsChange={handleDocumentsChange}
 					subscriptionType={subscriptionType}
 					usageSummary={usageSummary}
 					hasActiveSubscription={hasActiveSubscription}
@@ -2709,8 +2989,8 @@ const DeepTutorChatBox = ({ currentSession, sessions = [], onSessionSelect, onIn
 				<DeepTutorComposer
 					sessionId={(sessionId && !(String(sessionId).startsWith('__DRAFT__'))) ? sessionId : null}
 					userId={userId}
-					selectedDocumentIds={documentIds}
-					onDocumentsChange={nextIds => setDocumentIds(nextIds)}
+					selectedDocumentIds={combinedDocumentIds}
+					onDocumentsChange={handleDocumentsChange}
 					subscriptionType={subscriptionType}
 					usageSummary={usageSummary}
 					hasActiveSubscription={hasActiveSubscription}
