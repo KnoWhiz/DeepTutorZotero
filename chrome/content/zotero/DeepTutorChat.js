@@ -441,6 +441,8 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 	const sessionIdRef = useRef(null);
 	const [isManuallyStopped, setIsManuallyStopped] = useState(false);
 	const isManuallyStoppedRef = useRef(isManuallyStopped);
+	// Ref to prevent race conditions on the very first send in a new session
+	const isFirstSendInitializingRef = useRef(false);
 	const [_time, setTime] = useState(new Date());
 
 	// Separate state for the currently-opened file context slot
@@ -1013,6 +1015,12 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 			// Skip fetching for placeholder draft sessions
 			if (typeof sessionId === 'string' && sessionId.startsWith('__DRAFT__')) return;
 
+			// If we're kicking off the very first message streaming, skip empty loader to prevent clearing
+			if (isFirstSendInitializingRef.current) {
+				Zotero.debug('DeepTutorChat: Skipping loadMessages — first-send initialization in progress');
+				return;
+			}
+
 			try {
 				const sessionMessages = await getMessagesBySessionId(sessionId);
 				setMessages([]);
@@ -1042,6 +1050,12 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 
 		const handleEmptySession = async () => {
 			setInitWait(true);
+			// If we already have an active stream or streaming state, do not overlay the loader
+			if (hasActiveStream || isStreaming) {
+				Zotero.debug('DeepTutorChat: Skipping handleEmptySession — stream already active');
+				setInitWait(false);
+				return;
+			}
 			
 			const loadingMessage = {
 				id: null,
@@ -1065,6 +1079,12 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 			
 			await _appendMessage("DeepTutor", loadingMessage);
 			await new Promise(resolve => setTimeout(resolve, 8000));
+			// Do not clear messages if streaming has begun in the meantime
+			if (hasActiveStream || isStreaming) {
+				Zotero.debug('DeepTutorChat: Aborting loader clear — streaming began during wait');
+				setInitWait(false);
+				return;
+			}
 			setMessages([]);
 			
 			// Do not auto-send summary; wait for user's first question
@@ -1121,6 +1141,10 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 		}
 		// Capture whether this is the very first message in the session BEFORE we mutate state
 		const hadNoMessagesBeforeSend = messages.length === 0;
+		// Mark that we are initializing the first-send flow to avoid loader race conditions
+		if (hadNoMessagesBeforeSend) {
+			isFirstSendInitializingRef.current = true;
+		}
 		// Always enable auto-scrolling when user sends a message (which will trigger streaming)
 		isAutoScrollingRef.current = true;
 
@@ -1153,16 +1177,20 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 				}
 				catch {}
 				
+				// Filter out temporary context IDs (e.g., temp_*) to avoid backend 400s
+				const filteredDocumentIds = (combinedDocumentIds || []).filter((id) => !(typeof id === 'string' && id.startsWith('temp_')));
+				try {
+					const removedCount = (combinedDocumentIds || []).length - filteredDocumentIds.length;
+					if (removedCount > 0) {
+						Zotero.debug(`DeepTutorChat: Filtering out ${removedCount} temporary context IDs before session creation`);
+					}
+				}
+				catch {}
 				const sessionData = {
 					userId: userId,
 					sessionName: 'New Session',
 					type: curSessionType || SessionType.BASIC,
-					status: 'CREATED',
-					documentIds: combinedDocumentIds || [],
-					creationTime: new Date().toISOString(),
-					lastUpdatedTime: new Date().toISOString(),
-					statusTimeline: [],
-					generateHash: null
+					documentIds: filteredDocumentIds
 				};
 				const created = await createSession(sessionData).catch((err) => {
 					throw err;
@@ -1368,9 +1396,21 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 			setHasActiveStream(true); // Set active stream flag
 			setWaitingStreaming(false); // Clear waiting state when normal streaming starts
 			isAutoScrollingRef.current = true; // Re-enable auto-scrolling for new stream
-			// Send message to API
-			// Ensure message uses combined de-duplicated context IDs
+			Zotero.debug(`DeepTutorChat: sendToAPI start — isFirstSend=${isFirstSend}, hasContextDocs=${hasContextDocs}, sessionForStream=${sessionForStream}`);
+			// Optional small pre-create delay on first send when context docs are present
+			if (isFirstSend && hasContextDocs) {
+				try {
+					Zotero.debug('DeepTutorChat: delaying createMessage ~2000ms for context readiness');
+					await new Promise((resolve) => setTimeout(resolve, 2000));
+				}
+				catch {}
+			}
+			// Send message to API (ensure de-duplicated context IDs are used)
 			const responseData = await createMessage({ ...message, contextDocumentIds: combinedDocumentIds });
+			try {
+				Zotero.debug(`DeepTutorChat: createMessage OK — new message ID=${responseData?.id || 'n/a'}`);
+			}
+			catch {}
 			const newDocumentFiles2 = [];
 			for (const documentId of combinedDocumentIds || []) {
 				try {
@@ -1395,17 +1435,25 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 				streaming: true,
 				type: curSessionType || SessionType.BASIC
 			});
+			try {
+				Zotero.debug(`DeepTutorChat: conversation ready — storagePaths=${newState.storagePaths?.length || 0}`);
+			}
+			catch {}
 
 			// Optional pre-stream delay for the first response when context docs are present
 			if (isFirstSend && hasContextDocs) {
 				try {
-					await new Promise(resolve => setTimeout(resolve, 3000));
+					Zotero.debug('DeepTutorChat: first-send — show streaming placeholder immediately, but hold subscribe ~5000ms');
 				}
 				catch {}
 			}
 				
 			// Subscribe to chat stream with timeout
 			const streamResponse = await subscribeToChat(newState);
+			try {
+				Zotero.debug(`DeepTutorChat: subscribeToChat status=${streamResponse?.status}, hasBody=${Boolean(streamResponse?.body)}`);
+			}
+			catch {}
 
 			if (!streamResponse.ok) {
 				setIsStreaming(false); // Set streaming to false on error
@@ -1425,6 +1473,10 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 			let streamText = "";
 			let hasReceivedData = false;
 			let lastDataTime = Date.now();
+			try {
+				Zotero.debug('DeepTutorChat: stream reader acquired; entering read loop');
+			}
+			catch {}
 
 			// Create initial streaming message for TUTOR
 			const initialStreamingMessage = {
@@ -1450,6 +1502,16 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 					return newMessages;
 				});
 			});
+			// First send initialization complete: we've placed the streaming placeholder
+			isFirstSendInitializingRef.current = false;
+
+			// Perform delayed subscribe after placeholder so UI shows instantly
+			if (isFirstSend && hasContextDocs) {
+				try {
+					await new Promise((resolve) => setTimeout(resolve, 5000));
+				}
+				catch {}
+			}
 
 			while (true) {
 				const { done, value } = await reader.read();
@@ -1472,6 +1534,12 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 
 				lastDataTime = Date.now();
 				const data = decoder.decode(value);
+				if (!hasReceivedData) {
+					try {
+						Zotero.debug(`DeepTutorChat: received first stream chunk — size=${data?.length || 0}`);
+					}
+					catch {}
+				}
                 
 				data.split('\n\n').forEach((event) => {
 					if (!event.startsWith('data:')) return;
@@ -1503,8 +1571,11 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 								streamText: streamText
 							};
 
-							// Update the last message in the chat
+							// Update the last message in the chat, resilient to external clears
 							setMessages((prev) => {
+								if (!prev || prev.length === 0) {
+									return [streamMessage];
+								}
 								const newMessages = [...prev];
 								newMessages[newMessages.length - 1] = streamMessage;
 								return newMessages;
@@ -1588,6 +1659,8 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 			setIsStreaming(false); // Set streaming to false on any error
 			setHasActiveStream(false);
 			streamReaderRef.current = null; // Clear reader reference
+			// Ensure flag resets even on failure
+			isFirstSendInitializingRef.current = false;
 			
 			// Even on error, try to fetch message history to ensure UI consistency
 			try {
