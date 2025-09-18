@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'; // eslint-disable-line no-unused-vars
 import PropTypes from 'prop-types';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
-import { getPreSignedUrl } from './api/libs/api';
+import { getPreSignedUrl } from './api/libs/api.js';
 
 const BasicPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_STANDARD.svg';
 const BasicDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_STANDARD_DARK.svg';

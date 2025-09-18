@@ -1773,7 +1773,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 				// Switch to main pane
 				this.switchPane('main');
 
-				// Update DeepTutorChatBox through props
+				// Update DeepTutorChat through props
 				if (session.id) {
 					// Update session ID through props
 					if (this.props.onSessionIdUpdate) {
@@ -2008,7 +2008,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 		}
 	};
 
-	// Handle iniWait state changes from DeepTutorChatBox
+	// Handle iniWait state changes from DeepTutorChat
 	handleInitWaitChange = (iniWait) => {
 		Zotero.debug(`DeepTutor: Received iniWait state change: ${iniWait}`);
 

@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 import ModelSelection from './DeepTutorModelSelection.js';
 import SessionHistory from './DeepTutorSessionHistory.js';
-import DeepTutorChatBox from './DeepTutorChatBox.js';
+import DeepTutorChat from './DeepTutorChat.js';
 import DeepTutorWelcomePane from './DeepTutorWelcomePane.js';
 import DeepTutorSignIn from './DeepTutorSignIn.js';
 import DeepTutorSubscription from './DeepTutorSubscription.js';
@@ -265,7 +265,7 @@ const DeepTutorMain = (props) => {
 			<div style={styles.middle}>
 				<div style={styles.paneList}>
 					{props.currentPane === 'main' && (
-						<DeepTutorChatBox
+						<DeepTutorChat
 							ref={props.tutorBoxRef}
 							currentSession={props.currentSession}
 							sessions={props.sessions}

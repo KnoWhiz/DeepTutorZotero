@@ -50,7 +50,7 @@ const MessageRole = {
 	USER: 'USER'
 };
 
-const DeepTutorChatBoxMessage = ({
+const DeepTutorChatMessage = ({
 	message,
 	index,
 	messages,
@@ -846,7 +846,7 @@ const DeepTutorChatBoxMessage = ({
 	);
 };
 
-DeepTutorChatBoxMessage.propTypes = {
+DeepTutorChatMessage.propTypes = {
 	message: PropTypes.object.isRequired,
 	index: PropTypes.number.isRequired,
 	messages: PropTypes.array.isRequired,
@@ -866,4 +866,4 @@ DeepTutorChatBoxMessage.propTypes = {
 	handleShowNoteSavePopup: PropTypes.func
 };
 
-export default DeepTutorChatBoxMessage;
+export default DeepTutorChatMessage;

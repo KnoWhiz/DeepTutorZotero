@@ -421,7 +421,7 @@ const DeepTutorStreamingComponent = ({ streamText, hideStreamResponse }) => {
 			}
 		}
 		
-		// Replacement for source span identifier - same logic as DeepTutorChatBox but simplified for streaming
+		// Replacement for source span identifier - same logic as DeepTutorChat but simplified for streaming
 		Zotero.debug(`DeepTutorStreamingComponent: formatResponseForMarkdown - Replacing source span identifiers ${cleanText}`);
 		cleanText = cleanText.replace(/\[<(\d{1,2})>\]/g, (match, sourceId) => {
 			const sourceIndex = parseInt(sourceId) - 1; // Convert to 0-based index
@@ -429,7 +429,7 @@ const DeepTutorStreamingComponent = ({ streamText, hideStreamResponse }) => {
 			Zotero.debug(`DeepTutorStreamingComponent: Processing source reference: ${match}, sourceId: ${sourceId}, sourceIndex: ${sourceIndex}`);
 			
 			// For streaming, we don't have access to source data, so we create simple placeholders
-			// The actual source data will be available when the final message is processed in DeepTutorChatBox
+			// The actual source data will be available when the final message is processed in DeepTutorChat
 			const htmlSpan = `<span class="deeptutor-source-placeholder-streaming" data-source-id="${sourceId}" data-page="Unknown">${sourceId}</span>`;
 			Zotero.debug(`DeepTutorStreamingComponent: Generated streaming HTML span for source ${sourceId}: "${htmlSpan}"`);
 			return htmlSpan;
@@ -480,13 +480,13 @@ const DeepTutorStreamingComponent = ({ streamText, hideStreamResponse }) => {
 		return formattedText;
 	};
 
-	// Source component removed - using HTML spans instead for consistency with DeepTutorChatBox
+	// Source component removed - using HTML spans instead for consistency with DeepTutorChat
 
 	const containerStyle = {
 		padding: '0.125rem',
 		fontFamily: 'Roboto, sans-serif',
-		fontSize: '0.875rem', // Match DeepTutorChatBox font size
-		lineHeight: '1.35', // Match DeepTutorChatBox line height
+		fontSize: '0.875rem', // Match DeepTutorChat font size
+		lineHeight: '1.35', // Match DeepTutorChat line height
 		textAlign: 'left',
 		wordWrap: 'break-word',
 		overflowWrap: 'break-word',
@@ -506,8 +506,8 @@ const DeepTutorStreamingComponent = ({ streamText, hideStreamResponse }) => {
 		textAlign: 'left',
 		padding: '0.75rem',
 		fontFamily: 'Roboto, sans-serif',
-		fontSize: '0.875rem', // Match DeepTutorChatBox font size
-		lineHeight: '1.35', // Match DeepTutorChatBox line height
+		fontSize: '0.875rem', // Match DeepTutorChat font size
+		lineHeight: '1.35', // Match DeepTutorChat line height
 		wordWrap: 'break-word',
 		overflowWrap: 'break-word',
 		wordBreak: 'break-word',
@@ -515,7 +515,7 @@ const DeepTutorStreamingComponent = ({ streamText, hideStreamResponse }) => {
 	};
 
 	return React.createElement('div', null,
-		// Add CSS styles for markdown tables and source buttons to match DeepTutorChatBox
+		// Add CSS styles for markdown tables and source buttons to match DeepTutorChat
 		React.createElement('style', {
 			dangerouslySetInnerHTML: {
 				__html: `
@@ -870,7 +870,7 @@ const DeepTutorStreamingComponent = ({ streamText, hideStreamResponse }) => {
 								dangerouslySetInnerHTML: { __html: processedResult },
 								style: {
 									fontSize: "1rem", // 13px equivalent with 13px root font size
-									lineHeight: "1.5", // Match DeepTutorChatBox line height
+									lineHeight: "1.5", // Match DeepTutorChat line height
 									wordBreak: "break-word",
 									overflowWrap: "break-word",
 									color: colors.text.primary // Use theme text color
@@ -879,7 +879,7 @@ const DeepTutorStreamingComponent = ({ streamText, hideStreamResponse }) => {
 							: React.createElement('div', {
 								style: {
 									fontSize: "1rem", // 13px equivalent with 13px root font size
-									lineHeight: "1.5", // Match DeepTutorChatBox line height
+									lineHeight: "1.5", // Match DeepTutorChat line height
 									wordBreak: "break-word",
 									overflowWrap: "break-word",
 									color: colors.text.primary // Use theme text color
@@ -891,7 +891,7 @@ const DeepTutorStreamingComponent = ({ streamText, hideStreamResponse }) => {
 						return React.createElement('div', {
 							style: {
 								fontSize: "1rem", // 13px equivalent with 13px root font size
-								lineHeight: "1.5", // Match DeepTutorChatBox line height
+								lineHeight: "1.5", // Match DeepTutorChat line height
 								wordBreak: "break-word",
 								overflowWrap: "break-word",
 								color: colors.text.primary // Use theme text color
@@ -916,7 +916,7 @@ const DeepTutorStreamingComponent = ({ streamText, hideStreamResponse }) => {
 								dangerouslySetInnerHTML: { __html: processedResult },
 								style: {
 									fontSize: "1rem", // 13px equivalent with 13px root font size
-									lineHeight: "1.5", // Match DeepTutorChatBox line height
+									lineHeight: "1.5", // Match DeepTutorChat line height
 									wordBreak: "break-word",
 									overflowWrap: "break-word",
 									color: colors.text.primary // Use theme text color
@@ -925,7 +925,7 @@ const DeepTutorStreamingComponent = ({ streamText, hideStreamResponse }) => {
 							: React.createElement('div', {
 								style: {
 									fontSize: "1rem", // 13px equivalent with 13px root font size
-									lineHeight: "1.5", // Match DeepTutorChatBox line height
+									lineHeight: "1.5", // Match DeepTutorChat line height
 									wordBreak: "break-word",
 									overflowWrap: "break-word",
 									color: colors.text.primary // Use theme text color
@@ -937,7 +937,7 @@ const DeepTutorStreamingComponent = ({ streamText, hideStreamResponse }) => {
 						return React.createElement('div', {
 							style: {
 								fontSize: "1rem", // 13px equivalent with 13px root font size
-								lineHeight: "1.5", // Match DeepTutorChatBox line height
+								lineHeight: "1.5", // Match DeepTutorChat line height
 								wordBreak: "break-word",
 								overflowWrap: "break-word",
 								color: colors.text.primary // Use theme text color
