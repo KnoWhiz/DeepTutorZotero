@@ -50,7 +50,7 @@ const MessageRole = {
 	USER: 'USER'
 };
 
-const DeepTutorChatBoxMessage = ({
+const DeepTutorChatMessage = ({
 	message,
 	index,
 	messages,
@@ -415,7 +415,6 @@ const DeepTutorChatBoxMessage = ({
 	};
 
 
-
 	// Function to download/save a message as a Zotero note
 	const downloadMessage = async (message, messageIndex) => {
 		if (!message) {
@@ -529,10 +528,7 @@ const DeepTutorChatBoxMessage = ({
 		}
 	};
 
-	// Return nothing if it's the first message and from user
-	if (index === 0 && message.role === MessageRole.USER) {
-		return null;
-	}
+	// Display all messages including the first user message
     
 	const isUser = message.role === MessageRole.USER;
 	const messageId = message.id || index;
@@ -654,43 +650,45 @@ const DeepTutorChatBoxMessage = ({
 	return (
 		<div>
 			{/* Show streaming component toggle button for non-streaming messages with streamText, but not for manually stopped messages */}
-			{!message.isStreaming && message.streamText && !message.manuallyStopped ? (
-				<div style={{
-					display: 'flex',
-					justifyContent: 'flex-start',
-					marginTop: '1.5rem',
-				}}>
-					<button
-						style={{
-							all: 'revert',
-							display: 'flex',
-							width: 'fit-content',
-							borderRadius: '0.375rem',
-							border: `2px solid ${theme === 'dark' ? colors.sky : '#E0E0E0'}`,
-							paddingLeft: '1rem',
-							paddingRight: '1rem',
-							paddingTop: '0.5rem',
-							paddingBottom: '0.5rem',
-							marginTop: '0.5rem',
-							marginBottom: '0.5rem',
-							fontFamily: 'Roboto, sans-serif',
-							fontSize: '0.875rem',
-							alignItems: 'center',
-							color: colors.text.allText,
-							background: colors.background.quaternary,
-							cursor: 'pointer',
-							transition: 'background-color 0.2s',
-							fontWeight: 500
-						}}
-						onClick={() => toggleStreamingComponent(messageId)}
-						onMouseEnter={e => e.target.style.background = theme === 'dark' ? colors.button.hover : colors.background.primary}
-						onMouseLeave={e => e.target.style.background = colors.background.quaternary}
-						title={isStreamingComponentVisible ? "Hide streaming view" : "Show streaming view"}
-					>
-						{isStreamingComponentVisible ? "Hide Thinking Process" : message.streamText.includes('<stopped>') ? "Show Stopped Thinking Process" : "Show Thinking Process"}
-					</button>
-				</div>
-			) : null}
+			{!message.isStreaming && message.streamText && !message.manuallyStopped
+				? (
+					<div style={{
+						display: 'flex',
+						justifyContent: 'flex-start',
+						marginTop: '1.5rem',
+					}}>
+						<button
+							style={{
+								all: 'revert',
+								display: 'flex',
+								width: 'fit-content',
+								borderRadius: '0.375rem',
+								border: `2px solid ${theme === 'dark' ? colors.sky : '#E0E0E0'}`,
+								paddingLeft: '1rem',
+								paddingRight: '1rem',
+								paddingTop: '0.5rem',
+								paddingBottom: '0.5rem',
+								marginTop: '0.5rem',
+								marginBottom: '0.5rem',
+								fontFamily: 'Roboto, sans-serif',
+								fontSize: '0.875rem',
+								alignItems: 'center',
+								color: colors.text.allText,
+								background: colors.background.quaternary,
+								cursor: 'pointer',
+								transition: 'background-color 0.2s',
+								fontWeight: 500
+							}}
+							onClick={() => toggleStreamingComponent(messageId)}
+							onMouseEnter={e => e.target.style.background = theme === 'dark' ? colors.button.hover : colors.background.primary}
+							onMouseLeave={e => e.target.style.background = colors.background.quaternary}
+							title={isStreamingComponentVisible ? "Hide streaming view" : "Show streaming view"}
+						>
+							{isStreamingComponentVisible ? "Hide Thinking Process" : message.streamText.includes('<stopped>') ? "Show Stopped Thinking Process" : "Show Thinking Process"}
+						</button>
+					</div>
+				)
+				: null}
 			
 			{/* Show streaming component during streaming OR when explicitly visible */}
 			{(message.isStreaming || isStreamingComponentVisible) && (
@@ -846,7 +844,7 @@ const DeepTutorChatBoxMessage = ({
 	);
 };
 
-DeepTutorChatBoxMessage.propTypes = {
+DeepTutorChatMessage.propTypes = {
 	message: PropTypes.object.isRequired,
 	index: PropTypes.number.isRequired,
 	messages: PropTypes.array.isRequired,
@@ -866,4 +864,4 @@ DeepTutorChatBoxMessage.propTypes = {
 	handleShowNoteSavePopup: PropTypes.func
 };
 
-export default DeepTutorChatBoxMessage;
+export default DeepTutorChatMessage;

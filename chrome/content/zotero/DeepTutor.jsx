@@ -38,8 +38,13 @@ import {
 	deleteSessionById,
 	getActiveUserSubscriptionByUserId,
 	getSessionUsageForUser,
-	DT_SIGN_UP_URL
+	DT_SIGN_UP_URL,
+	getPreSignedUrl
 } from './api/libs/api.js';
+import {
+	getCurrentlyOpenedPDF,
+	uploadCurrentlyOpenedFile
+} from './DeepTutorHelperFunctions.js';
 import {
 	useAuthState,
 	getCurrentUser,
@@ -724,6 +729,57 @@ var DeepTutor = class DeepTutor extends React.Component {
 			// Continue with session creation if limit check fails
 		}
 
+		// Check if there's already a placeholder draft session
+		const existingDraftSession = this.state.sessions.find(session => typeof session.id === 'string' && session.id.startsWith('__DRAFT__'));
+
+		if (existingDraftSession) {
+			// Jump to existing draft session instead of creating a new one
+			Zotero.debug('DeepTutor: Found existing draft session, jumping to it instead of creating new one');
+			this.setState({
+				currentSession: existingDraftSession,
+				messages: [],
+				documentIds: existingDraftSession.documentIds || [],
+				currentPane: 'main'
+			});
+			return;
+		}
+
+		// Check for currently opened PDF and add it to context
+		let finalDocumentIds = [];
+		let finalMapping = {};
+		
+		try {
+			// Try to get currently opened PDF
+			const currentPDF = getCurrentlyOpenedPDF();
+			if (currentPDF) {
+				try {
+					const uploadResult = await uploadCurrentlyOpenedFile(
+						currentPDF,
+						this.state.userData ? this.state.userData.id : 0,
+						this.state.subscriptionType || 'BASIC',
+						getPreSignedUrl
+					);
+					
+					if (uploadResult) {
+						finalDocumentIds = [uploadResult.documentId];
+						finalMapping = uploadResult.mapping;
+						
+						// Store the mapping for later use when the real session is created
+						try {
+							Zotero.Prefs.set('deeptutor_mapping_draft', JSON.stringify(finalMapping));
+						}
+						catch {}
+					}
+				}
+				catch {
+					// Continue with session creation even if upload fails
+				}
+			}
+		}
+		catch {
+			// Continue with session creation even if PDF detection fails
+		}
+
 		this.setState(_prevState => ({
 			// Repurpose model selection toggle to start a fresh chat session without popup
 			showModelSelectionPopup: false,
@@ -734,7 +790,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 					id: draftId,
 					userId: this.state.userData ? this.state.userData.id : 0,
 					sessionName: 'New Session',
-					documentIds: [],
+					documentIds: finalDocumentIds,
 					status: SessionStatus.CREATED,
 					type: SessionType.BASIC
 				});
@@ -743,7 +799,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 				return {
 					currentSession: draftSession,
 					messages: [],
-					documentIds: [],
+					documentIds: finalDocumentIds,
 					sesIdToObj: newMap,
 					sessions: [...this.state.sessions, draftSession],
 					currentPane: 'main'
@@ -1493,7 +1549,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 				// Switch to main pane
 				this.switchPane('main');
 
-				// Update DeepTutorChatBox through props
+				// Update DeepTutorChat through props
 				if (session.id) {
 					// Update session ID through props
 					if (this.props.onSessionIdUpdate) {
@@ -1728,7 +1784,7 @@ var DeepTutor = class DeepTutor extends React.Component {
 		}
 	};
 
-	// Handle iniWait state changes from DeepTutorChatBox
+	// Handle iniWait state changes from DeepTutorChat
 	handleInitWaitChange = (iniWait) => {
 		Zotero.debug(`DeepTutor: Received iniWait state change: ${iniWait}`);
 

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useRef, memo, useCallback } from "
 import PropTypes from "prop-types";
 import { useDeepTutorTheme } from "./theme/useDeepTutorTheme.js";
 import { DT_BASE_URL } from "./api/libs/api.js";
+import { useClickOutsidePopup } from "./DeepTutorHelperFunctions.js";
 
 /**
  * DeepTutorUsageContent

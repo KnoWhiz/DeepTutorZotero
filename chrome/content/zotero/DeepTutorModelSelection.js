@@ -6,6 +6,16 @@ import {
 	createSession
 } from './api/libs/api';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
+import {
+	getFileSizeLimitMB,
+	getFileCountLimit,
+	getPageLimit,
+	validateFileSize,
+	validatePageCount,
+	loadContainersWithPDFs,
+	getFileCountLimitMessage,
+	canAddMoreFiles
+} from './DeepTutorHelperFunctions.js';
 
 const DeleteImg = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_DELETE.svg';
 const DeleteImgWhite = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_DELETE_WHITE.svg';
@@ -624,121 +634,12 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 		return false;
 	};
 
-	// Get file count limit based on subscription type
-	const getFileCountLimit = () => {
-		switch (subscriptionType) {
-			case "BASIC":
-				return 1;
-			case "PLUS":
-				return 10;
-			case "PREMIUM":
-				return 20;
-			default:
-				return 1; // Default to most restrictive
-		}
-	};
 
-	// Get file size limit in MB based on subscription type
-	const getFileSizeLimitMB = () => {
-		switch (subscriptionType) {
-			case "BASIC":
-				return 10;
-			case "PLUS":
-				return 50;
-			case "PREMIUM":
-				return 100;
-			default:
-				return 10; // Default to most restrictive
-		}
-	};
 
-	// Temporary testing page limit; set to 500 for production
-	const getPageLimit = () => {
-		// For testing now, return 20; actual number should be 500
-		return 500;
-	};
 
-	// Validate page count using PDFWorker.getFullText to access totalPages
-	const validatePageCount = async (pdf, fileName = null) => {
-		try {
-			// Extract minimal metadata by requesting 1 page; totalPages is included in response
-			const { totalPages } = await Zotero.PDFWorker.getFullText(pdf.id, 1);
-			if (typeof totalPages === 'number') {
-				const limit = getPageLimit();
-				if (totalPages > limit) {
-					const displayName = fileName || pdf.name || 'PDF';
-					Zotero.debug(`ModelSelection: File ${displayName} exceeds page limit: ${totalPages} > ${limit}`);
-					if (typeof onShowPageLimitWarning === 'function') {
-						onShowPageLimitWarning({ fileName: displayName, pageCount: totalPages, pageLimit: limit });
-					}
-					return false; // Page count validation failed
-				}
-			}
-			return true;
-		}
-		catch (e) {
-			const displayName = fileName || pdf.name || 'PDF';
-			Zotero.debug(`ModelSelection: Could not check page count for ${displayName}: ${e.message}`);
-			// Continue processing if we can't check pages
-			return true;
-		}
-	};
 
-	// Note: getFileSizeLimitBytes helper removed (unused)
-	// Check if adding more files would exceed the limit
-	const canAddMoreFiles = () => {
-		const limit = getFileCountLimit();
-		return fileList.length < limit;
-	};
 
-	// Get file count limit message
-	const getFileCountLimitMessage = () => {
-		const limit = getFileCountLimit();
-		switch (subscriptionType) {
-			case "BASIC":
-				return `Basic subscription allows only ${limit} file`;
-			case "PLUS":
-				return `Pro subscription allows up to ${limit} files`;
-			case "PREMIUM":
-				return `Premium subscription allows up to ${limit} files`;
-			default:
-				return `File limit: ${limit}`;
-		}
-	};
 
-	// Reusable function to validate file size
-	const validateFileSize = async (pdf, fileName = null) => {
-		try {
-			const filePath = await pdf.getFilePathAsync();
-			if (filePath) {
-				const fileStats = await IOUtils.stat(filePath);
-				const fileSizeBytes = fileStats.size;
-				const fileSizeMB = fileSizeBytes / (1024 * 1024);
-				
-				// Check subscription-based file size limit
-				const sizeLimitMB = getFileSizeLimitMB();
-				if (fileSizeMB > sizeLimitMB) {
-					const displayName = fileName || pdf.name || 'PDF';
-					Zotero.debug(`ModelSelection: File ${displayName} exceeds size limit: ${fileSizeMB.toFixed(2)}MB > ${sizeLimitMB}MB`);
-					
-					// Delegate file size warning to parent popup
-					if (typeof onShowFileSizeWarning === 'function') {
-						Zotero.debug(`ModelSelection: Triggering onShowFileSizeWarning for ${displayName} (${fileSizeMB.toFixed(2)}MB > ${sizeLimitMB}MB)`);
-						onShowFileSizeWarning({ fileName: displayName, fileSizeMB, sizeLimitMB });
-					}
-					
-					return false; // File size validation failed
-				}
-			}
-			return true; // File size validation passed
-		}
-		catch (sizeError) {
-			const displayName = fileName || pdf.name || 'PDF';
-			Zotero.debug(`ModelSelection: Could not check file size for ${displayName}: ${sizeError.message}`);
-			// Continue processing if we can't check size
-			return true;
-		}
-	};
 
 	// Update model name based on first file in fileList and handle model type switching
 	useEffect(() => {
@@ -868,13 +769,13 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 				Zotero.debug(`ModelSelection: Found currently opened PDF: ${fileName} (ID: ${item.id})`);
 
 				// Check file size before adding (after resolving fileName)
-				const isFileSizeValid = await validateFileSize(item, fileName);
+				const isFileSizeValid = await validateFileSize(item, fileName, subscriptionType, onShowFileSizeWarning);
 				if (!isFileSizeValid) {
 					return;
 				}
 
 				// Check page count limit
-				const isPageCountValid = await validatePageCount(item, fileName);
+				const isPageCountValid = await validatePageCount(item, fileName, onShowPageLimitWarning);
 				if (!isPageCountValid) {
 					return;
 				}
@@ -1064,13 +965,13 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 				}
 
 				// Check file size before adding
-				const isFileSizeValid = await validateFileSize(pdf);
+				const isFileSizeValid = await validateFileSize(pdf, null, subscriptionType, onShowFileSizeWarning);
 				if (!isFileSizeValid) {
 					continue; // Skip this file and try the next one
 				}
 
 				// Check page count limit
-				const isPageCountValid = await validatePageCount(pdf);
+				const isPageCountValid = await validatePageCount(pdf, null, onShowPageLimitWarning);
 				if (!isPageCountValid) {
 					continue;
 				}
@@ -1430,13 +1331,13 @@ const ModelSelection = forwardRef(({ onSubmit, user, externallyFrozen = false, o
 						Zotero.debug(`BBBBB: Processing PDF: ${pdf.name}`);
 						
 						// Check file size before processing
-						const isFileSizeValid = await validateFileSize(pdf);
+						const isFileSizeValid = await validateFileSize(pdf, null, subscriptionType, onShowFileSizeWarning);
 						if (!isFileSizeValid) {
 							return null;
 						}
 
 						// Check page count limit
-						const isPageCountValid = await validatePageCount(pdf);
+						const isPageCountValid = await validatePageCount(pdf, null, onShowPageLimitWarning);
 						if (!isPageCountValid) {
 							return null;
 						}
