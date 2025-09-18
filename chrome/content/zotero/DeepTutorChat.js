@@ -14,6 +14,90 @@ import DeepTutorComposer from './DeepTutorChatComposer.js';
 import DeepTutorChatTop from './DeepTutorChatTop.js';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 
+/**
+ * Utility functions for managing recently opened files
+ */
+const RecentFilesManager = {
+
+	/**
+	 * Get the preference key for storing recent files
+	 * @returns {string} The preference key
+	 */
+	getPreferenceKey() {
+		return "deeptutor_recent_files";
+	},
+
+	/**
+	 * Get the maximum number of recent files to store
+	 * @returns {number} Maximum number of recent files
+	 */
+	getMaxRecentFiles() {
+		return 10; // Store more than we display to have a buffer
+	},
+
+	/**
+	 * Get recently opened files from preferences
+	 * @returns {Array} Array of recent file objects with {id, name, lastAccessed}
+	 */
+	getRecentFiles() {
+		try {
+			const recentFilesStr = Zotero.Prefs.get(this.getPreferenceKey());
+			if (!recentFilesStr) return [];
+			
+			const recentFiles = JSON.parse(recentFilesStr);
+			return Array.isArray(recentFiles) ? recentFiles : [];
+		}
+		catch (error) {
+			Zotero.debug(`Error getting recent files: ${error.message}`);
+			return [];
+		}
+	},
+
+	/**
+	 * Add or update a file in the recent files list
+	 * @param {number} itemId - The Zotero item ID
+	 * @param {string} fileName - The display name of the file
+	 */
+	addRecentFile(itemId, fileName) {
+		try {
+			const recentFiles = this.getRecentFiles();
+			const now = Date.now();
+			
+			// Remove existing entry if it exists
+			const filteredFiles = recentFiles.filter(file => file.id !== itemId);
+			
+			// Add new entry at the beginning
+			const newFile = {
+				id: itemId,
+				name: fileName || "Untitled",
+				lastAccessed: now
+			};
+			
+			filteredFiles.unshift(newFile);
+			
+			// Keep only the most recent files
+			const maxFiles = this.getMaxRecentFiles();
+			const trimmedFiles = filteredFiles.slice(0, maxFiles);
+			
+			// Save back to preferences
+			Zotero.Prefs.set(this.getPreferenceKey(), JSON.stringify(trimmedFiles));
+		}
+		catch (error) {
+			Zotero.debug(`Error adding recent file: ${error.message}`);
+		}
+	},
+
+	/**
+	 * Get the most recent files (up to a specified limit)
+	 * @param {number} limit - Maximum number of files to return
+	 * @returns {Array} Array of recent file objects
+	 */
+	getMostRecentFiles(limit = 5) {
+		const recentFiles = this.getRecentFiles();
+		return recentFiles.slice(0, limit);
+	}
+};
+
 const markdownit = require('markdown-it');
 // Try to require markdown-it-container, fallback to a simpler implementation if not available
 try {
@@ -768,6 +852,16 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 			if (!item) {
 				return;
 			}
+
+			// Track this file as recently accessed
+			let fileName = '';
+			try {
+				fileName = item.getField('title') || item.attachmentFilename || '';
+			}
+			catch {
+				fileName = '';
+			}
+			RecentFilesManager.addRecentFile(item.id, fileName);
 
 			// Open the PDF on the correct page
 			await Zotero.FileHandlers.open(item, {

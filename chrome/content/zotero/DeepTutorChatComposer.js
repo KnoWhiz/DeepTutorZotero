@@ -3,6 +3,90 @@ import PropTypes from 'prop-types';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 import { getPreSignedUrl } from './api/libs/api.js';
 
+/**
+ * Utility functions for managing recently opened files
+ */
+const RecentFilesManager = {
+
+	/**
+	 * Get the preference key for storing recent files
+	 * @returns {string} The preference key
+	 */
+	getPreferenceKey() {
+		return "deeptutor_recent_files";
+	},
+
+	/**
+	 * Get the maximum number of recent files to store
+	 * @returns {number} Maximum number of recent files
+	 */
+	getMaxRecentFiles() {
+		return 10; // Store more than we display to have a buffer
+	},
+
+	/**
+	 * Get recently opened files from preferences
+	 * @returns {Array} Array of recent file objects with {id, name, lastAccessed}
+	 */
+	getRecentFiles() {
+		try {
+			const recentFilesStr = Zotero.Prefs.get(this.getPreferenceKey());
+			if (!recentFilesStr) return [];
+			
+			const recentFiles = JSON.parse(recentFilesStr);
+			return Array.isArray(recentFiles) ? recentFiles : [];
+		}
+		catch (error) {
+			Zotero.debug(`Error getting recent files: ${error.message}`);
+			return [];
+		}
+	},
+
+	/**
+	 * Add or update a file in the recent files list
+	 * @param {number} itemId - The Zotero item ID
+	 * @param {string} fileName - The display name of the file
+	 */
+	addRecentFile(itemId, fileName) {
+		try {
+			const recentFiles = this.getRecentFiles();
+			const now = Date.now();
+			
+			// Remove existing entry if it exists
+			const filteredFiles = recentFiles.filter(file => file.id !== itemId);
+			
+			// Add new entry at the beginning
+			const newFile = {
+				id: itemId,
+				name: fileName || "Untitled",
+				lastAccessed: now
+			};
+			
+			filteredFiles.unshift(newFile);
+			
+			// Keep only the most recent files
+			const maxFiles = this.getMaxRecentFiles();
+			const trimmedFiles = filteredFiles.slice(0, maxFiles);
+			
+			// Save back to preferences
+			Zotero.Prefs.set(this.getPreferenceKey(), JSON.stringify(trimmedFiles));
+		}
+		catch (error) {
+			Zotero.debug(`Error adding recent file: ${error.message}`);
+		}
+	},
+
+	/**
+	 * Get the most recent files (up to a specified limit)
+	 * @param {number} limit - Maximum number of files to return
+	 * @returns {Array} Array of recent file objects
+	 */
+	getMostRecentFiles(limit = 5) {
+		const recentFiles = this.getRecentFiles();
+		return recentFiles.slice(0, limit);
+	}
+};
+
 const BasicPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_STANDARD.svg';
 const BasicDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_STANDARD_DARK.svg';
 const AdvancedPath = 'chrome://zotero/content/DeepTutorMaterials/Registration/RES_ADVANCED.svg';
@@ -34,6 +118,7 @@ const DeepTutorComposer = ({
 	const [searchValue, setSearchValue] = useState('');
 	const [containers, setContainers] = useState([]);
 	const [filteredContainers, setFilteredContainers] = useState([]);
+	const [recentFiles, setRecentFiles] = useState([]);
 	const [hoveredContainerId, setHoveredContainerId] = useState(null);
 	const [showOverflow, setShowOverflow] = useState(false);
 	const [hoveredChipIndex, setHoveredChipIndex] = useState(null);
@@ -436,11 +521,30 @@ const DeepTutorComposer = ({
 		loadContainers();
 	}, []);
 
+	// Load recent files on component mount
+	useEffect(() => {
+		const loadRecentFiles = () => {
+			try {
+				const recent = RecentFilesManager.getMostRecentFiles(5);
+				setRecentFiles(recent);
+			}
+			catch (e) {
+				Zotero.debug(`Error loading recent files: ${e.message}`);
+			}
+		};
+		loadRecentFiles();
+	}, []);
+
 	// Filter containers on searchValue
 	useEffect(() => {
 		const term = (searchValue || '').toLowerCase().trim();
 		if (!term) {
-			setFilteredContainers([]);
+			// When search is empty, show recent files instead of empty results
+			setFilteredContainers(recentFiles.map(recentFile => ({
+				id: recentFile.id,
+				name: recentFile.name,
+				isRecent: true
+			})));
 			return;
 		}
 		setFilteredContainers(containers.filter((c) => {
@@ -451,7 +555,7 @@ const DeepTutorComposer = ({
 				return false;
 			}
 		}));
-	}, [searchValue, containers]);
+	}, [searchValue, containers, recentFiles]);
 
 	// Close popups on outside click
 	useEffect(() => {
@@ -483,6 +587,13 @@ const DeepTutorComposer = ({
 			if (!item || !item.isRegularItem()) return;
 			const pdfAttachments = item.getAttachments().map(x => Zotero.Items.get(x)).filter(x => x && x.isPDFAttachment && x.isPDFAttachment());
 			if (!pdfAttachments.length) return;
+
+			// Track this file as recently accessed
+			RecentFilesManager.addRecentFile(container.id, container.name);
+			
+			// Update recent files state
+			const updatedRecentFiles = RecentFilesManager.getMostRecentFiles(5);
+			setRecentFiles(updatedRecentFiles);
 
 			const mappingKey = sessionId ? `deeptutor_mapping_${sessionId}` : 'deeptutor_mapping_draft';
 			let mapping = {};
@@ -609,6 +720,11 @@ const DeepTutorComposer = ({
 									onChange={e => setSearchValue(e.target.value)}
 								/>
 							</div>
+							{searchValue.trim() === '' && recentFiles.length > 0 && (
+								<div style={{ padding: '0.25rem 0.5rem', color: colors.text.secondary, fontSize: '0.875rem', fontWeight: 500, borderBottom: `1px solid ${colors.border.tertiary}`, marginBottom: '0.25rem' }}>
+									Recently Opened
+								</div>
+							)}
 							{filteredContainers.length === 0 && searchValue.trim() !== '' && (
 								<div style={{ padding: '0.25rem 0.5rem', color: colors.text.tertiary }}>No results</div>
 							)}
@@ -617,7 +733,8 @@ const DeepTutorComposer = ({
 									key={c.id}
 									style={{
 										...styles.searchItem,
-										...(hoveredContainerId === c.id ? styles.searchItemHover : {})
+										...(hoveredContainerId === c.id ? styles.searchItemHover : {}),
+										...(c.isRecent ? { fontStyle: 'italic', color: colors.text.secondary } : {})
 									}}
 									onMouseEnter={() => setHoveredContainerId(c.id)}
 									onMouseLeave={() => setHoveredContainerId(null)}
@@ -625,6 +742,11 @@ const DeepTutorComposer = ({
 									title={c.name}
 								>
 									{c.name}
+									{c.isRecent && (
+										<span style={{ fontSize: '0.75rem', color: colors.text.tertiary, marginLeft: '0.5rem' }}>
+											(Recent)
+										</span>
+									)}
 								</div>
 							))}
 						</div>
