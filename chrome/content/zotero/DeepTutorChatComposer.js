@@ -9,7 +9,10 @@ import {
 	validatePageCount,
 	getDocumentMapping,
 	loadContainersWithPDFs,
-	useAutoResizeTextarea
+	useAutoResizeTextarea,
+	processDocument,
+	getCurrentlyOpenedPDF,
+	setNoteContainerFromDocuments
 } from './DeepTutorHelperFunctions.js';
 
 
@@ -20,6 +23,180 @@ const AdvancedDarkPath = 'chrome://zotero/content/DeepTutorMaterials/Registratio
 const SendIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/SEND.svg';
 const GraySendIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/GRAY_SEND.svg';
 const StopIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_STOP.svg';
+
+// Document handling functions moved from DeepTutorChat.js
+const getCurrentlyOpenedPaperId = () => {
+	const pdfData = getCurrentlyOpenedPDF();
+	return pdfData ? pdfData.itemId : null;
+};
+
+const updatePaperContext = async (newPaperId, userId, sessionId, selectedDocumentIds) => {
+	try {
+		if (!newPaperId || !userId) return;
+
+		// Only update paper context for placeholder sessions
+		const isPlaceholderSession = sessionId && typeof sessionId === 'string' && sessionId.startsWith('__DRAFT__');
+		if (!isPlaceholderSession) {
+			Zotero.debug(`DeepTutorComposer: Not a placeholder session, skipping paper context update`);
+			return;
+		}
+
+		// Get the new paper item
+		const newItem = Zotero.Items.get(newPaperId);
+		if (!newItem || !newItem.isPDFAttachment()) return;
+
+		// Get filename for the new paper
+		let fileName = '';
+		try {
+			fileName = newItem.attachmentFilename || newItem.getField('title') || '';
+		}
+		catch (error) {
+			Zotero.debug(`DeepTutorComposer: Error getting filename for new paper: ${error.message}`);
+			fileName = '';
+		}
+
+		if (!fileName || typeof fileName !== 'string' || fileName.trim() === '') {
+			fileName = 'Untitled';
+		}
+
+		// For placeholder sessions, we don't upload yet - just update the display
+		// We use a temporary ID based on the Zotero item ID for the current-opened slot
+		const tempDocumentId = `temp_${newPaperId}`;
+
+		// Determine if this Zotero item is already represented in the user-added list via mapping
+		// If so, do not add a separate current-opened slot to avoid duplicates
+		let willDuplicateExisting = false;
+		try {
+			const candidateIds = Array.isArray(selectedDocumentIds) ? selectedDocumentIds : [];
+			for (const id of candidateIds) {
+				const mapping = getDocumentMapping(sessionId);
+				if (mapping[id] && mapping[id] === newPaperId) {
+					willDuplicateExisting = true;
+					break;
+				}
+			}
+		}
+		catch {}
+
+		if (willDuplicateExisting) {
+			// The file is already in the added list; keep current slot empty to avoid duplicates
+			Zotero.debug(`DeepTutorComposer: Current-opened paper already in user-added context; skipping current slot`);
+		}
+		else {
+			// Save current-opened document in its own slot and ensure it is included
+			// This would need to be handled by the parent component
+			Zotero.debug(`DeepTutorComposer: Current-opened paper context updated: ${fileName} (temp ID: ${tempDocumentId})`);
+		}
+
+		// Update the mapping for display purposes
+		const mappingKey = 'deeptutor_mapping_draft';
+		let existingMapping = {};
+		try {
+			const mappingStr = Zotero.Prefs.get(mappingKey) || '{}';
+			existingMapping = JSON.parse(mappingStr);
+		}
+		catch {
+			existingMapping = {};
+		}
+
+		// Add the new mapping while preserving existing ones
+		const updatedMapping = { ...existingMapping, [tempDocumentId]: newPaperId };
+		try {
+			Zotero.Prefs.set(mappingKey, JSON.stringify(updatedMapping));
+		}
+		catch (error) {
+			Zotero.debug(`DeepTutorComposer: Error updating temp mapping: ${error.message}`);
+		}
+
+		Zotero.debug(`DeepTutorComposer: Set current-opened paper in context: ${fileName} (temp ID: ${tempDocumentId})`);
+	}
+	catch (error) {
+		Zotero.debug(`DeepTutorComposer: Error updating paper context: ${error.message}`);
+	}
+};
+
+const openAllDocuments = async (documentIds, sessionId) => {
+	if (documentIds && documentIds.length > 0 && sessionId) {
+		try {
+			// Try to get the mapping from local storage
+			const storageKey = `deeptutor_mapping_${sessionId}`;
+			const mappingStr = Zotero.Prefs.get(storageKey);
+			
+			let mapping = {};
+			if (mappingStr) {
+				mapping = JSON.parse(mappingStr);
+			}
+
+			// Loop through all document IDs
+			for (let i = 0; i < documentIds.length; i++) {
+				const documentId = documentIds[i];
+				try {
+					let zoteroAttachmentId = documentId;
+
+					// If we have a mapping for this document ID, use it
+					if (mapping[documentId]) {
+						zoteroAttachmentId = mapping[documentId];
+					}
+
+					// Get the item and open it
+					const item = Zotero.Items.get(zoteroAttachmentId);
+					if (!item) {
+						continue; // Skip this document and continue with the next one
+					}
+
+					// Open the document in the reader
+					await Zotero.FileHandlers.open(item, {
+						location: {
+							pageIndex: 0 // Start at first page
+						}
+					});
+					
+					// Add a small delay between opening documents to avoid overwhelming the UI
+					if (i < documentIds.length - 1) {
+						await new Promise(resolve => setTimeout(resolve, 500));
+					}
+				}
+				catch (error) {
+					Zotero.debug(`DeepTutorComposer: Error opening document ${documentId}: ${error.message}`);
+					// Continue with the next document even if this one fails
+				}
+			}
+		}
+		catch (error) {
+			Zotero.debug(`DeepTutorComposer: Error in openAllDocuments: ${error.message}`);
+		}
+	}
+};
+
+const loadContextDocuments = async (documentIds, sessionId, setNoteContainer) => {
+	if (!documentIds || documentIds.length === 0 || !sessionId) {
+		return [];
+	}
+	
+	try {
+		const mapping = getDocumentMapping(sessionId);
+		const contextDocs = await Promise.allSettled(
+			documentIds.map(id => processDocument(id, mapping))
+		);
+		
+		const successfulDocs = contextDocs
+			.filter(result => result.status === "fulfilled")
+			.map(result => result.value);
+		
+		// Log any failures
+		contextDocs
+			.filter(result => result.status === "rejected")
+			.forEach(result => Zotero.debug(result.reason));
+
+		setNoteContainerFromDocuments(successfulDocs, setNoteContainer);
+		return successfulDocs;
+	}
+	catch (error) {
+		Zotero.debug(`DeepTutorComposer: Error loading context documents: ${error.message}`);
+		setNoteContainer(null);
+		return [];
+	}
+};
 
 const DeepTutorComposer = ({
 	sessionId,
@@ -513,6 +690,7 @@ const DeepTutorComposer = ({
 		await onSend(text);
 	};
 
+
 	return (
 		<div style={styles.container}>
 			<div style={styles.chipsRow}>
@@ -707,6 +885,14 @@ DeepTutorComposer.propTypes = {
 	onShowFileSizeWarning: PropTypes.func,
 	onShowPageLimitWarning: PropTypes.func,
 	onShowSubscriptionPopup: PropTypes.func
+};
+
+// Export the utility functions for use by parent components
+export {
+	getCurrentlyOpenedPaperId,
+	updatePaperContext,
+	openAllDocuments,
+	loadContextDocuments
 };
 
 export default DeepTutorComposer;

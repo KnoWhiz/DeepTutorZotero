@@ -10,15 +10,16 @@ import {
 	updateSessionName
 } from './api/libs/api';
 import DeepTutorChatMessage from './DeepTutorChatMessage';
-import DeepTutorComposer from './DeepTutorChatComposer.js';
+import DeepTutorComposer, {
+	getCurrentlyOpenedPaperId,
+	updatePaperContext,
+	openAllDocuments,
+	loadContextDocuments
+} from './DeepTutorChatComposer.js';
 import DeepTutorChatTop from './DeepTutorChatTop.js';
 import { useDeepTutorTheme } from './theme/useDeepTutorTheme.js';
 import {
 	RecentFilesManager,
-	getDocumentMapping,
-	processDocument,
-	getCurrentlyOpenedPDF,
-	setNoteContainerFromDocuments,
 	cleanupSourceData
 } from './DeepTutorHelperFunctions.js';
 
@@ -525,108 +526,6 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 		}));
 	};
 
-	// Function to get currently opened paper ID
-	const getCurrentlyOpenedPaperId = () => {
-		const pdfData = getCurrentlyOpenedPDF();
-		return pdfData ? pdfData.itemId : null;
-	};
-
-	// Function to update paper context when paper changes
-	const updatePaperContext = async (newPaperId) => {
-		try {
-			if (!newPaperId || !userId) return;
-
-			// Only update paper context for placeholder sessions
-			const isPlaceholderSession = sessionId && typeof sessionId === 'string' && sessionId.startsWith('__DRAFT__');
-			if (!isPlaceholderSession) {
-				Zotero.debug(`DeepTutorChat: Not a placeholder session, skipping paper context update`);
-				return;
-			}
-
-			// Get the new paper item
-			const newItem = Zotero.Items.get(newPaperId);
-			if (!newItem || !newItem.isPDFAttachment()) return;
-
-			// Get filename for the new paper
-			let fileName = '';
-			try {
-				fileName = newItem.attachmentFilename || newItem.getField('title') || '';
-			}
-			catch (error) {
-				Zotero.debug(`DeepTutorChat: Error getting filename for new paper: ${error.message}`);
-				fileName = '';
-			}
-
-			if (!fileName || typeof fileName !== 'string' || fileName.trim() === '') {
-				fileName = 'Untitled';
-			}
-
-			// For placeholder sessions, we don't upload yet - just update the display
-			// We use a temporary ID based on the Zotero item ID for the current-opened slot
-			const tempDocumentId = `temp_${newPaperId}`;
-
-
-			// Determine if this Zotero item is already represented in the user-added list via mapping
-			// If so, do not add a separate current-opened slot to avoid duplicates
-			let willDuplicateExisting = false;
-			try {
-				const candidateIds = Array.isArray(documentIds) ? documentIds : [];
-				for (const id of candidateIds) {
-					if (updatedMapping[id] && updatedMapping[id] === newPaperId) {
-						willDuplicateExisting = true;
-						break;
-					}
-				}
-			}
-			catch {}
-
-			if (willDuplicateExisting) {
-				// The file is already in the added list; keep current slot empty to avoid duplicates
-				setCurrentContextDocumentId(null);
-				setIncludeCurrentContext(false);
-				Zotero.debug(`DeepTutorChat: Current-opened paper already in user-added context; skipping current slot`);
-			}
-			else {
-				// Save current-opened document in its own slot and ensure it is included
-				setCurrentContextDocumentId(tempDocumentId);
-				setIncludeCurrentContext(true);
-			}
-
-			// Update the mapping for display purposes
-			const mappingKey = 'deeptutor_mapping_draft';
-			let existingMapping = {};
-			try {
-				const mappingStr = Zotero.Prefs.get(mappingKey) || '{}';
-				existingMapping = JSON.parse(mappingStr);
-			}
-			catch {
-				existingMapping = {};
-			}
-
-			// If we are replacing a previously-set current temp document, remove its mapping
-			try {
-				if (typeof currentContextDocumentId === 'string' && currentContextDocumentId.startsWith('temp_') && currentContextDocumentId !== tempDocumentId) {
-					delete existingMapping[currentContextDocumentId];
-				}
-			}
-			catch {}
-
-			// Add the new mapping while preserving existing ones
-			const updatedMapping = { ...existingMapping, [tempDocumentId]: newPaperId };
-			try {
-				Zotero.Prefs.set(mappingKey, JSON.stringify(updatedMapping));
-			}
-			catch (error) {
-				Zotero.debug(`DeepTutorChat: Error updating temp mapping: ${error.message}`);
-			}
-
-			Zotero.debug(`DeepTutorChat: Set current-opened paper in context: ${fileName} (temp ID: ${tempDocumentId})`);
-		}
-		catch (error) {
-			Zotero.debug(`DeepTutorChat: Error updating paper context: ${error.message}`);
-		}
-	};
-
 	// Helper function to check if we should continue checking for responses (within 10 minutes)
 	const checkTime = React.useCallback((lastMessage) => {
 		if (!lastMessage || !lastMessage.creationTime) return true;
@@ -978,7 +877,7 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 				setCurrentOpenedPaperId(currentPaperId);
 				
 				// Update the paper context
-				updatePaperContext(currentPaperId);
+				updatePaperContext(currentPaperId, userId, sessionId, documentIds);
 			}
 			// If we don't have a current paper ID but we were tracking one, clear it
 			else if (!currentPaperId && currentOpenedPaperId) {
@@ -1748,89 +1647,22 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 
 	// Add new useEffect after the existing one
 	useEffect(() => {
-		const openAllDocuments = async () => {
-			if (combinedDocumentIds && combinedDocumentIds.length > 0 && sessionId) {
-				// Try to get the mapping from local storage
-				const storageKey = `deeptutor_mapping_${sessionId}`;
-				const mappingStr = Zotero.Prefs.get(storageKey);
-				let mapping = {};
-				
-				if (mappingStr) {
-					mapping = JSON.parse(mappingStr);
-				}
-
-				// Open all documents in order
-				for (let i = 0; i < combinedDocumentIds.length; i++) {
-					const documentId = combinedDocumentIds[i];
-					try {
-						let zoteroAttachmentId = documentId;
-
-						// If we have a mapping for this document ID, use it
-						if (mapping[documentId]) {
-							zoteroAttachmentId = mapping[documentId];
-						}
-
-						// Get the item and open it
-						const item = Zotero.Items.get(zoteroAttachmentId);
-						if (!item) {
-							continue; // Skip this document and continue with the next one
-						}
-
-						// Open the document in the reader
-						await Zotero.FileHandlers.open(item, {
-							location: {
-								pageIndex: 0 // Start at first page
-							}
-						});
-						
-						// Add a small delay between opening documents to avoid overwhelming the UI
-						if (i < combinedDocumentIds.length - 1) {
-							await new Promise(resolve => setTimeout(resolve, 500));
-						}
-					}
-					catch (error) {
-						Zotero.debug(error);
-					}
-				}
-			}
-		};
-		openAllDocuments();
+		openAllDocuments(combinedDocumentIds, sessionId);
 	}, [combinedDocumentIds, sessionId]); // Dependencies array
 
 	// Load context documents when documentIds change
 	useEffect(() => {
-		const loadContextDocuments = async () => {
+		const loadContextDocs = async () => {
 			if (!combinedDocumentIds?.length || !sessionId) {
 				_setContextDocuments([]);
 				return;
 			}
 			
-			try {
-				const mapping = getDocumentMapping();
-				const contextDocs = await Promise.allSettled(
-					combinedDocumentIds.map(id => processDocument(id, mapping))
-				);
-				
-				const successfulDocs = contextDocs
-					.filter(result => result.status === "fulfilled")
-					.map(result => result.value);
-				
-				// Log any failures
-				contextDocs
-					.filter(result => result.status === "rejected")
-					.forEach(result => Zotero.debug(result.reason));
-
-				_setContextDocuments(successfulDocs);
-				setNoteContainerFromDocuments(successfulDocs, setNoteContainer);
-			}
-			catch (error) {
-				Zotero.debug(`DeepTutorChat: Error loading context documents: ${error.message}`);
-				_setContextDocuments([]);
-				setNoteContainer(null);
-			}
+			const successfulDocs = await loadContextDocuments(combinedDocumentIds, sessionId, setNoteContainer);
+			_setContextDocuments(successfulDocs);
 		};
 
-		loadContextDocuments();
+		loadContextDocs();
 	}, [combinedDocumentIds, sessionId]);
 
 	// Handle click outside context popup
@@ -1852,105 +1684,22 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 
 	// Add new useEffect after the existing one
 	useEffect(() => {
-		const openAllDocuments = async () => {
-			if (documentIds && documentIds.length > 0 && sessionId) {
-				// Zotero.debug(`DeepTutorChat: Opening all documents - sessionId: ${sessionId}, ${documentIds.length} documents`);
-                
-				try {
-					// Try to get the mapping from local storage
-					const storageKey = `deeptutor_mapping_${sessionId}`;
-					const mappingStr = Zotero.Prefs.get(storageKey);
-					// Zotero.debug("DeepTutorChat: Get data mapping:", Zotero.Prefs.get(storageKey));
-					
-					let mapping = {};
-					if (mappingStr) {
-						mapping = JSON.parse(mappingStr);
-						// Zotero.debug(`DeepTutorChat: Found mapping in storage: ${JSON.stringify(mapping)}`);
-					}
-
-					// Loop through all document IDs
-					for (let i = 0; i < documentIds.length; i++) {
-						const documentId = documentIds[i];
-						try {
-							let zoteroAttachmentId = documentId;
-
-							// If we have a mapping for this document ID, use it
-							if (mapping[documentId]) {
-								zoteroAttachmentId = mapping[documentId];
-								// Zotero.debug(`DeepTutorChat: Using mapped attachment ID: ${zoteroAttachmentId} for document ${documentId}`);
-							}
-
-							// Get the item and open it
-							const item = Zotero.Items.get(zoteroAttachmentId);
-							if (!item) {
-								// Zotero.debug(`DeepTutorChat: No item found for ID ${zoteroAttachmentId}`);
-								continue; // Skip this document and continue with the next one
-							}
-
-							// Open the document in the reader
-							await Zotero.FileHandlers.open(item, {
-								location: {
-									pageIndex: 0 // Start at first page
-								}
-							});
-							// Zotero.debug(`DeepTutorChat: Opened document ${i + 1}/${documentIds.length}: ${zoteroAttachmentId} in reader`);
-							
-							// Add a small delay between opening documents to avoid overwhelming the UI
-							if (i < documentIds.length - 1) {
-								await new Promise(resolve => setTimeout(resolve, 500));
-							}
-						}
-						catch {
-							// Zotero.debug(`DeepTutorChat: Error opening document ${documentId}: ${error.message}`);
-							// Zotero.debug(`DeepTutorChat: Error stack: ${error.stack}`);
-							// Continue with the next document even if this one fails
-						}
-					}
-				}
-				catch {
-					// Zotero.debug(`DeepTutorChat: Error in openAllDocuments: ${error.message}`);
-				}
-				
-				// Zotero.debug(`DeepTutorChat: Finished opening all ${documentIds.length} documents`);
-			}
-		};
-		openAllDocuments();
+		openAllDocuments(documentIds, sessionId);
 	}, [documentIds, sessionId]); // Dependencies array
 
 	// Load context documents when documentIds change
 	useEffect(() => {
-		const loadContextDocuments = async () => {
+		const loadContextDocs = async () => {
 			if (!documentIds || documentIds.length === 0 || !sessionId) {
 				_setContextDocuments([]);
 				return;
 			}
             
-			try {
-				const mapping = getDocumentMapping(sessionId);
-				const contextDocs = await Promise.allSettled(
-					documentIds.map(id => processDocument(id, mapping))
-				);
-				
-				const successfulDocs = contextDocs
-					.filter(result => result.status === "fulfilled")
-					.map(result => result.value);
-				
-				// Log any failures
-				contextDocs
-					.filter(result => result.status === "rejected")
-					.forEach(result => Zotero.debug(result.reason));
-
-				_setContextDocuments(successfulDocs);
-				setNoteContainerFromDocuments(successfulDocs, setNoteContainer);
-			}
-			catch (error) {
-				Zotero.debug(`DeepTutorChat: Error loading context documents: ${error.message}`);
-				_setContextDocuments([]);
-				setNoteContainer(null);
-			}
+			const successfulDocs = await loadContextDocuments(documentIds, sessionId, setNoteContainer);
+			_setContextDocuments(successfulDocs);
 		};
 
-		loadContextDocuments();
+		loadContextDocs();
 	}, [documentIds, sessionId]);
 
 	// Handle click outside context popup
