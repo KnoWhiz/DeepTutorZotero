@@ -631,7 +631,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 	// 		return DEFAULT_SYS_QA_PROMPT;
 	// 	}
 	// });
-	const [agenticHistory, setAgenticHistory] = useState([]);
+	const [_agenticHistory, setAgenticHistory] = useState([]);
 	const [isFirstSummary, setIsFirstSummary] = useState(true);
 
 	// Agentic history management functions
@@ -1355,7 +1355,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			// Disable input while processing
 			setIsStreaming(true);
 
-			// Call Claude CLI
+			// Call Claude CLI with streaming
 			try {
 				// Resolve working directory - now pointing to DeepTutorDataBase
 				let workingDir = null;
@@ -1389,7 +1389,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 						Zotero.debug(`DeepTutorChatBox: DeepTutorDataBase directory does not exist, creating: ${workingDir}`);
 						dirFile.create(Ci.nsIFile.DIRECTORY_TYPE, 0o755);
 					}
-				} catch (dirError) {
+				}
+				catch (dirError) {
 					Zotero.debug(`DeepTutorChatBox: Error ensuring DeepTutorDataBase directory exists: ${dirError.message}`);
 				}
 
@@ -1401,7 +1402,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 					systemPrompt = DEFAULT_SYS_SUM_PROMPT.replace('{DOCUMENT_NAMES}', documentNames);
 					setIsFirstSummary(false); // Mark that first summary is done
 					Zotero.debug(`DeepTutorChatBox: Using summary prompt for first generation with documents: ${documentNames}`);
-				} else {
+				}
+				else {
 					// Inject document names into QA prompt as well
 					const documentNames = contextDocuments.map(doc => doc.name).join(', ');
 					const basePrompt = agenticSystemPrompt || DEFAULT_SYS_QA_PROMPT;
@@ -1409,34 +1411,203 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 					Zotero.debug(`DeepTutorChatBox: Using QA prompt for regular conversation with documents: ${documentNames}`);
 				}
 
-				Zotero.debug(`DeepTutorChatBox: Calling Claude CLI for agentic mode with working directory: ${workingDir}`);
-				const claudeResult = await ClaudeCliWrapper.runClaude([], workingDir, messageText, null, false, systemPrompt, false, cliChoice);
+				// Create initial streaming message for thinking display
+				const initialStreamingMessage = {
+					id: `agentic_streaming_${Date.now()}`,
+					subMessages: [{
+						text: '',
+						contentType: ContentType.TEXT,
+						creationTime: new Date().toISOString(),
+						sources: []
+					}],
+					role: MessageRole.TUTOR,
+					creationTime: new Date().toISOString(),
+					lastUpdatedTime: new Date().toISOString(),
+					status: MessageStatus.VIEWED,
+					followUpQuestions: [],
+					isStreaming: true,
+					streamText: '',
+					thinkingProcesses: [],
+					hasThinkingProcess: false
+				};
+
+				// Add the streaming message immediately
+				setMessages(prev => [...prev, initialStreamingMessage]);
+
+				let accumulatedThinking = [];
+				let finalResponseText = '';
+
+				// Define streaming callbacks
+				const onChunk = (chunk, isFinal, _accumulated) => {
+					Zotero.debug(`DeepTutorChatBox: Received streaming chunk: "${chunk}"`);
+					
+					// Check for thinking content in the chunk
+					if (chunk.includes('<thinking>')) {
+						// Extract thinking content, even if the closing tag isn't in this chunk yet
+						const thinkingStart = chunk.indexOf('<thinking>');
+						if (thinkingStart !== -1) {
+							let thinkingContent = chunk.substring(thinkingStart + '<thinking>'.length);
+							
+							// If we have a closing tag in this chunk, extract only the thinking part
+							const thinkingEnd = thinkingContent.indexOf('</thinking>');
+							if (thinkingEnd !== -1) {
+								thinkingContent = thinkingContent.substring(0, thinkingEnd);
+							}
+							
+							// Only add if we have actual content
+							if (thinkingContent.trim()) {
+								accumulatedThinking.push(thinkingContent);
+								Zotero.debug(`DeepTutorChatBox: Captured thinking content: ${thinkingContent}`);
+								
+								// Update the streaming message with thinking content
+								setMessages(prev => prev.map((msg, index) => {
+									if (index === prev.length - 1 && msg.isStreaming) {
+										return {
+											...msg,
+											streamText: `<thinking>${accumulatedThinking.join('')}</thinking>`,
+											thinkingProcesses: [...accumulatedThinking],
+											hasThinkingProcess: accumulatedThinking.length > 0
+										};
+									}
+									return msg;
+								}));
+							}
+							
+							// If we found a closing tag, process any content after it as regular content
+							if (thinkingEnd !== -1) {
+								const afterThinking = chunk.substring(thinkingStart + '<thinking>'.length + thinkingContent.length + '</thinking>'.length);
+								if (afterThinking.trim()) {
+									finalResponseText += afterThinking;
+								}
+							}
+							return;
+						}
+					}
+					
+					// Check if we're still in thinking mode (content between <thinking> tags)
+					if (accumulatedThinking.length > 0 && !chunk.includes('</thinking>')) {
+						// We're still accumulating thinking content
+						accumulatedThinking[accumulatedThinking.length - 1] += chunk;
+						
+						// Update the streaming message with updated thinking content
+						setMessages(prev => prev.map((msg, index) => {
+							if (index === prev.length - 1 && msg.isStreaming) {
+								return {
+									...msg,
+									streamText: `<thinking>${accumulatedThinking.join('')}</thinking>`,
+									thinkingProcesses: [...accumulatedThinking],
+									hasThinkingProcess: accumulatedThinking.length > 0
+								};
+							}
+							return msg;
+						}));
+						return;
+					}
+					
+					// Handle end of thinking
+					if (chunk.includes('</thinking>')) {
+						const thinkingEnd = chunk.indexOf('</thinking>');
+						const thinkingPart = chunk.substring(0, thinkingEnd);
+						
+						// Add the final part of thinking content
+						if (thinkingPart.trim() && accumulatedThinking.length > 0) {
+							accumulatedThinking[accumulatedThinking.length - 1] += thinkingPart;
+						}
+						
+						// Process any content after the thinking tags as regular content
+						const afterThinking = chunk.substring(thinkingEnd + '</thinking>'.length);
+						if (afterThinking.trim()) {
+							finalResponseText += afterThinking;
+							
+							// Update the streaming message with response content
+							setMessages(prev => prev.map((msg, index) => {
+								if (index === prev.length - 1 && msg.isStreaming) {
+									return {
+										...msg,
+										streamText: finalResponseText,
+										subMessages: [{
+											...msg.subMessages[0],
+											text: finalResponseText
+										}],
+										thinkingProcesses: [...accumulatedThinking],
+										hasThinkingProcess: accumulatedThinking.length > 0
+									};
+								}
+								return msg;
+							}));
+						}
+						return;
+					}
+					
+					// Regular content chunk (not thinking)
+					if (chunk && !chunk.includes('<thinking>') && !chunk.includes('</thinking>')) {
+						finalResponseText += chunk;
+						
+						// Update the streaming message with response content
+						setMessages(prev => prev.map((msg, index) => {
+							if (index === prev.length - 1 && msg.isStreaming) {
+								return {
+									...msg,
+									streamText: finalResponseText,
+									subMessages: [{
+										...msg.subMessages[0],
+										text: finalResponseText
+									}],
+									thinkingProcesses: [...accumulatedThinking],
+									hasThinkingProcess: accumulatedThinking.length > 0
+								};
+							}
+							return msg;
+						}));
+					}
+					
+					if (isFinal) {
+						Zotero.debug(`DeepTutorChatBox: Streaming completed with final content`);
+					}
+				};
+
+				const onError = (error) => {
+					Zotero.debug(`DeepTutorChatBox: Streaming error: ${error.message}`);
+					setMessages(prev => prev.map((msg, index) => {
+						if (index === prev.length - 1 && msg.isStreaming) {
+							return {
+								...msg,
+								isStreaming: false,
+								streamText: `Error: ${error.message}`,
+								subMessages: [{
+									...msg.subMessages[0],
+									text: `Error: ${error.message}`
+								}]
+							};
+						}
+						return msg;
+					}));
+				};
+
+				Zotero.debug(`DeepTutorChatBox: Calling Claude CLI streaming for agentic mode with working directory: ${workingDir}`);
+				const claudeResult = await ClaudeCliWrapper.runClaudeStreaming([], workingDir, messageText, null, false, systemPrompt, false, cliChoice, onChunk, onError);
 				
 				let responseText = '';
 				let thinkingProcesses = [];
 				
 				if (claudeResult && !claudeResult.error) {
-					// Check if the result has thinking processes
-					if (claudeResult.hasThinkingProcess && claudeResult.thinkingProcesses) {
-						thinkingProcesses = claudeResult.thinkingProcesses;
-						responseText = String(claudeResult.finalResult || claudeResult).trim();
-						Zotero.debug(`DeepTutorChatBox: Found ${thinkingProcesses.length} thinking processes`);
-						}
-						else {
-							responseText = String(claudeResult).trim();
-						}
-					}
-					else if (claudeResult && claudeResult.error) {
+					// Use accumulated content from streaming
+					responseText = finalResponseText || claudeResult.content || String(claudeResult).trim();
+					thinkingProcesses = accumulatedThinking;
+					
+					Zotero.debug(`DeepTutorChatBox: Streaming completed with ${thinkingProcesses.length} thinking processes`);
+				}
+				else if (claudeResult && claudeResult.error) {
 					responseText = `Error: ${claudeResult.error}`;
-					}
-					else {
-						responseText = 'No response from Claude CLI';
-					}
+				}
+				else {
+					responseText = 'No response from Claude CLI';
+				}
 
 				// Add tutor response to history and display
 				addToAgenticHistory(sessionId, 'TUTOR', responseText);
 				
-				// Create tutor message with thinking process support
+				// Create final tutor message with thinking process support
 				const tutorMessage = {
 					id: `agentic_tutor_${Date.now()}`,
 					subMessages: [{
@@ -1452,13 +1623,18 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 					followUpQuestions: [],
 					// Add thinking process data
 					thinkingProcesses: thinkingProcesses,
-					hasThinkingProcess: thinkingProcesses.length > 0
+					hasThinkingProcess: thinkingProcesses.length > 0,
+					isStreaming: false
 				};
 
-				setMessages(prev => [...prev, tutorMessage]);
-
-					}
-					catch (claudeError) {
+				// Replace the streaming message with final message
+				setMessages(prev => {
+					const newMessages = [...prev];
+					newMessages[newMessages.length - 1] = tutorMessage;
+					return newMessages;
+				});
+			}
+			catch (claudeError) {
 				Zotero.debug(`DeepTutorChatBox: Claude CLI error: ${claudeError.message}`);
 				
 				const errorText = `I encountered an error while processing your request: ${claudeError.message}`;

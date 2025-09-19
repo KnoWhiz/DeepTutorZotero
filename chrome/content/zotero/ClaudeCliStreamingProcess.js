@@ -75,6 +75,8 @@ const StreamingSubprocess = {
 	 */
 	_runWithSubprocessAPI: async function (command, args) {
 		Zotero.debug("StreamingSubprocess: Using Subprocess.call API");
+		Zotero.debug("StreamingSubprocess: command:", command);
+		Zotero.debug("StreamingSubprocess: args:", args);
 
 		const proc = await Subprocess.call({
 			command,

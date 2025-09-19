@@ -61,10 +61,10 @@ const ClaudeCliWrapper = {
 		}
 
 		// Helper: build space-joined args with proper shell quoting
-		const quoteBashArg = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
-		const joinArgsBash = (arr) => (arr && arr.length) ? (' ' + arr.map(quoteBashArg).join(' ')) : '';
-		const quoteCmdArg = (s) => `"${String(s).replace(/"/g, '""')}"`;
-		const joinArgsCmd = (arr) => (arr && arr.length) ? (' ' + arr.map(quoteCmdArg).join(' ')) : '';
+		const quoteBashArg = (s) => `'${String(s).replace(/'/g, `\\'`)}'`;
+		const joinArgsBash = (arr) => (arr && arr.length) ? (arr.map(quoteBashArg).join(' ')) : '';
+		const quoteCmdArg = (s) => `"${String(s).replace(/"/g, '\\"')}"`;
+		const joinArgsCmd = (arr) => (arr && arr.length) ? (arr.map(quoteCmdArg).join(' ')) : '';
 
 		// Helper: minimal escape for bash double-quoted string used with printf
 		const escapeForBashDoubleQuoted = (text) => String(text).replace(/["\\`$]/g, ch => '\\' + ch);
@@ -116,8 +116,8 @@ const ClaudeCliWrapper = {
 			command = "C:\\Windows\\System32\\wsl.exe";
 			const joined = joinArgsBash(safeArgs);
 			const shBody = (finalStdinText != null)
-				? `printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand}${joined}`
-				: `${baseCommand}${joined}`;
+				? `printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand} ${joined}`
+				: `${baseCommand} ${joined}`;
 			// Export environment variables so they apply to the whole pipeline
 			const exports = [];
 			if (storedApiKey && apiKeyEnvVar) exports.push(`export ${apiKeyEnvVar}="${storedApiKey}"`);
@@ -131,8 +131,8 @@ const ClaudeCliWrapper = {
 			command = "C:\\Windows\\System32\\cmd.exe";
 			const joined = joinArgsCmd(safeArgs);
 			const body = (finalStdinText != null)
-				? `echo ${escapeForCmdEcho(finalStdinText)} | ${baseCommand}${joined}`
-				: `${baseCommand}${joined}`;
+				? `echo ${escapeForCmdEcho(finalStdinText)} | ${baseCommand} ${joined}`
+				: `${baseCommand} ${joined}`;
 			// Use setlocal to scope environment variables
 			const apiKeySet = (storedApiKey && apiKeyEnvVar) ? `set ${apiKeyEnvVar}=${storedApiKey} && ` : '';
 			const envBody = `setlocal && ${apiKeySet} ${ (workingDirPath ? `cd /d "${workingDirPath}" && ` : '') }${body} && endlocal`;
@@ -145,11 +145,11 @@ const ClaudeCliWrapper = {
 			const joined = joinArgsBash(safeArgs);
 			const baseCmd = workingDirPath
 				? (finalStdinText != null
-					? `cd "${workingDirPath}" && printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand}${joined}`
-					: `cd "${workingDirPath}" && ${baseCommand}${joined}`)
+					? `cd "${workingDirPath}" && printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand} ${joined}`
+					: `cd "${workingDirPath}" && ${baseCommand} ${joined}`)
 				: (finalStdinText != null
-					? `printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand}${joined}`
-					: `${baseCommand}${joined}`);
+					? `printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand} ${joined}`
+					: `${baseCommand} ${joined}`);
 			// Export env so they apply to the pipeline
 			const exports = [];
 			if (storedApiKey && apiKeyEnvVar) exports.push(`export ${apiKeyEnvVar}="${storedApiKey}"`);
@@ -250,6 +250,7 @@ const ClaudeCliWrapper = {
 		// Add streaming output format for Claude (not for Codex)
 		if (cliChoice === 'claude') {
 			safeArgs.push('--output-format=stream-json');
+			safeArgs.push('--verbose');
 		}
 		
 		// Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: safeArgs=${JSON.stringify(safeArgs)}`);
@@ -275,8 +276,11 @@ const ClaudeCliWrapper = {
 			// Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: Modified prompt: ${finalStdinText}`);
 		}
 
-		// Helper: build a space-joined args string without shell interpolation (best-effort quoting per shell below if needed)
-		const joinArgs = (arr) => (arr && arr.length) ? (' ' + arr.join(' ')) : '';
+		// Helper: build space-joined args with proper shell quoting
+		const quoteBashArg = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
+		const joinArgsBash = (arr) => (arr && arr.length) ? (' ' + arr.map(quoteBashArg).join(' ')) : '';
+		const quoteCmdArg = (s) => `"${String(s).replace(/"/g, '""')}"`;
+		const joinArgsCmd = (arr) => (arr && arr.length) ? (' ' + arr.map(quoteCmdArg).join(' ')) : '';
 
 		// Helper: minimal escape for bash double-quoted string used with printf
 		const escapeForBashDoubleQuoted = (text) => String(text).replace(/["\\`$]/g, ch => '\\' + ch);
@@ -301,7 +305,7 @@ const ClaudeCliWrapper = {
 			// Get API key from Zotero preferences for immediate use (only for Claude)
 			let storedApiKey = null, apiKeyEnvVar = null;
 			let baseCommand;
-			
+
 			if (cliChoice === 'codex') {
 				// For Codex, we need to construct the command as "codex exec 'COMMAND'"
 				// where COMMAND is the finalStdinText - NO API KEY INJECTION
@@ -314,24 +318,26 @@ const ClaudeCliWrapper = {
 				}
 				// No API key handling for Codex
 				// Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: Using Codex - no API key injection`);
-			} else {
+			}
+			else {
 				// For Claude, use the original logic with API key
 				baseCommand = 'claude';
 				storedApiKey = Zotero.Prefs.get('deeptutor.claude.apiKey');
 				apiKeyEnvVar = 'ANTHROPIC_API_KEY';
-				// Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: Using Claude with stored API key: ${storedApiKey ? 'yes' : 'no'}`);
+				Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: Using Claude with stored API key: ${storedApiKey ? 'yes (length: ' + storedApiKey.length + ')' : 'no'}`);
 			}
 
 			if (wslInfo) {
 				// Execute inside WSL bash, optionally cd to linuxDir
 				command = "C:\\Windows\\System32\\wsl.exe";
-				const joined = joinArgs(safeArgs);
+				const joined = joinArgsBash(safeArgs);
 				const shBody = (finalStdinText != null)
-					? `printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand}${joined}`
-					: `${baseCommand}${joined}`;
+					? `printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand} ${joined}`
+					: `${baseCommand} ${joined}`;
 				// Inject API key and Node.js compatibility flags for immediate use (only for Claude, not Codex)
-				// const nodeOptions = 'NODE_OPTIONS="--experimental-web-streams"';
-				const apiKeyCmd = (storedApiKey && apiKeyEnvVar) ? `${apiKeyEnvVar}="${storedApiKey}"` : '';
+				// const nodeOptions = 'export NODE_OPTIONS="--experimental-web-streams";';
+				const nodeOptions = '';
+				const apiKeyCmd = (storedApiKey && apiKeyEnvVar) ? `export ${apiKeyEnvVar}="${storedApiKey}"` : '';
 				const envCmd = apiKeyCmd ? `${apiKeyCmd} ${nodeOptions} ${shBody}` : `${nodeOptions} ${shBody}`;
 				const shLine = workingDirPath ? `cd "${wslInfo.linuxDir}" && ${envCmd}` : envCmd;
 				spArgs = ["-d", wslInfo.distro, "--", "bash", "-lc", shLine];
@@ -339,33 +345,36 @@ const ClaudeCliWrapper = {
 			else if (Zotero.isWin) {
 				// Native Windows CMD
 				command = "C:\\Windows\\System32\\cmd.exe";
-				const joined = joinArgs(safeArgs);
+				const joined = joinArgsCmd(safeArgs);
 				const body = (finalStdinText != null)
-					? `echo ${escapeForCmdEcho(finalStdinText)} | ${baseCommand}${joined}`
-					: `${baseCommand}${joined}`;
+					? `echo ${escapeForCmdEcho(finalStdinText)} | ${baseCommand} ${joined}`
+					: `${baseCommand} ${joined}`;
 				// Inject API key and Node.js compatibility flags for immediate use (only for Claude, not Codex)
 				// const nodeOptions = 'set NODE_OPTIONS=--experimental-web-streams';
+				const nodeOptions = '';
 				const apiKeyCmd = (storedApiKey && apiKeyEnvVar) ? `set ${apiKeyEnvVar}=${storedApiKey} && ` : '';
-				const envBody = `${apiKeyCmd}${nodeOptions} && ${body}`;
+				const envBody = `${apiKeyCmd} ${nodeOptions} && ${body}`;
 				const line = workingDirPath ? `cd /d "${workingDirPath}" && ${envBody}` : envBody;
 				spArgs = ["/d", "/s", "/c", line];
 			}
 			else {
 				// Unix-like shells
 				command = "/bin/bash";
-				const joined = joinArgs(safeArgs);
+				const joined = joinArgsBash(safeArgs);
 				const baseCmd = workingDirPath
 					? (finalStdinText != null
-						? `cd "${workingDirPath}" && printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand}${joined}`
-						: `cd "${workingDirPath}" && ${baseCommand}${joined}`)
+						? `cd "${workingDirPath}" && printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand} ${joined}`
+						: `cd "${workingDirPath}" && ${baseCommand} ${joined}`)
 					: (finalStdinText != null
-						? `printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand}${joined}`
-						: `${baseCommand}${joined}`);
+						? `printf "%s" "${escapeForBashDoubleQuoted(finalStdinText)}" | ${baseCommand} ${joined}`
+						: `${baseCommand} ${joined}`);
 				// Inject API key and Node.js compatibility flags for immediate use (only for Claude, not Codex)
-				// const nodeOptions = 'NODE_OPTIONS="--experimental-web-streams"';
-				const apiKeyCmd = (storedApiKey && apiKeyEnvVar) ? `${apiKeyEnvVar}="${storedApiKey}"` : '';
+				// const nodeOptions = 'export NODE_OPTIONS="--experimental-web-streams";';
+				const nodeOptions = '';
+				const apiKeyCmd = (storedApiKey && apiKeyEnvVar) ? `export ${apiKeyEnvVar}="${storedApiKey}";` : '';
 				const line = apiKeyCmd ? `${apiKeyCmd} ${nodeOptions} ${baseCmd}` : `${nodeOptions} ${baseCmd}`;
 				spArgs = ["-c", line];
+				Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: spArgs=${JSON.stringify(spArgs)}`);
 			}
 			
 			// Zotero.debug(`ClaudeCliWrapper.runClaudeStreaming: command=${command}, spArgs=${JSON.stringify(spArgs)}, options=${JSON.stringify(options)}`);
