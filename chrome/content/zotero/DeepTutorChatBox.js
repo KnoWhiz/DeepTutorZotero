@@ -596,11 +596,201 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 	}, [messages, checkTime]); // Dependencies: sessionId, messages, and checkTime function
 
 
-	// Handle source button clicks
-	const handleSourceClick = async (source) => {
-		if (!source) {
+	// Helper function to wait for search completion and check results
+	const waitForSearchResult = async (reader) => {
+		Zotero.debug('DeepTutorChatBox: Waiting for search completion...');
+		await new Promise(resolve => setTimeout(resolve, 1000));
+		const findState = reader._internalReader._state.primaryViewFindState;
+		const hasResults = findState.result && findState.result.total > 0;
+		Zotero.debug(`DeepTutorChatBox: Search result check - hasResults: ${hasResults}, total: ${findState.result?.total || 0}`);
+		return hasResults;
+	};
+
+	// Helper function to get page text around a position
+	const getPageTextAroundPosition = async (reader, pageIndex, matchResult, originalLength) => {
+		Zotero.debug(`DeepTutorChatBox: Getting page text around position - pageIndex: ${pageIndex}, originalLength: ${originalLength}`);
+		try {
+			// Access the PDF document through the reader
+			const pdfDocument = reader._iframeWindow?.PDFViewerApplication?.pdfDocument;
+			if (!pdfDocument) {
+				Zotero.debug('DeepTutorChatBox: PDF document not accessible');
+				return null;
+			}
+			Zotero.debug('DeepTutorChatBox: PDF document accessible, getting page data...');
+
+			// Get page data for character information
+			const pageData = await pdfDocument.getPageData({ pageIndex });
+			if (!pageData || !pageData.chars) {
+				Zotero.debug('DeepTutorChatBox: Page data not available');
+				return null;
+			}
+			Zotero.debug(`DeepTutorChatBox: Page data retrieved - ${pageData.chars.length} characters`);
+
+			// Find the match position from the search result
+			const findState = reader._internalReader._state.primaryViewFindState;
+			if (!findState.result) {
+				Zotero.debug('DeepTutorChatBox: No find state result available');
+				return null;
+			}
+
+			// Build text from characters
+			let pageText = '';
+			for (let i = 0; i < pageData.chars.length; i++) {
+				const char = pageData.chars[i];
+				pageText += char.u;
+				if (char.spaceAfter || char.lineBreakAfter || char.paragraphBreakAfter) {
+					pageText += ' ';
+				}
+			}
+			Zotero.debug(`DeepTutorChatBox: Built page text - length: ${pageText.length}`);
+
+			// Find the current match in the page text
+			const currentQuery = findState.query;
+			const matchIndex = pageText.indexOf(currentQuery);
+			if (matchIndex === -1) {
+				Zotero.debug(`DeepTutorChatBox: Current query "${currentQuery}" not found in page text`);
+				return null;
+			}
+			Zotero.debug(`DeepTutorChatBox: Found match at index: ${matchIndex}`);
+
+			// Extract text of original length starting from match position
+			const startPos = matchIndex;
+			const endPos = Math.min(pageText.length, startPos + originalLength);
+			const extractedText = pageText.substring(startPos, endPos);
+			
+			Zotero.debug(`DeepTutorChatBox: Extracted text - startPos: ${startPos}, endPos: ${endPos}, extractedLength: ${extractedText.length}`);
+			return extractedText;
+		} catch (error) {
+			Zotero.debug(`DeepTutorChatBox: Error getting page text: ${error.message}`);
+			return null;
+		}
+	};
+
+	// Improved search algorithm
+	const performImprovedSearch = async (reader, source) => {
+		Zotero.debug('DeepTutorChatBox: Starting improved search algorithm');
+		
+		// Step 1: Check if source.referenceString exists
+		if (!source.referenceString) {
+			Zotero.debug('DeepTutorChatBox: No referenceString found, using fallback');
+			reader._internalReader.setFindQuery("", {
+				primary: true,
+				openPopup: false,
+				activateSearch: false
+			});
 			return;
 		}
+
+		// Step 2: Set variables and start recursive search
+		let curSearchString = source.referenceString;
+		const originalLength = curSearchString.length;
+		let lenCurSearchString = originalLength;
+
+		Zotero.debug(`DeepTutorChatBox: Starting search with string of length: ${lenCurSearchString}`);
+		Zotero.debug(`DeepTutorChatBox: Original referenceString preview: "${curSearchString.substring(0, 100)}..."`);
+
+		// Step 3: Recursive while loop
+		let iterationCount = 0;
+		while (lenCurSearchString > 75) {
+			iterationCount++;
+			Zotero.debug(`DeepTutorChatBox: Iteration ${iterationCount} - Searching with length: ${lenCurSearchString}`);
+			Zotero.debug(`DeepTutorChatBox: Current search string preview: "${curSearchString.substring(0, 50)}..."`);
+			
+			// Use setFindQuery to search
+			reader._internalReader.setFindQuery(curSearchString, {
+				primary: true,
+				openPopup: false,
+				activateSearch: true
+			});
+
+			// Wait and check for search result
+			const searchSuccessful = await waitForSearchResult(reader);
+
+			if (searchSuccessful) {
+				Zotero.debug(`DeepTutorChatBox: Search successful with length: ${lenCurSearchString}`);
+				
+				// Case a1: Current length equals original length
+				if (lenCurSearchString === originalLength) {
+					Zotero.debug('DeepTutorChatBox: Found complete original text - search complete');
+					return; // Do nothing, search is complete
+				}
+				
+				// Case a2: Current length is less than original
+				Zotero.debug('DeepTutorChatBox: Found shortened text, attempting to get full context');
+				Zotero.debug(`DeepTutorChatBox: Shortened length: ${lenCurSearchString}, Original length: ${originalLength}`);
+				
+				try {
+					// Get text of original length from current position
+					const fullContextText = await getPageTextAroundPosition(
+						reader, 
+						source.page - 1, 
+						null, 
+						originalLength
+					);
+
+					if (fullContextText && fullContextText.length > lenCurSearchString) {
+						Zotero.debug(`DeepTutorChatBox: Got full context of length: ${fullContextText.length}`);
+						Zotero.debug(`DeepTutorChatBox: Full context preview: "${fullContextText.substring(0, 100)}..."`);
+						
+						// Search again with the full context text
+						reader._internalReader.setFindQuery(fullContextText, {
+							primary: true,
+							openPopup: false,
+							activateSearch: true
+						});
+						
+						// Wait for final search to complete
+						const finalSearchSuccessful = await waitForSearchResult(reader);
+						Zotero.debug(`DeepTutorChatBox: Final search with full context completed - success: ${finalSearchSuccessful}`);
+					} else {
+						Zotero.debug('DeepTutorChatBox: Could not get full context, keeping current search');
+						Zotero.debug(`DeepTutorChatBox: Context text length: ${fullContextText?.length || 0}, expected: > ${lenCurSearchString}`);
+					}
+				} catch (error) {
+					Zotero.debug(`DeepTutorChatBox: Error getting full context: ${error.message}`);
+					Zotero.debug(`DeepTutorChatBox: Error stack: ${error.stack}`);
+				}
+				
+				return; // Exit after handling successful search
+			}
+
+			// Step 4: Search not successful, make curSearchString the front half
+			Zotero.debug(`DeepTutorChatBox: Search failed with length: ${lenCurSearchString}, trying shorter string`);
+			const previousLength = lenCurSearchString;
+			curSearchString = curSearchString.substring(0, Math.floor(lenCurSearchString / 2));
+			lenCurSearchString = curSearchString.length;
+			Zotero.debug(`DeepTutorChatBox: Shortened from ${previousLength} to ${lenCurSearchString} characters`);
+		}
+
+		// If we exit the loop, try one final search with the remaining string
+		if (lenCurSearchString > 0) {
+			Zotero.debug(`DeepTutorChatBox: Exited while loop, final attempt with length: ${lenCurSearchString}`);
+			Zotero.debug(`DeepTutorChatBox: Final search string: "${curSearchString}"`);
+			reader._internalReader.setFindQuery(curSearchString, {
+				primary: true,
+				openPopup: false,
+				activateSearch: true
+			});
+			const finalResult = await waitForSearchResult(reader);
+			Zotero.debug(`DeepTutorChatBox: Final search result: ${finalResult}`);
+		} else {
+			Zotero.debug('DeepTutorChatBox: No searchable text remaining - all attempts exhausted');
+		}
+		
+		Zotero.debug('DeepTutorChatBox: Improved search algorithm completed');
+	};
+
+	// Handle source button clicks
+	const handleSourceClick = async (source) => {
+		Zotero.debug('DeepTutorChatBox: Source button clicked');
+		
+		if (!source) {
+			Zotero.debug('DeepTutorChatBox: No source provided');
+			return;
+		}
+
+		Zotero.debug(`DeepTutorChatBox: Source data - index: ${source.index}, refinedIndex: ${source.refinedIndex}, page: ${source.page}`);
+		Zotero.debug(`DeepTutorChatBox: Reference string length: ${source.referenceString?.length || 0}`);
 
 		// Determine which attachment the source refers to
 		const docIdx
@@ -608,14 +798,20 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
             	? source.refinedIndex
             	: source.index;
 
+		Zotero.debug(`DeepTutorChatBox: Using document index: ${docIdx}`);
+
 		if (docIdx === undefined || docIdx === null || docIdx < 0 || docIdx >= documentIds.length) {
+			Zotero.debug(`DeepTutorChatBox: Invalid document index: ${docIdx}, documentIds length: ${documentIds.length}`);
 			return;
 		}
 
 		const attachmentId = documentIds[docIdx];
 		if (!attachmentId) {
+			Zotero.debug('DeepTutorChatBox: No attachment ID found');
 			return;
 		}
+
+		Zotero.debug(`DeepTutorChatBox: Attachment ID: ${attachmentId}`);
 
 		try {
 			const storageKey = `deeptutor_mapping_${sessionId}`;
@@ -626,14 +822,17 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 				const mapping = JSON.parse(mappingStr);
 				if (mapping[attachmentId]) {
 					zoteroAttachmentId = mapping[attachmentId];
+					Zotero.debug(`DeepTutorChatBox: Mapped attachment ID: ${zoteroAttachmentId}`);
 				}
 			}
 
 			const item = Zotero.Items.get(zoteroAttachmentId);
 			if (!item) {
+				Zotero.debug(`DeepTutorChatBox: No Zotero item found for ID: ${zoteroAttachmentId}`);
 				return;
 			}
 
+			Zotero.debug(`DeepTutorChatBox: Opening PDF at page: ${source.page - 1}`);
 			// Open the PDF on the correct page
 			await Zotero.FileHandlers.open(item, {
 				location: { pageIndex: source.page - 1 }
@@ -642,25 +841,17 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			// Get the reader instance for the current tab
 			const reader = Zotero.Reader.getByTabID(Zotero.getMainWindow().Zotero_Tabs.selectedID);
 			if (!reader) {
+				Zotero.debug('DeepTutorChatBox: No reader instance available');
 				return; // Early exit if reader is not available
 			}
 
-			/*
-			Search functionality commented out - preserve file opening and page switching only
-			const searchQuery = source.referenceString || "test";
-			
-			reader._internalReader.setFindQuery(searchQuery, {
-			primary: true,
-			openPopup: false,
-			activateSearch: true
-			});
-			*/
-			
-			// Future: Add search functionality here when needed
-			Zotero.debug('DeepTutorChatBox: PDF opened, search functionality available if needed');
+			Zotero.debug('DeepTutorChatBox: Reader instance found, starting improved search');
+			// Implement improved source searching algorithm
+			await performImprovedSearch(reader, source);
 		}
 		catch (error) {
-			Zotero.debug(error);
+			Zotero.debug(`DeepTutorChatBox: Error in handleSourceClick: ${error.message}`);
+			Zotero.debug(`DeepTutorChatBox: Error stack: ${error.stack}`);
 		}
 	};
 
