@@ -22,6 +22,15 @@ import {
 	cleanupSourceData
 } from './DeepTutorHelperFunctions.js';
 
+import ClaudeAutoInstall from './ClaudeAutoInstall';
+
+// Import DeepTutor Claude Management class
+const DeepTutorClaudeManagement = require('./DeepTutorClaudeManagement.js');
+
+const ClaudeCliWrapper = require('./ClaudeCliWrapper.js');
+
+// Chrome Components for file system operations
+const { Cc, Ci } = require('chrome');
 
 const markdownit = require('markdown-it');
 // Try to require markdown-it-container, fallback to a simpler implementation if not available
@@ -96,7 +105,8 @@ class Conversation {
 const SessionType = {
 	LITE: 'LITE',
 	BASIC: 'BASIC',
-	ADVANCED: 'ADVANCED'
+	ADVANCED: 'ADVANCED',
+	AGENTIC: 'AGENTIC'
 };
 
 const ContentType = {
@@ -119,9 +129,48 @@ const MessageRole = {
 };
 
 
-// const SendIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_SEND.svg';
-// const StopIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_STOP.svg';
-// const ArrowDownPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/CHAT_ARROWDOWN.svg';
+// Default system prompts for agentic mode
+const _DEFAULT_SYS_PROMPT = 'Note: In the current data directory, please only view the /DeepTutorDataBase folder and the pdf files inside of it. In particular, please view the pdf file or files associated with the current session, which are named: {DOCUMENT_NAMES}. You are a helpful AI assistant. Please provide clear, accurate, and helpful responses to user questions.';
+
+const DEFAULT_SYS_SUM_PROMPT = `Note: In the current data directory, please only view the /DeepTutorDataBase folder and the pdf files inside of it. In particular, please view the pdf file or files associated with the current session, which are named: {DOCUMENT_NAMES}. You are an expert academic tutor helping a student understand multiple documents. The student has loaded multiple PDF files and needs a comprehensive summary that explains what each document is about. Here are the files with previews of their content:
+
+{formatted_previews}
+
+Please provide a comprehensive summary that:
+1. Introduces each document with its title (derived from content if possible) and main topic
+2. Summarizes the key content and main findings of each document
+3. Identifies relationships or connections between the documents (they appear to be related scientific papers)
+4. Highlights the most important concepts across all documents
+5. Uses markdown formatting for clear organization with sections and subsections
+6. Makes appropriate use of bold, bullet points, and other formatting to improve readability
+7. Highest title level is 3, and the title should be concise and informative.
+
+Format your summary with a friendly welcome message at the beginning and a closing "Ask me anything" message at the end.`;
+
+const DEFAULT_SYS_QA_PROMPT = `Note: In the current data directory, please only view the /DeepTutorDataBase folder and the pdf files inside of it. In particular, please view the pdf file or files associated with the current session, which are named: {DOCUMENT_NAMES}. You are a deep thinking tutor helping a student reading a paper.
+Reference context from the paper: {formatted_context_string}
+This is a detailed plan for constructing the answer: {str(question.answer_planning)}
+The student's query is: {user_input_string}
+
+For formulas, use LaTeX format with $...$ or
+$$
+...
+$$
+and make sure latex syntax can be properly rendered in the response.
+
+Requirement:
+Only use the information from the context chunks to answer the question. Give the response in a scientific and academic tone. Do not make up or assume anything or guess without any evidence. If you answer some questions based on your own knowledge, clearly state that you are using your own knowledge.
+
+Format requirement:
+1. Make sure each sentence in the response there is a corresponding context chunk to support the sentence, and cite the most relevant context chunk keys in the format "[<chunk_key, like {example_keys}, etc>]" at the end of the sentence after the period mark. If there are more than one context chunk keys, use the format "[<chunk_key_1>][<chunk_key_2>] ..." to cite all the context chunk keys.
+2. Use markdown syntax for formatting the response to make it more clear and readable.`;
+
+const SendIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_SEND.svg';
+const StopIconPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/RES_STOP.svg';
+const _ArrowDownPath = 'chrome://zotero/content/DeepTutorMaterials/Chat/CHAT_ARROWDOWN.svg';
+const SettingsIconPath = 'chrome://zotero/content/DeepTutorMaterials/History/SESHIS_SEARCH.svg';
+const _RenameIconPath = 'chrome://zotero/content/DeepTutorMaterials/History/RENAME_SESSION.svg';
+const _RenameIconDarkPath = 'chrome://zotero/content/DeepTutorMaterials/History/RENAME_SESSION_DARK.svg';
 
 const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitWaitChange, handleShowNoteSavePopup, _onShowRenamePopup, onOpenSessionHistory, onToggleSettingsPopup, onToggleModelSelectionPopup, onDeleteSession, userIdFromParent, onCreateSessionFromId, subscriptionType = 'BASIC', usageSummary = null, hasActiveSubscription = false, onShowFileSizeWarning, onShowPageLimitWarning, onShowSubscriptionPopup, refreshUsageSummary }) => {
 	const { colors, theme } = useDeepTutorTheme();
@@ -419,11 +468,57 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 			cursor: 'pointer',
 			marginRight: '1rem',
 		},
+		settingsPopup: {
+			position: 'absolute',
+			bottom: '100%',
+			right: 0,
+			background: theme === 'light' ? '#FFFFFF' : colors.background.tertiary,
+			border: `0.0625rem solid ${colors.border.primary}`,
+			borderRadius: '0.5rem',
+			boxShadow: '0 0.125rem 0.25rem rgba(0,0,0,0.1)',
+			zIndex: 1000,
+			width: '20rem',
+			padding: '1rem',
+			marginBottom: '0.5rem',
+			boxSizing: 'border-box',
+		},
+		settingsLabel: {
+			fontSize: '0.875rem',
+			fontWeight: 500,
+			color: colors.text.allText,
+			marginBottom: '0.5rem',
+			display: 'block',
+		},
+		settingsInput: {
+			width: '100%',
+			padding: '0.5rem',
+			border: `0.0625rem solid ${colors.border.primary}`,
+			borderRadius: '0.25rem',
+			background: colors.background.secondary,
+			color: colors.text.allText,
+			fontSize: '0.875rem',
+			marginBottom: '1rem',
+			boxSizing: 'border-box',
+			outline: 'none',
+		},
+		settingsButton: {
+			background: colors.button.primary,
+			color: colors.button.primaryText,
+			border: 'none',
+			borderRadius: '0.25rem',
+			padding: '0.5rem 1rem',
+			fontSize: '0.875rem',
+			fontWeight: 500,
+			cursor: 'pointer',
+			width: '100%',
+			boxSizing: 'border-box',
+		}
 		// renamePopupOverlay is managed by parent in DeepTutorMain
 	};
 	const [messages, setMessages] = useState([]);
 	const [sessionId, setSessionId] = useState(null);
 	const [userId, setUserId] = useState(userIdFromParent || null);
+	const [inputValue, setInputValue] = useState('');
 	const [documentIds, setDocumentIds] = useState([]);
 	const [latestMessageId, setLatestMessageId] = useState(null);
 	const [curSessionType, setcurSessionType] = useState(SessionType.BASIC);
@@ -627,6 +722,120 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 		catch (error) {
 			Zotero.debug(`DeepTutorChat: Error updating paper context: ${error.message}`);
 		}
+	};
+
+	// Agentic mode state variables
+	const [isAgenticMode, setIsAgenticMode] = useState(false);
+	const [showClaudeInstallPopup, setShowClaudeInstallPopup] = useState(false);
+	const [showSettingsPopup, setShowSettingsPopup] = useState(false);
+	const [agenticApiKey, setAgenticApiKey] = useState(() => {
+		try {
+			return Zotero.Prefs.get('deeptutor.claude.apiKey') || '';
+		} catch (e) {
+			Zotero.debug(e);
+			return '';
+		}
+	});
+	const [openaiApiKey, setOpenaiApiKey] = useState(() => {
+		try {
+			return Zotero.Prefs.get('deeptutor.openai.apiKey') || '';
+		} catch (e) {
+			Zotero.debug(e);
+			return '';
+		}
+	});
+	const [cliChoice, setCliChoice] = useState(() => {
+		try {
+			return Zotero.Prefs.get('deeptutor.cli.choice') || 'claude';
+		} catch (e) {
+			Zotero.debug(e);
+			return 'claude';
+		}
+	});
+	const [agenticSystemPrompt, setAgenticSystemPrompt] = useState(DEFAULT_SYS_QA_PROMPT);
+	// Comment out Zotero.Prefs fetching - prioritize default prompt and rely on component state
+	// const [agenticSystemPrompt, setAgenticSystemPrompt] = useState(() => {
+	// 	try {
+	// 		return Zotero.Prefs.get('deeptutor.claude.systemPrompt') || DEFAULT_SYS_QA_PROMPT;
+	// 	} catch (e) {
+	// 		Zotero.debug(e);
+	// 		return DEFAULT_SYS_QA_PROMPT;
+	// 	}
+	// });
+	const [_agenticHistory, setAgenticHistory] = useState([]);
+	const [isFirstSummary, setIsFirstSummary] = useState(true);
+
+	// Agentic history management functions
+	const saveAgenticHistory = (sessionId, history) => {
+		try {
+			const historyKey = `SessionHis_${sessionId}`;
+			Zotero.Prefs.set(historyKey, JSON.stringify(history));
+			Zotero.debug(`DeepTutorChatBox: Saved agentic history for session ${sessionId}`);
+		} catch (error) {
+			Zotero.debug(`DeepTutorChatBox: Error saving agentic history: ${error.message}`);
+		}
+	};
+
+	const loadAgenticHistory = (sessionId) => {
+		try {
+			const historyKey = `SessionHis_${sessionId}`;
+			const historyStr = Zotero.Prefs.get(historyKey);
+			if (historyStr) {
+				return JSON.parse(historyStr);
+			}
+			return [];
+		} catch (error) {
+			Zotero.debug(`DeepTutorChatBox: Error loading agentic history: ${error.message}`);
+			return [];
+		}
+	};
+
+	const addToAgenticHistory = (sessionId, role, message) => {
+		const historyEntry = `${role}: ${message}`;
+		setAgenticHistory(prev => {
+			const newHistory = [...prev, historyEntry];
+			saveAgenticHistory(sessionId, newHistory);
+			return newHistory;
+		});
+	};
+
+	const convertAgenticHistoryToMessages = (history) => {
+		const messages = [];
+		history.forEach((entry, index) => {
+			if (entry.startsWith('USER: ')) {
+				const text = entry.substring(6); // Remove "USER: " prefix
+				messages.push({
+					id: `agentic_user_${index}`,
+					subMessages: [{
+						text: text,
+						contentType: ContentType.TEXT,
+						creationTime: new Date().toISOString(),
+						sources: []
+					}],
+					role: MessageRole.USER,
+					creationTime: new Date().toISOString(),
+					lastUpdatedTime: new Date().toISOString(),
+					status: MessageStatus.VIEWED
+				});
+			} else if (entry.startsWith('TUTOR: ')) {
+				const text = entry.substring(7); // Remove "TUTOR: " prefix
+				messages.push({
+					id: `agentic_tutor_${index}`,
+					subMessages: [{
+						text: text,
+						contentType: ContentType.TEXT,
+						creationTime: new Date().toISOString(),
+						sources: []
+					}],
+					role: MessageRole.TUTOR,
+					creationTime: new Date().toISOString(),
+					lastUpdatedTime: new Date().toISOString(),
+					status: MessageStatus.VIEWED,
+					followUpQuestions: []
+				});
+			}
+		});
+		return messages;
 	};
 
 	// Helper function to check if we should continue checking for responses (within 10 minutes)
@@ -923,22 +1132,51 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 		const loadSessionData = async () => {
 			if (!currentSession?.id) return;
 
+			Zotero.debug('DeepTutorChatBox: Session change detected, starting session data loading...');
+
+			// Check if this is an agentic mode session
+			const isAgentic = currentSession.sessionName && currentSession.sessionName.startsWith('_AGENTIC_');
+			setIsAgenticMode(isAgentic);
+
 			// Update session and user IDs
 			setSessionId(currentSession.id);
 			setUserId(currentSession.userId);
 			setDocumentIds(currentSession.documentIds || []);
-			setcurSessionType(currentSession.type || SessionType.BASIC);
+			setcurSessionType(isAgentic ? SessionType.AGENTIC : (currentSession.type || SessionType.BASIC));
 
-			// Fetch document information (errors are handled gracefully)
-			const documentIds = currentSession.documentIds || [];
-			const newDocumentFiles = await Promise.allSettled(
-				documentIds.map(id => getDocumentById(id))
-			);
-			
-			// Log any failures
-			newDocumentFiles
-				.filter(result => result.status === "rejected")
-				.forEach(result => Zotero.debug(result.reason));
+			// Note: PDF processing is now available through the settings popup
+			// Users can manually trigger PDF processing when needed
+			Zotero.debug('DeepTutorChatBox: Session loaded - PDF processing available in settings');
+
+			// For agentic mode, check Claude CLI availability
+			if (isAgentic) {
+				try {
+					Zotero.debug('DeepTutorChatBox: Agentic mode detected, checking Claude CLI...');
+					const claudeCheck = await ClaudeCliWrapper.checkClaude();
+					Zotero.debug(`DeepTutorChatBox: Claude CLI check result: ${JSON.stringify(claudeCheck)}`);
+					
+					if (!claudeCheck.exists) {
+						Zotero.debug('DeepTutorChatBox: Claude CLI not found, showing install popup');
+						setShowClaudeInstallPopup(true);
+					}
+				} catch (error) {
+					Zotero.debug(`DeepTutorChatBox: Error checking Claude CLI: ${error.message}`);
+					setShowClaudeInstallPopup(true);
+				}
+			}
+
+			// For non-agentic mode, fetch document information (errors are handled gracefully)
+			if (!isAgentic) {
+				const documentIds = currentSession.documentIds || [];
+				const newDocumentFiles = await Promise.allSettled(
+					documentIds.map(id => getDocumentById(id))
+				);
+				
+				// Log any failures
+				newDocumentFiles
+					.filter(result => result.status === "rejected")
+					.forEach(result => Zotero.debug(result.reason));
+			}
 		};
 
 		loadSessionData();
@@ -956,7 +1194,7 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 				setWaitingStreaming(true);
 			}
 		}, 100); // Small delay to ensure state updates are processed
-	}, [currentSession, messages, checkTime]);
+	}, [currentSession, checkTime]);
 
 	// Monitor for paper changes during placeholder stage
 	useEffect(() => {
@@ -1022,26 +1260,43 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 			}
 
 			try {
-				const sessionMessages = await getMessagesBySessionId(sessionId);
-				setMessages([]);
-                
-				if (sessionMessages.length === 0) {
-					await handleEmptySession();
-					return;
-				}
+				if (isAgenticMode) {
+					// Load messages from local storage for agentic mode
+					const history = loadAgenticHistory(sessionId);
+					setAgenticHistory(history);
+					const agenticMessages = convertAgenticHistoryToMessages(history);
+					setMessages(agenticMessages);
+					
+					if (agenticMessages.length === 0) {
+						// This is a new session, keep isFirstSummary as true
+						await handleEmptyAgenticSession();
+					} else {
+						// This session has existing history, so first summary was already done
+						setIsFirstSummary(false);
+					}
+				} else {
+					// Regular API-based message loading
+					const sessionMessages = await getMessagesBySessionId(sessionId);
+					setMessages([]);
+	                
+					if (sessionMessages.length === 0) {
+						await handleEmptySession();
+						return;
+					}
 
-				// Process existing messages
-				setLatestMessageId(sessionMessages[sessionMessages.length - 1].id);
-				
-				for (const [, message] of sessionMessages.entries()) {
-					const sender = message.role === MessageRole.USER ? "You" : "DeepTutor";
-					await _appendMessage(sender, message);
-				}
+					// Process existing messages
+					setLatestMessageId(sessionMessages[sessionMessages.length - 1].id);
+					
+					for (const [, message] of sessionMessages.entries()) {
+						const sender = message.role === MessageRole.USER ? "You" : "DeepTutor";
+						await _appendMessage(sender, message);
+					}
 
-				// Update streaming state based on last message
-				const lastMessage = sessionMessages[sessionMessages.length - 1];
-				const shouldStream = lastMessage?.role === MessageRole.USER && checkTime(lastMessage);
-				setIsStreaming(shouldStream);
+					// Update streaming state based on last message
+					const lastMessage = sessionMessages[sessionMessages.length - 1];
+					const shouldStream = lastMessage?.role === MessageRole.USER && checkTime(lastMessage);
+					setIsStreaming(shouldStream);
+				}
 			}
 			catch (error) {
 				Zotero.debug(error);
@@ -1091,8 +1346,36 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 			setInitWait(false);
 		};
 
+		const handleEmptyAgenticSession = async () => {
+			// For agentic mode, generate initial summary using summary prompt
+			setInitWait(true);
+			
+			const loadingMessage = {
+				id: 'agentic_loading',
+				subMessages: [{
+					text: "Loading...Please wait while I generate a summary of your documents.",
+					contentType: ContentType.TEXT,
+					creationTime: new Date().toISOString(),
+					sources: []
+				}],
+				role: MessageRole.TUTOR,
+				creationTime: new Date().toISOString(),
+				lastUpdatedTime: new Date().toISOString(),
+				status: MessageStatus.VIEWED,
+				followUpQuestions: []
+			};
+			
+			setMessages([loadingMessage]);
+			await new Promise(resolve => setTimeout(resolve, 2000));
+			setMessages([]);
+			
+			// Generate initial summary using summary prompt
+			await handleAgenticMessage('Based on the context provided, make a comprehensive summary for the documents. Begin with "Summary"', true);
+			setInitWait(false);
+		};
+
 		loadMessages();
-	}, [sessionId]);
+	}, [sessionId, isAgenticMode]);
 
 
 	// Auto-scroll when messages change
@@ -1330,6 +1613,377 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 				role: MessageRole.TUTOR
 			};
 			setMessages(prev => [...prev, errorMessage]);
+			await _appendMessage("DeepTutor", errorMessage);
+		}
+	};
+
+	// Function to adjust textarea height based on content
+	const adjustTextareaHeight = () => {
+		// This function can be implemented if needed for auto-resize functionality
+		// For now, it's a placeholder to prevent errors
+	};
+
+	const handleInputChange = (e) => {
+		setInputValue(e.target.value);
+		// Adjust height after the value is set
+		setTimeout(adjustTextareaHeight, 0);
+	};
+
+	const handleAgenticMessage = async (messageText, isSummaryGeneration = false) => {
+		if (!sessionId) return;
+
+		try {
+			// Add user message to history and display
+			addToAgenticHistory(sessionId, 'USER', messageText);
+			
+			const userMessage = {
+				id: `agentic_user_${Date.now()}`,
+				subMessages: [{
+					text: messageText,
+					contentType: ContentType.TEXT,
+					creationTime: new Date().toISOString(),
+					sources: []
+				}],
+				role: MessageRole.USER,
+				creationTime: new Date().toISOString(),
+				lastUpdatedTime: new Date().toISOString(),
+				status: MessageStatus.VIEWED
+			};
+
+			setMessages(prev => [...prev, userMessage]);
+
+			// Disable input while processing
+			setIsStreaming(true);
+
+			// Call Claude CLI with streaming
+			try {
+				// Resolve working directory - now pointing to DeepTutorDataBase
+				let workingDir = null;
+				try {
+					const prefDir = Zotero.Prefs.get('dataDir') || Zotero.Prefs.get('lastDataDir');
+					if (prefDir && typeof prefDir === 'string') {
+						// Point to DeepTutorDataBase subdirectory instead of main data directory
+						const separator = Zotero.isWin ? '\\' : '/';
+						workingDir = prefDir + separator + 'DeepTutorDataBase';
+					}
+					else if (Zotero.DataDirectory && typeof Zotero.DataDirectory.dir === 'string') {
+						// Point to DeepTutorDataBase subdirectory instead of main data directory
+						const separator = Zotero.isWin ? '\\' : '/';
+						workingDir = Zotero.DataDirectory.dir + separator + 'DeepTutorDataBase';
+					}
+				}
+				catch (e) {
+					Zotero.debug(e);
+				}
+				
+				if (!workingDir) {
+					const separator = Zotero.isWin ? '\\' : '/';
+					workingDir = `/home/sherman01/Zotero${separator}DeepTutorDataBase`;
+				}
+
+				// Ensure the DeepTutorDataBase directory exists
+				try {
+					const dirFile = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile);
+					dirFile.initWithPath(workingDir);
+					if (!dirFile.exists()) {
+						Zotero.debug(`DeepTutorChatBox: DeepTutorDataBase directory does not exist, creating: ${workingDir}`);
+						dirFile.create(Ci.nsIFile.DIRECTORY_TYPE, 0o755);
+					}
+				}
+				catch (dirError) {
+					Zotero.debug(`DeepTutorChatBox: Error ensuring DeepTutorDataBase directory exists: ${dirError.message}`);
+				}
+
+				// Choose the appropriate system prompt
+				let systemPrompt;
+				if (isSummaryGeneration && isFirstSummary) {
+					// Inject document names into the summary prompt
+					const documentNames = _contextDocuments.map(doc => doc.name).join(', ');
+					systemPrompt = DEFAULT_SYS_SUM_PROMPT.replace('{DOCUMENT_NAMES}', documentNames);
+					setIsFirstSummary(false); // Mark that first summary is done
+					Zotero.debug(`DeepTutorChatBox: Using summary prompt for first generation with documents: ${documentNames}`);
+				}
+				else {
+					// Inject document names into QA prompt as well
+					const documentNames = _contextDocuments.map(doc => doc.name).join(', ');
+					const basePrompt = agenticSystemPrompt || DEFAULT_SYS_QA_PROMPT;
+					systemPrompt = basePrompt.replace('{DOCUMENT_NAMES}', documentNames);
+					Zotero.debug(`DeepTutorChatBox: Using QA prompt for regular conversation with documents: ${documentNames}`);
+				}
+
+				// Create initial streaming message for thinking display
+				const initialStreamingMessage = {
+					id: `agentic_streaming_${Date.now()}`,
+					subMessages: [{
+						text: '',
+						contentType: ContentType.TEXT,
+						creationTime: new Date().toISOString(),
+						sources: []
+					}],
+					role: MessageRole.TUTOR,
+					creationTime: new Date().toISOString(),
+					lastUpdatedTime: new Date().toISOString(),
+					status: MessageStatus.VIEWED,
+					followUpQuestions: [],
+					isStreaming: true,
+					streamText: '',
+					thinkingProcesses: [],
+					hasThinkingProcess: false
+				};
+
+				// Add the streaming message immediately
+				setMessages(prev => [...prev, initialStreamingMessage]);
+
+				let accumulatedThinking = [];
+				let finalResponseText = '';
+
+				// Define streaming callbacks
+				const onChunk = (chunk, isFinal, _accumulated) => {
+					Zotero.debug(`DeepTutorChatBox: Received streaming chunk: "${chunk}"`);
+					
+					// Check for thinking content in the chunk
+					if (chunk.includes('<thinking>')) {
+						// Extract thinking content, even if the closing tag isn't in this chunk yet
+						const thinkingStart = chunk.indexOf('<thinking>');
+						if (thinkingStart !== -1) {
+							let thinkingContent = chunk.substring(thinkingStart + '<thinking>'.length);
+							
+							// If we have a closing tag in this chunk, extract only the thinking part
+							const thinkingEnd = thinkingContent.indexOf('</thinking>');
+							if (thinkingEnd !== -1) {
+								thinkingContent = thinkingContent.substring(0, thinkingEnd);
+							}
+							
+							// Only add if we have actual content
+							if (thinkingContent.trim()) {
+								accumulatedThinking.push(thinkingContent);
+								Zotero.debug(`DeepTutorChatBox: Captured thinking content: ${thinkingContent}`);
+								
+								// Update the streaming message with thinking content
+								setMessages(prev => prev.map((msg, index) => {
+									if (index === prev.length - 1 && msg.isStreaming) {
+										return {
+											...msg,
+											streamText: `<thinking>${accumulatedThinking.join('')}</thinking>`,
+											thinkingProcesses: [...accumulatedThinking],
+											hasThinkingProcess: accumulatedThinking.length > 0
+										};
+									}
+									return msg;
+								}));
+							}
+							
+							// If we found a closing tag, process any content after it as regular content
+							if (thinkingEnd !== -1) {
+								const afterThinking = chunk.substring(thinkingStart + '<thinking>'.length + thinkingContent.length + '</thinking>'.length);
+								if (afterThinking.trim()) {
+									finalResponseText += afterThinking;
+								}
+							}
+							return;
+						}
+					}
+					
+					// Check if we're still in thinking mode (content between <thinking> tags)
+					if (accumulatedThinking.length > 0 && !chunk.includes('</thinking>')) {
+						// We're still accumulating thinking content
+						accumulatedThinking[accumulatedThinking.length - 1] += chunk;
+						
+						// Update the streaming message with updated thinking content
+						setMessages(prev => prev.map((msg, index) => {
+							if (index === prev.length - 1 && msg.isStreaming) {
+								return {
+									...msg,
+									streamText: `<thinking>${accumulatedThinking.join('')}</thinking>`,
+									thinkingProcesses: [...accumulatedThinking],
+									hasThinkingProcess: accumulatedThinking.length > 0
+								};
+							}
+							return msg;
+						}));
+						return;
+					}
+					
+					// Handle end of thinking
+					if (chunk.includes('</thinking>')) {
+						const thinkingEnd = chunk.indexOf('</thinking>');
+						const thinkingPart = chunk.substring(0, thinkingEnd);
+						
+						// Add the final part of thinking content
+						if (thinkingPart.trim() && accumulatedThinking.length > 0) {
+							accumulatedThinking[accumulatedThinking.length - 1] += thinkingPart;
+						}
+						
+						// Process any content after the thinking tags as regular content
+						const afterThinking = chunk.substring(thinkingEnd + '</thinking>'.length);
+						if (afterThinking.trim()) {
+							finalResponseText += afterThinking;
+							
+							// Update the streaming message with response content
+							setMessages(prev => prev.map((msg, index) => {
+								if (index === prev.length - 1 && msg.isStreaming) {
+									return {
+										...msg,
+										streamText: finalResponseText,
+										subMessages: [{
+											...msg.subMessages[0],
+											text: finalResponseText
+										}],
+										thinkingProcesses: [...accumulatedThinking],
+										hasThinkingProcess: accumulatedThinking.length > 0
+									};
+								}
+								return msg;
+							}));
+						}
+						return;
+					}
+					
+					// Regular content chunk (not thinking)
+					if (chunk && !chunk.includes('<thinking>') && !chunk.includes('</thinking>')) {
+						finalResponseText += chunk;
+						
+						// Update the streaming message with response content
+						setMessages(prev => prev.map((msg, index) => {
+							if (index === prev.length - 1 && msg.isStreaming) {
+								return {
+									...msg,
+									streamText: finalResponseText,
+									subMessages: [{
+										...msg.subMessages[0],
+										text: finalResponseText
+									}],
+									thinkingProcesses: [...accumulatedThinking],
+									hasThinkingProcess: accumulatedThinking.length > 0
+								};
+							}
+							return msg;
+						}));
+					}
+					
+					if (isFinal) {
+						Zotero.debug(`DeepTutorChatBox: Streaming completed with final content`);
+					}
+				};
+
+				const onError = (error) => {
+					Zotero.debug(`DeepTutorChatBox: Streaming error: ${error.message}`);
+					setMessages(prev => prev.map((msg, index) => {
+						if (index === prev.length - 1 && msg.isStreaming) {
+							return {
+								...msg,
+								isStreaming: false,
+								streamText: `Error: ${error.message}`,
+								subMessages: [{
+									...msg.subMessages[0],
+									text: `Error: ${error.message}`
+								}]
+							};
+						}
+						return msg;
+					}));
+				};
+
+				Zotero.debug(`DeepTutorChatBox: Calling Claude CLI streaming for agentic mode with working directory: ${workingDir}`);
+				const claudeResult = await ClaudeCliWrapper.runClaudeStreaming([], workingDir, messageText, null, false, systemPrompt, false, cliChoice, onChunk, onError);
+				
+				let responseText = '';
+				let thinkingProcesses = [];
+				
+				if (claudeResult && !claudeResult.error) {
+					// Use accumulated content from streaming
+					responseText = finalResponseText || claudeResult.content || String(claudeResult).trim();
+					thinkingProcesses = accumulatedThinking;
+					
+					Zotero.debug(`DeepTutorChatBox: Streaming completed with ${thinkingProcesses.length} thinking processes`);
+				}
+				else if (claudeResult && claudeResult.error) {
+					responseText = `Error: ${claudeResult.error}`;
+				}
+				else {
+					responseText = 'No response from Claude CLI';
+				}
+
+				// Add tutor response to history and display
+				addToAgenticHistory(sessionId, 'TUTOR', responseText);
+				
+				// Create final tutor message with thinking process support
+				const tutorMessage = {
+					id: `agentic_tutor_${Date.now()}`,
+					subMessages: [{
+						text: responseText,
+						contentType: ContentType.TEXT,
+						creationTime: new Date().toISOString(),
+						sources: []
+					}],
+					role: MessageRole.TUTOR,
+					creationTime: new Date().toISOString(),
+					lastUpdatedTime: new Date().toISOString(),
+					status: MessageStatus.VIEWED,
+					followUpQuestions: [],
+					// Add thinking process data
+					thinkingProcesses: thinkingProcesses,
+					hasThinkingProcess: thinkingProcesses.length > 0,
+					isStreaming: false
+				};
+
+				// Replace the streaming message with final message
+				setMessages(prev => {
+					const newMessages = [...prev];
+					newMessages[newMessages.length - 1] = tutorMessage;
+					return newMessages;
+				});
+			}
+			catch (claudeError) {
+				Zotero.debug(`DeepTutorChatBox: Claude CLI error: ${claudeError.message}`);
+				
+				const errorText = `I encountered an error while processing your request: ${claudeError.message}`;
+				addToAgenticHistory(sessionId, 'TUTOR', errorText);
+				
+				const errorMessage = {
+					id: `agentic_error_${Date.now()}`,
+					subMessages: [{
+						text: errorText,
+						contentType: ContentType.TEXT,
+						creationTime: new Date().toISOString(),
+						sources: []
+					}],
+					role: MessageRole.TUTOR,
+					creationTime: new Date().toISOString(),
+					lastUpdatedTime: new Date().toISOString(),
+					status: MessageStatus.PROCESSING_ERROR,
+					followUpQuestions: []
+				};
+
+				setMessages(prev => [...prev, errorMessage]);
+			}
+
+			// Re-enable input
+			setIsStreaming(false);
+		} catch (error) {
+			Zotero.debug(`DeepTutorChatBox: Error in handleAgenticMessage: ${error.message}`);
+			setIsStreaming(false);
+		}
+	};
+
+	const handleSend = async () => {
+		setIsManuallyStopped(false);
+		const trimmedValue = inputValue.trim(); // Remove both leading and trailing spaces
+		if (trimmedValue) { // Only send if there's actual content after trimming
+			setInputValue('');
+			// Reset textarea height after clearing
+			setTimeout(adjustTextareaHeight, 0);
+			
+			if (isAgenticMode) {
+				await handleAgenticMessage(trimmedValue);
+			} else {
+				await userSendMessage(trimmedValue);
+			}
+		}
+		else {
+			setInputValue(''); // Clear input even if empty
+			// Reset textarea height after clearing
+			setTimeout(adjustTextareaHeight, 0);
 		}
 	};
 
@@ -1794,6 +2448,56 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 
 	const _handleContextDocumentClick = async (_contextDoc) => {};
 
+	// Settings popup handlers
+	const handleSettingsClick = () => {
+		// Settings popup is now available for all session types
+		setShowSettingsPopup(!showSettingsPopup);
+	};
+
+	const handleClaudeInstallComplete = (result) => {
+		Zotero.debug(`DeepTutorChatBox: Claude install completed: ${JSON.stringify(result)}`);
+		setShowClaudeInstallPopup(false);
+		
+		if (result && result.ok) {
+			// Show success message or handle success
+			Zotero.debug('DeepTutorChatBox: Claude installation successful');
+		}
+	};
+
+	const handleClaudeInstallCancel = () => {
+		setShowClaudeInstallPopup(false);
+	};
+
+	const handleSettingsConfirm = (newApiKey, newPrompt, newCliChoice, newOpenaiApiKey) => {
+		try {
+			if (newApiKey && newApiKey.trim()) {
+				setAgenticApiKey(newApiKey.trim());
+				Zotero.Prefs.set('deeptutor.claude.apiKey', newApiKey.trim());
+			}
+			
+			if (newOpenaiApiKey && newOpenaiApiKey.trim()) {
+				setOpenaiApiKey(newOpenaiApiKey.trim());
+				Zotero.Prefs.set('deeptutor.openai.apiKey', newOpenaiApiKey.trim());
+			}
+			
+			if (newCliChoice) {
+				setCliChoice(newCliChoice);
+				Zotero.Prefs.set('deeptutor.cli.choice', newCliChoice);
+			}
+			
+			if (newPrompt && newPrompt.trim()) {
+				setAgenticSystemPrompt(newPrompt.trim());
+				// Comment out Zotero.Prefs saving for system prompt - rely on component state only
+				// Zotero.Prefs.set('deeptutor.claude.systemPrompt', newPrompt.trim());
+			}
+			
+			setShowSettingsPopup(false);
+			Zotero.debug('DeepTutorChatBox: Settings updated successfully');
+		} catch (error) {
+			Zotero.debug(`DeepTutorChatBox: Error updating settings: ${error.message}`);
+		}
+	};
+
 	const renderMessage = (message, index) => {
 		return (
 			<DeepTutorChatMessage
@@ -2116,6 +2820,272 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 			document.removeEventListener('copy', handleCopy, true);
 		};
 	}, []);
+
+	// Settings popup component
+	const SettingsPopup = ({ onConfirm, onCancel: _onCancel, initialApiKey, initialPrompt, initialCliChoice, initialOpenaiApiKey, styles, colors }) => {
+		const [tempApiKey, setTempApiKey] = useState(initialApiKey || '');
+		const [tempPrompt, setTempPrompt] = useState(initialPrompt || '');
+		const [tempCliChoice, setTempCliChoice] = useState(initialCliChoice || 'claude');
+		const [tempOpenaiApiKey, setTempOpenaiApiKey] = useState(initialOpenaiApiKey || '');
+		const [isProcessingPDFs, setIsProcessingPDFs] = useState(false);
+		const [pdfProcessingStatus, setPdfProcessingStatus] = useState('');
+		const [isCheckingClaude, setIsCheckingClaude] = useState(false);
+		const [claudeCheckResult, setClaudeCheckResult] = useState('');
+		const [isInstallingClaude, setIsInstallingClaude] = useState(false);
+		const [claudeInstallResult, setClaudeInstallResult] = useState('');
+
+		const handleConfirm = () => {
+			onConfirm(tempApiKey, tempPrompt, tempCliChoice, tempOpenaiApiKey);
+		};
+
+		const handleCheckClaude = async () => {
+			setIsCheckingClaude(true);
+			setClaudeCheckResult('Checking...');
+			try {
+				const result = await ClaudeCliWrapper.checkClaude();
+				if (result.exists) {
+					setClaudeCheckResult(`✅ Claude CLI found at: ${result.path}`);
+				} else {
+					setClaudeCheckResult(`❌ Claude CLI not found. ${result.error ? `Error: ${result.error.message}` : 'Please install it first.'}`);
+				}
+			} catch (error) {
+				setClaudeCheckResult(`❌ Error checking Claude: ${error.message}`);
+			} finally {
+				setIsCheckingClaude(false);
+			}
+		};
+
+		const handleInstallClaude = async () => {
+			if (!tempApiKey.trim()) {
+				setClaudeInstallResult('❌ Please enter an Anthropic API key first');
+				return;
+			}
+			
+			setIsInstallingClaude(true);
+			setClaudeInstallResult('Installing Claude CLI and setting up API key...');
+			try {
+				const result = await ClaudeCliWrapper.installClaude(tempApiKey);
+				if (result.ok) {
+					setClaudeInstallResult(`✅ ${result.message}`);
+				} else {
+					setClaudeInstallResult(`❌ Installation failed: ${result.error.message}`);
+				}
+			} catch (error) {
+				setClaudeInstallResult(`❌ Error installing Claude: ${error.message}`);
+			} finally {
+				setIsInstallingClaude(false);
+			}
+		};
+		
+		const handleCliChoiceChange = (choice) => {
+			setTempCliChoice(choice);
+			// Immediately save to preferences and update parent state
+			onConfirm(tempApiKey, tempPrompt, choice, tempOpenaiApiKey);
+		};
+
+		const handleProcessPDFs = async () => {
+			try {
+				setIsProcessingPDFs(true);
+				setPdfProcessingStatus('Initializing database...');
+				
+				Zotero.debug('DeepTutorChatBox: User initiated PDF processing from settings popup');
+				const deepTutorManager = new DeepTutorClaudeManagement();
+				
+				// Initialize the database structure
+				setPdfProcessingStatus('Creating database structure...');
+				await deepTutorManager.initializeDataBase();
+				setPdfProcessingStatus('Database structure created successfully');
+				
+				// Create CLAUDE.md instruction file
+				setPdfProcessingStatus('Creating Claude instruction file...');
+				await deepTutorManager.loadCLAUDEMD();
+				setPdfProcessingStatus('Claude instruction file created successfully');
+				
+				// Load and process raw PDF documents
+				setPdfProcessingStatus('Processing PDF documents...');
+				await deepTutorManager.loadRawPDFDoc();
+				setPdfProcessingStatus('PDF processing completed successfully!');
+				
+				// Show success status for a few seconds
+				setTimeout(() => {
+					setPdfProcessingStatus('');
+				}, 3000);
+			} catch (error) {
+				Zotero.debug(`DeepTutorChatBox: Error in PDF processing from settings: ${error.message}`);
+				setPdfProcessingStatus(`Error: ${error.message}`);
+				
+				// Show error status for a few seconds
+				setTimeout(() => {
+					setPdfProcessingStatus('');
+				}, 5000);
+			} finally {
+				setIsProcessingPDFs(false);
+			}
+		};
+
+		return (
+			<div style={styles.settingsPopup}>
+				{/* CLI Choice Section */}
+				<label style={styles.settingsLabel}>CLI Choice</label>
+				<div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+					<button
+						onClick={() => handleCliChoiceChange('claude')}
+						style={{
+							...styles.settingsButton,
+							backgroundColor: tempCliChoice === 'claude' ? colors.button.primary : colors.background.secondary,
+							color: tempCliChoice === 'claude' ? colors.text.primary : colors.text.secondary,
+							border: `1px solid ${tempCliChoice === 'claude' ? colors.button.primary : colors.border.primary}`,
+							flex: 1
+						}}
+					>
+						Claude
+					</button>
+					<button
+						onClick={() => handleCliChoiceChange('codex')}
+						style={{
+							...styles.settingsButton,
+							backgroundColor: tempCliChoice === 'codex' ? colors.button.primary : colors.background.secondary,
+							color: tempCliChoice === 'codex' ? colors.text.primary : colors.text.secondary,
+							border: `1px solid ${tempCliChoice === 'codex' ? colors.button.primary : colors.border.primary}`,
+							flex: 1
+						}}
+					>
+						Codex
+					</button>
+				</div>
+
+				{/* Anthropic API Key */}
+				<label style={styles.settingsLabel}>Anthropic API Key</label>
+				<input
+					type="text"
+					value={tempApiKey}
+					onChange={(e) => setTempApiKey(e.target.value)}
+					style={styles.settingsInput}
+					placeholder="Enter Anthropic API key..."
+				/>
+				
+				{/* OpenAI API Key */}
+				<label style={styles.settingsLabel}>OpenAI API Key</label>
+				<input
+					type="text"
+					value={tempOpenaiApiKey}
+					onChange={(e) => setTempOpenaiApiKey(e.target.value)}
+					style={styles.settingsInput}
+					placeholder="Enter OpenAI API key..."
+				/>
+
+				{/* Claude CLI Management Section */}
+				<div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: `1px solid ${colors.border.primary}` }}>
+					<label style={styles.settingsLabel}>Claude CLI Management</label>
+					
+					<div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+						<button
+							onClick={handleCheckClaude}
+							disabled={isCheckingClaude}
+							style={{
+								...styles.settingsButton,
+								backgroundColor: isCheckingClaude ? '#9ca3af' : colors.button.primary,
+								cursor: isCheckingClaude ? 'not-allowed' : 'pointer',
+								opacity: isCheckingClaude ? 0.6 : 1,
+								flex: 1
+							}}
+						>
+							{isCheckingClaude ? 'Checking...' : 'Check Claude Installed'}
+						</button>
+						
+						<button
+							onClick={handleInstallClaude}
+							disabled={isInstallingClaude || !tempApiKey.trim()}
+							style={{
+								...styles.settingsButton,
+								backgroundColor: isInstallingClaude || !tempApiKey.trim() ? '#9ca3af' : colors.button.primary,
+								cursor: isInstallingClaude || !tempApiKey.trim() ? 'not-allowed' : 'pointer',
+								opacity: isInstallingClaude || !tempApiKey.trim() ? 0.6 : 1,
+								flex: 1
+							}}
+						>
+							{isInstallingClaude ? 'Installing...' : 'Install Claude'}
+						</button>
+					</div>
+
+					{claudeCheckResult && (
+						<div style={{
+							marginBottom: '0.5rem',
+							padding: '0.5rem',
+							borderRadius: '0.25rem',
+							backgroundColor: claudeCheckResult.includes('✅') ? '#dcfce7' : '#fee2e2',
+							color: claudeCheckResult.includes('✅') ? '#166534' : '#991b1b',
+							fontSize: '0.875rem',
+							lineHeight: '1.2'
+						}}>
+							{claudeCheckResult}
+						</div>
+					)}
+
+					{claudeInstallResult && (
+						<div style={{
+							marginBottom: '0.5rem',
+							padding: '0.5rem',
+							borderRadius: '0.25rem',
+							backgroundColor: claudeInstallResult.includes('✅') ? '#dcfce7' : '#fee2e2',
+							color: claudeInstallResult.includes('✅') ? '#166534' : '#991b1b',
+							fontSize: '0.875rem',
+							lineHeight: '1.2'
+						}}>
+							{claudeInstallResult}
+						</div>
+					)}
+				</div>
+				
+				<label style={styles.settingsLabel}>Custom Prompt</label>
+				<textarea
+					value={tempPrompt}
+					onChange={(e) => setTempPrompt(e.target.value)}
+					style={{ ...styles.settingsInput, minHeight: '4rem', resize: 'vertical' }}
+					placeholder="Enter custom system prompt..."
+				/>
+				
+				<button
+					onClick={handleConfirm}
+					style={styles.settingsButton}
+				>
+					Confirm
+				</button>
+
+				{/* PDF Processing Section */}
+				<div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: `1px solid ${colors.border.primary}` }}>
+					<label style={styles.settingsLabel}>PDF Processing</label>
+					<button
+						onClick={handleProcessPDFs}
+						disabled={isProcessingPDFs}
+						style={{
+							...styles.settingsButton,
+							backgroundColor: isProcessingPDFs ? '#9ca3af' : colors.button.primary,
+							cursor: isProcessingPDFs ? 'not-allowed' : 'pointer',
+							opacity: isProcessingPDFs ? 0.6 : 1
+						}}
+						title="Process all PDF files in Zotero and convert them to markdown"
+					>
+						{isProcessingPDFs ? 'Processing...' : 'Process PDFs'}
+					</button>
+					
+					{pdfProcessingStatus && (
+						<div style={{
+							marginTop: '0.5rem',
+							padding: '0.5rem',
+							borderRadius: '0.25rem',
+							backgroundColor: pdfProcessingStatus.includes('Error') ? '#fee2e2' : '#dcfce7',
+							color: pdfProcessingStatus.includes('Error') ? '#991b1b' : '#166534',
+							fontSize: '0.875rem',
+							textAlign: 'center'
+						}}>
+							{pdfProcessingStatus}
+						</div>
+					)}
+				</div>
+			</div>
+		);
+	};
 
 	return (
 		<div
@@ -2568,8 +3538,107 @@ const DeepTutorChat = ({ currentSession, sessions = [], onSessionSelect, onInitW
 					isBusy={iniWait || hasActiveStream || waitingStreaming}
 				/>
 			)}
-			
-			{/* Rename popup overlay is rendered by parent (DeepTutorMain) */}
+
+			{/* Style for placeholders */}
+			<style>
+				{`
+				textarea::placeholder {
+					color: ${colors.text.tertiary} !important;
+					opacity: 1;
+				}
+				`}
+			</style>
+
+			{/* Bottom input area */}
+			<div style={styles.bottomBar}>
+				{/* Settings button - available for all session types */}
+				<div style={{ position: 'relative' }}>
+					<button
+						style={{
+							...styles.sendButton,
+							marginRight: '0.5rem',
+							opacity: iniWait ? 0.5 : 1,
+							cursor: iniWait ? "not-allowed" : "pointer"
+						}}
+						onClick={handleSettingsClick}
+						disabled={iniWait}
+						title="Settings"
+					>
+						<img
+							src={SettingsIconPath}
+							alt="Settings"
+							style={styles.sendIcon}
+						/>
+					</button>
+					
+					{showSettingsPopup && (
+						<SettingsPopup
+							onConfirm={handleSettingsConfirm}
+							onCancel={() => setShowSettingsPopup(false)}
+							initialApiKey={agenticApiKey}
+							initialPrompt={agenticSystemPrompt}
+							initialCliChoice={cliChoice}
+							initialOpenaiApiKey={openaiApiKey}
+							styles={styles}
+							colors={colors}
+						/>
+					)}
+				</div>
+
+				{/* Text input */}
+				<textarea
+					style={styles.textInput}
+					value={inputValue}
+					onChange={handleInputChange}
+					onKeyDown={(e) => {
+						if (e.key === 'Enter' && !e.shiftKey) {
+							e.preventDefault();
+							handleSend();
+						}
+					}}
+					placeholder="Type your message here..."
+				/>
+
+				{/* Send/Stop button */}
+				<button
+					style={{
+						...styles.sendButton,
+						opacity: iniWait ? 0.5 : 1,
+						cursor: iniWait ? "not-allowed" : "pointer"
+					}}
+					onClick={(hasActiveStream || waitingStreaming) ? handleStopStreaming : handleSend}
+					disabled={iniWait}
+					title={(hasActiveStream || waitingStreaming) ? "Stop Thinking" : "Send"}
+				>
+					<img
+						src={(hasActiveStream || waitingStreaming) ? StopIconPath : SendIconPath}
+						alt={(hasActiveStream || waitingStreaming) ? "Stop" : "Send"}
+						style={styles.sendIcon}
+					/>
+				</button>
+			</div>
+
+			{/* Claude Install Popup for agentic mode */}
+			{showClaudeInstallPopup && (
+				<div style={{
+					position: 'fixed',
+					top: 0,
+					left: 0,
+					right: 0,
+					bottom: 0,
+					background: 'rgba(0,0,0,0.5)',
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+					zIndex: 9999
+				}}>
+					<ClaudeAutoInstall
+						onInstallComplete={handleClaudeInstallComplete}
+						onCancel={handleClaudeInstallCancel}
+					/>
+				</div>
+			)}
+			{/* Rename popup managed by parent (DeepTutorMain) */}
 		</div>
 	);
 };

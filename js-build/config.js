@@ -132,6 +132,20 @@ const browserifyConfigs = [
 		config: {
 			standalone: 'xmldom'
 		}
+	},
+	{
+		src: 'node_modules/pdf-lib/dist/pdf-lib.js',
+		dest: 'resource/pdf-lib.js',
+		config: {
+			standalone: 'PDFLib',
+			external: [],
+			ignore: [],
+			detectGlobals: false,
+			insertGlobalVars: {
+				process: undefined,
+				Buffer: undefined
+			}
+		}
 	}
 ];
 
