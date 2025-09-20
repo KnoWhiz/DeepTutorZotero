@@ -599,7 +599,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 	// Helper function to wait for search completion and check results
 	const waitForSearchResult = async (reader) => {
 		Zotero.debug('DeepTutorChatBox: Waiting for search completion...');
-		await new Promise(resolve => setTimeout(resolve, 1000));
+		await new Promise(resolve => setTimeout(resolve, 5000));
 		const findState = reader._internalReader._state.primaryViewFindState;
 		const hasResults = findState.result && findState.result.total > 0;
 		Zotero.debug(`DeepTutorChatBox: Search result check - hasResults: ${hasResults}, total: ${findState.result?.total || 0}`);
@@ -909,17 +909,17 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 				const page = placeholder.getAttribute('data-page');
 				
 				// Get source data from Zotero.Prefs
-				const storageKey = `deeptutor_source_${sessionId}_${sourceIndex}`;
+				// const storageKey = `deeptutor_source_${sessionId}_${sourceIndex}`;
 				let sourceData;
-				try {
-					const sourceDataStr = Zotero.Prefs.get(storageKey);
-					if (sourceDataStr) {
-						sourceData = JSON.stringify(JSON.parse(sourceDataStr));
-					}
-				}
-				catch (error) {
-					Zotero.debug(error);
-				}
+				// try {
+				// 	const sourceDataStr = Zotero.Prefs.get(storageKey);
+				// 	if (sourceDataStr) {
+				// 		sourceData = JSON.stringify(JSON.parse(sourceDataStr));
+				// 	}
+				// }
+				// catch (error) {
+				// 	Zotero.debug(error);
+				// }
 				
 				// Fallback: Try to get source data from current messages if not in prefs
 				if (!sourceData) {
@@ -937,7 +937,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 									});
 									
 									// Store it in prefs for future use
-									Zotero.Prefs.set(storageKey, sourceData);
+									// Zotero.Prefs.set(storageKey, sourceData);
 									break;
 								}
 							}
@@ -1561,15 +1561,15 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 					if (subMessage.sources && subMessage.sources.length > 0) {
 						// Store source data in Zotero.Prefs for history sessions
 						subMessage.sources.forEach((source, sourceIndex) => {
-							const storageKey = `deeptutor_source_${sessionId}_${sourceIndex}`;
-							const sourceData = {
-								index: source.index || sourceIndex,
-								refinedIndex: source.refinedIndex !== undefined ? source.refinedIndex : source.index || sourceIndex,
-								page: source.page || 1,
-								referenceString: source.referenceString || '',
-								sourceAnnotation: source.sourceAnnotation || {}
-							};
-							Zotero.Prefs.set(storageKey, JSON.stringify(sourceData));
+							// const storageKey = `deeptutor_source_${sessionId}_${sourceIndex}`;
+							// const sourceData = {
+							// 	index: source.index || sourceIndex,
+							// 	refinedIndex: source.refinedIndex !== undefined ? source.refinedIndex : source.index || sourceIndex,
+							// 	page: source.page || 1,
+							// 	referenceString: source.referenceString || '',
+							// 	sourceAnnotation: source.sourceAnnotation || {}
+							// };
+							// Zotero.Prefs.set(storageKey, JSON.stringify(sourceData));
 							
 							// Add sourceIndex to tracking state
 							if (!currentSourceIndices.includes(sourceIndex)) {
@@ -2099,17 +2099,17 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		if (!oldSessionId) return;
 		
 		// Clean up source data for previous session, but preserve current session data
-		currentSourceIndices.forEach((sourceIndex) => {
-			const storageKey = `deeptutor_source_${oldSessionId}_${sourceIndex}`;
-			try {
-				if (Zotero.Prefs.get(storageKey)) {
-					Zotero.Prefs.clear(storageKey);
-				}
-			}
-			catch (error) {
-				Zotero.debug(error);
-			}
-		});
+		// currentSourceIndices.forEach((sourceIndex) => {
+		// 	const storageKey = `deeptutor_source_${oldSessionId}_${sourceIndex}`;
+		// 	try {
+		// 		if (Zotero.Prefs.get(storageKey)) {
+		// 			Zotero.Prefs.clear(storageKey);
+		// 		}
+		// 	}
+		// 	catch (error) {
+		// 		Zotero.debug(error);
+		// 	}
+		// });
 		
 		// Reset source indices tracking
 		setCurrentSourceIndices([]);
