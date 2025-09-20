@@ -596,17 +596,22 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 	}, [messages, checkTime]); // Dependencies: sessionId, messages, and checkTime function
 
 
-	// Helper function to wait for search completion and check results
+	// Helper function (Layer 1, from performImprovedSearch) to wait for search completion and check results
 	const waitForSearchResult = async (reader) => {
 		Zotero.debug('DeepTutorChatBox: Waiting for search completion...');
-		await new Promise(resolve => setTimeout(resolve, 5000));
+		// Wait for 4 seconds to ensure the search is completed, note that the timing can be customized
+		// This is a tradeoff between total waiting time and the risk of missing the search result which succeed but takes more than the waiting time
+		// We note that the actual search time varies due to app performance, computer performance, and other factors
+		// Which a search can take more or less than 4 seconds regardless of its status. 
+		// 4 sound waiting time in my perspective is a reasonable tradeoff between the two factors, but this can be adjusted
+		await new Promise(resolve => setTimeout(resolve, 4000));
 		const findState = reader._internalReader._state.primaryViewFindState;
 		const hasResults = findState.result && findState.result.total > 0;
 		Zotero.debug(`DeepTutorChatBox: Search result check - hasResults: ${hasResults}, total: ${findState.result?.total || 0}`);
 		return hasResults;
 	};
 
-	// Helper function to create custom search result for full-length highlighting
+	// Helper function (Layer 1, from performImprovedSearch) to create custom search result for full-length highlighting
 	const createCustomSearchResult = async (reader, pageIndex, matchIndex, originalText, textLength) => {
 		Zotero.debug(`DeepTutorChatBox: Creating custom search result - matchIndex: ${matchIndex}, originalLength: ${textLength}`);
 		
@@ -622,6 +627,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 				: originalText;
 			
 			// Create custom search result object
+			// The key is to customized currentOffsetStart and currentOffsetEnd
 			const customResult = {
 				total: 1,
 				current: 1,
@@ -643,7 +649,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		}
 	};
 
-	// Helper function to trigger custom highlighting through the search system
+	// Helper function (Layer 2, from performImprovedSearch) to trigger custom highlighting through the search system
 	const highlightCustomResult = async (reader, customResult) => {
 		Zotero.debug(`DeepTutorChatBox: Triggering custom highlighting through search system`);
 		
@@ -720,6 +726,10 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 	};
 
 	// Helper function to get page text around a position
+	// This function was created to fulfill our initial approach in improved search algorithm to 
+	// use the partial search result to object original search text from relative position in full text, 
+	// then search the original search text again; however approach failed because the original text can still fail the search
+	/*
 	const getPageTextAroundPosition = async (reader, pageIndex, matchResult, originalLength, pdfItem) => {
 		Zotero.debug(`DeepTutorChatBox: Getting page text around position - pageIndex: ${pageIndex}, originalLength: ${originalLength}`);
 		try {
@@ -844,8 +854,26 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			return null;
 		}
 	};
+	*/
 
-	// Improved search algorithm
+	// Improved search algorithm (finished in 2025-09-20);
+	// Objective: increase the success rate of searching the large-size source text of deeptutor session
+	// Approach 1: if the search failed, repetitively search with the front half of the search string, and highlight the 
+	// text of original length at the end
+	// Approach 2 (abandoned): use partial, successful search result to recover the full search text from the original document, instead
+	// of the output from deeptutor agent, and use the original text to search again; failed because even the search text from original document can fail the search
+	// Steps:
+	// 1. Check if source.referenceString exists
+	// Where this is called: handleSourceClick
+	// What does this call: waitForSearchResult, createCustomSearchResult, highlightCustomResult
+	// structure 
+	// 1. Check if source.referenceString exists
+	// 2. Store original text and length before starting search
+	// 3. Repetitive while loop that search with the original text length
+	// 3a. if successful and current search text has the same length as original length, exit
+	// 3b. if successful and current search text has less than original length, use custom highlighting
+	// 3c. if not successful, make search string the front half and search again, until we hit lower bound of search
+	// 4. Last fallback: currently, we choose to search with the remaining search string (in between 40-80 characters)
 	const performImprovedSearch = async (reader, source, pdfItem) => {
 		Zotero.debug('DeepTutorChatBox: Starting improved search algorithm');
 		
@@ -869,9 +897,10 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		Zotero.debug(`DeepTutorChatBox: Starting search with original text length: ${originalLength}`);
 		Zotero.debug(`DeepTutorChatBox: Original referenceString preview: "${originalFullText.substring(0, 100)}..."`);
 
-		// Step 3: Recursive while loop
+		// Step 3: while loop that search the first half of the search string until we hit lower bound of search
 		let iterationCount = 0;
-		while (lenCurSearchString > 75) {
+		// The lower bound of search string length is 80 characters (around 10-20 words), this can be adjusted in the future
+		while (lenCurSearchString > 80) {
 			iterationCount++;
 			Zotero.debug(`DeepTutorChatBox: Iteration ${iterationCount} - Searching with length: ${lenCurSearchString}`);
 			Zotero.debug(`DeepTutorChatBox: Current search string preview: "${curSearchString.substring(0, 50)}..."`);
@@ -910,9 +939,10 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 						Zotero.debug(`DeepTutorChatBox: Partial search found at page ${pageIndex}, starting index: ${startingIndex}`);
 						Zotero.debug(`DeepTutorChatBox: Creating custom highlight from index ${startingIndex} to ${startingIndex + originalLength}`);
 						
-						// Wait 1.5 seconds before applying custom highlighting to ensure PDF viewer is ready
-						Zotero.debug('DeepTutorChatBox: Waiting 1.5 seconds before applying custom highlighting...');
-						await new Promise(resolve => setTimeout(resolve, 1500));
+						// Wait 0.5 seconds before applying custom highlighting to ensure PDF viewer is ready
+						// The timing can be adjusted in the future and might be unnecessary, as we simply do not wish that the customized highlighting get blocked by other operations
+						Zotero.debug('DeepTutorChatBox: Waiting 0.5 seconds before applying custom highlighting...');
+						await new Promise(resolve => setTimeout(resolve, 500));
 						
 						// Create custom highlight with starting index + original length
 						const customHighlightSuccess = await createCustomSearchResult(
@@ -927,22 +957,13 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 							Zotero.debug('DeepTutorChatBox: Custom full-length highlighting successful');
 							return; // Success - exit the function
 						} else {
-							Zotero.debug('DeepTutorChatBox: Custom highlighting failed, falling back to normal search');
+							Zotero.debug('DeepTutorChatBox: Custom highlighting failed, but partial search result is still visible');
+							return; // Exit with partial highlighting (better than nothing)
 						}
 					} else {
 						Zotero.debug('DeepTutorChatBox: No search result available for custom highlighting');
+						return; // Exit - no highlighting possible
 					}
-					
-					// Fallback: Search with the original full text if custom highlighting failed
-					reader._internalReader.setFindQuery(originalFullText, {
-						primary: true,
-						openPopup: false,
-						activateSearch: true
-					});
-					
-					// Wait for final search to complete
-					const finalSearchSuccessful = await waitForSearchResult(reader);
-					Zotero.debug(`DeepTutorChatBox: Fallback search with original text completed - success: ${finalSearchSuccessful}`);
 				} catch (error) {
 					Zotero.debug(`DeepTutorChatBox: Error in custom highlighting: ${error.message}`);
 					Zotero.debug(`DeepTutorChatBox: Error stack: ${error.stack}`);
@@ -959,6 +980,10 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			Zotero.debug(`DeepTutorChatBox: Shortened from ${previousLength} to ${lenCurSearchString} characters`);
 		}
 
+		// Last fallback: currently, we choose to search with the remaining search string (in between 40-80 characters)
+		// Justification 1: the following code should be a filler of last fallback that can be improved in the future
+		// Justification 2: the last search is not limited by waiting time, there can present at least a search result without being
+		// impacted by bug in the repetitve search algorithm or custom highlighting algorithm
 		// If we exit the loop, try one final search with the remaining string
 		if (lenCurSearchString > 0) {
 			Zotero.debug(`DeepTutorChatBox: Exited while loop, final attempt with length: ${lenCurSearchString}`);
