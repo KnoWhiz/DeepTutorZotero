@@ -606,25 +606,162 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		return hasResults;
 	};
 
+	// Helper function to create custom search result for full-length highlighting
+	const createCustomSearchResult = async (reader, pageIndex, matchIndex, originalText, textLength) => {
+		Zotero.debug(`DeepTutorChatBox: Creating custom search result - matchIndex: ${matchIndex}, originalLength: ${textLength}`);
+		
+		try {
+			// Calculate the end position for the full original text length
+			const endIndex = matchIndex + textLength;
+			
+			Zotero.debug(`DeepTutorChatBox: Highlight range: ${matchIndex} to ${endIndex}, original text length: ${textLength}`);
+			
+			// Create a snippet from the original text for display
+			const snippet = originalText.length > 100 
+				? originalText.substring(0, 97) + "..."
+				: originalText;
+			
+			// Create custom search result object
+			const customResult = {
+				total: 1,
+				current: 1,
+				pageIndex: pageIndex,
+				currentOffsetStart: matchIndex,
+				currentOffsetEnd: endIndex,
+				snippets: [snippet]
+			};
+			
+			Zotero.debug(`DeepTutorChatBox: Custom result created:`, customResult);
+			
+			// Trigger the highlighting through the PDF view
+			await highlightCustomResult(reader, customResult);
+			
+			return true;
+		} catch (error) {
+			Zotero.debug(`DeepTutorChatBox: Error creating custom search result: ${error.message}`);
+			return false;
+		}
+	};
+
+	// Helper function to trigger custom highlighting through the search system
+	const highlightCustomResult = async (reader, customResult) => {
+		Zotero.debug(`DeepTutorChatBox: Triggering custom highlighting through search system`);
+		
+		try {
+			// Use the search system's highlighting mechanism which is designed to work across security boundaries
+			// This approach simulates what happens when a normal search finds a result
+			
+			// Create a custom find state that represents our highlighting
+			// Create a custom find state that represents our highlighting
+			const customFindState = {
+				...reader._internalReader._state.primaryViewFindState,
+				result: {
+					total: 1,
+					index: 0,
+					pageIndex: customResult.pageIndex,
+					snippets: customResult.snippets,
+					// These are the key properties that drive highlighting
+					currentOffsetStart: customResult.currentOffsetStart,
+					currentOffsetEnd: customResult.currentOffsetEnd,
+					currentPageIndex: customResult.pageIndex
+				}
+			};
+			
+			Zotero.debug(`DeepTutorChatBox: Setting custom find state with range ${customResult.currentOffsetStart} to ${customResult.currentOffsetEnd}`);
+			
+			// First, ensure we have an active search state
+			if (!customFindState.active) {
+				customFindState.active = true;
+				customFindState.query = customResult.snippets[0];
+			}
+			
+			// Update the find state to trigger highlighting
+			reader._internalReader._updateState({ primaryViewFindState: customFindState });
+			
+			// Now directly manipulate the find controller to use our custom offsets
+			setTimeout(() => {
+				const findController = reader._internalReader._primaryView?._findController;
+				if (findController) {
+					// Store the original state
+					const originalPageMatches = findController._pageMatches;
+					const originalPageMatchesLength = findController._pageMatchesLength;
+					
+					// Force update the current match to our custom offsets
+					findController._selected.pageIdx = customResult.pageIndex;
+					findController._selected.matchIdx = 0; // First match
+					
+					// Update the page matches with our custom offsets
+					if (!findController._pageMatches[customResult.pageIndex]) {
+						findController._pageMatches[customResult.pageIndex] = [];
+						findController._pageMatchesLength[customResult.pageIndex] = [];
+					}
+					findController._pageMatches[customResult.pageIndex][0] = customResult.currentOffsetStart;
+					findController._pageMatchesLength[customResult.pageIndex][0] = customResult.currentOffsetEnd - customResult.currentOffsetStart;
+					
+					// Update the total count
+					findController._matchesCountTotal = 1;
+					findController._matchesCount = 1;
+					
+					// Trigger the highlighting update
+					findController._updateMatch(true);
+					
+					Zotero.debug(`DeepTutorChatBox: Directly updated find controller with custom offsets`);
+				}
+			}, 50);
+			
+			Zotero.debug('DeepTutorChatBox: Custom highlighting triggered through search system');
+			return true;
+			
+		} catch (error) {
+			Zotero.debug(`DeepTutorChatBox: Error in search-based highlighting: ${error.message}`);
+			Zotero.debug(`DeepTutorChatBox: Error stack: ${error.stack}`);
+			return false;
+		}
+	};
+
 	// Helper function to get page text around a position
-	const getPageTextAroundPosition = async (reader, pageIndex, matchResult, originalLength) => {
+	const getPageTextAroundPosition = async (reader, pageIndex, matchResult, originalLength, pdfItem) => {
 		Zotero.debug(`DeepTutorChatBox: Getting page text around position - pageIndex: ${pageIndex}, originalLength: ${originalLength}`);
 		try {
-			// Access the PDF document through the reader
-			const pdfDocument = reader._iframeWindow?.PDFViewerApplication?.pdfDocument;
-			if (!pdfDocument) {
-				Zotero.debug('DeepTutorChatBox: PDF document not accessible');
+			// Get PDF ID from the PDF item
+			if (!pdfItem || !pdfItem.id) {
+				Zotero.debug('DeepTutorChatBox: PDF item or ID not available');
 				return null;
 			}
-			Zotero.debug('DeepTutorChatBox: PDF document accessible, getting page data...');
+			
+			const pdfId = pdfItem.id;
+			Zotero.debug(`DeepTutorChatBox: Using PDF ID: ${pdfId}`);
 
-			// Get page data for character information
-			const pageData = await pdfDocument.getPageData({ pageIndex });
-			if (!pageData || !pageData.chars) {
-				Zotero.debug('DeepTutorChatBox: Page data not available');
+			// Try multiple methods to get the full text
+			let fullText = null;
+			
+			// Method 1: Use Zotero.PDFWorker.getFullText
+			try {
+				const result = await Zotero.PDFWorker.getFullText(pdfId);
+				if (result && result.text) {
+					fullText = result.text;
+					Zotero.debug(`DeepTutorChatBox: Retrieved full text via PDFWorker - length: ${fullText.length}`);
+				}
+			} catch (error) {
+				Zotero.debug(`DeepTutorChatBox: PDFWorker.getFullText failed: ${error.message}`);
+			}
+			
+			// Method 2: Fallback to attachmentText property
+			if (!fullText) {
+				try {
+					fullText = await pdfItem.attachmentText;
+					if (fullText) {
+						Zotero.debug(`DeepTutorChatBox: Retrieved full text via attachmentText - length: ${fullText.length}`);
+					}
+				} catch (error) {
+					Zotero.debug(`DeepTutorChatBox: attachmentText failed: ${error.message}`);
+				}
+			}
+			
+			if (!fullText) {
+				Zotero.debug('DeepTutorChatBox: No full text available from any method');
 				return null;
 			}
-			Zotero.debug(`DeepTutorChatBox: Page data retrieved - ${pageData.chars.length} characters`);
 
 			// Find the match position from the search result
 			const findState = reader._internalReader._state.primaryViewFindState;
@@ -633,30 +770,72 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 				return null;
 			}
 
-			// Build text from characters
-			let pageText = '';
-			for (let i = 0; i < pageData.chars.length; i++) {
-				const char = pageData.chars[i];
-				pageText += char.u;
-				if (char.spaceAfter || char.lineBreakAfter || char.paragraphBreakAfter) {
-					pageText += ' ';
+			// Find the current match in the full text with improved matching
+			const currentQuery = findState.query;
+			let matchIndex = fullText.indexOf(currentQuery);
+			
+			// If exact match not found, try partial matching with shorter segments
+			if (matchIndex === -1) {
+				Zotero.debug(`DeepTutorChatBox: Exact match not found, trying partial matching`);
+				
+				// Try to find a shorter, more distinctive part of the query
+				const queryWords = currentQuery.split(/\s+/).filter(word => word.length > 3);
+				if (queryWords.length > 0) {
+					// Try the first few words of the query
+					const shortQuery = queryWords.slice(0, Math.min(5, queryWords.length)).join(' ');
+					matchIndex = fullText.indexOf(shortQuery);
+					
+					if (matchIndex === -1 && queryWords.length > 1) {
+						// Try just the first few words
+						const veryShortQuery = queryWords.slice(0, 3).join(' ');
+						matchIndex = fullText.indexOf(veryShortQuery);
+					}
+					
+					if (matchIndex === -1 && queryWords.length > 0) {
+						// Try just the first word
+						matchIndex = fullText.indexOf(queryWords[0]);
+					}
+				}
+				
+				if (matchIndex !== -1) {
+					Zotero.debug(`DeepTutorChatBox: Found partial match at index: ${matchIndex}`);
 				}
 			}
-			Zotero.debug(`DeepTutorChatBox: Built page text - length: ${pageText.length}`);
-
-			// Find the current match in the page text
-			const currentQuery = findState.query;
-			const matchIndex = pageText.indexOf(currentQuery);
+			
 			if (matchIndex === -1) {
-				Zotero.debug(`DeepTutorChatBox: Current query "${currentQuery}" not found in page text`);
+				Zotero.debug(`DeepTutorChatBox: Query not found in full text (length: ${currentQuery.length})`);
+				Zotero.debug(`DeepTutorChatBox: Query preview: "${currentQuery.substring(0, 100)}..."`);
+				Zotero.debug(`DeepTutorChatBox: Full text preview: "${fullText.substring(0, 200)}..."`);
+				
+				// As a last resort, try to find any reasonable starting position
+				// Look for common academic text patterns
+				const academicPatterns = [
+					/Journal of .+ Philology/i,
+					/January \d{4}/i,
+					/Chapter \d+/i,
+					/\d+ Journal of/i
+				];
+				
+				for (const pattern of academicPatterns) {
+					const match = fullText.match(pattern);
+					if (match) {
+						matchIndex = match.index;
+						Zotero.debug(`DeepTutorChatBox: Found academic pattern match at index: ${matchIndex}`);
+						break;
+					}
+				}
+			}
+			
+			if (matchIndex === -1) {
+				Zotero.debug(`DeepTutorChatBox: No match found, returning null`);
 				return null;
 			}
 			Zotero.debug(`DeepTutorChatBox: Found match at index: ${matchIndex}`);
 
 			// Extract text of original length starting from match position
 			const startPos = matchIndex;
-			const endPos = Math.min(pageText.length, startPos + originalLength);
-			const extractedText = pageText.substring(startPos, endPos);
+			const endPos = Math.min(fullText.length, startPos + originalLength);
+			const extractedText = fullText.substring(startPos, endPos);
 			
 			Zotero.debug(`DeepTutorChatBox: Extracted text - startPos: ${startPos}, endPos: ${endPos}, extractedLength: ${extractedText.length}`);
 			return extractedText;
@@ -667,7 +846,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 	};
 
 	// Improved search algorithm
-	const performImprovedSearch = async (reader, source) => {
+	const performImprovedSearch = async (reader, source, pdfItem) => {
 		Zotero.debug('DeepTutorChatBox: Starting improved search algorithm');
 		
 		// Step 1: Check if source.referenceString exists
@@ -681,13 +860,14 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			return;
 		}
 
-		// Step 2: Set variables and start recursive search
-		let curSearchString = source.referenceString;
-		const originalLength = curSearchString.length;
+		// Step 2: Store original text and length before starting search
+		const originalFullText = source.referenceString;
+		const originalLength = originalFullText.length;
+		let curSearchString = originalFullText;
 		let lenCurSearchString = originalLength;
 
-		Zotero.debug(`DeepTutorChatBox: Starting search with string of length: ${lenCurSearchString}`);
-		Zotero.debug(`DeepTutorChatBox: Original referenceString preview: "${curSearchString.substring(0, 100)}..."`);
+		Zotero.debug(`DeepTutorChatBox: Starting search with original text length: ${originalLength}`);
+		Zotero.debug(`DeepTutorChatBox: Original referenceString preview: "${originalFullText.substring(0, 100)}..."`);
 
 		// Step 3: Recursive while loop
 		let iterationCount = 0;
@@ -715,39 +895,56 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 					return; // Do nothing, search is complete
 				}
 				
-				// Case a2: Current length is less than original
-				Zotero.debug('DeepTutorChatBox: Found shortened text, attempting to get full context');
+				// Case a2: Current length is less than original - use custom highlighting
+				Zotero.debug('DeepTutorChatBox: Found shortened text, attempting custom full-length highlighting');
 				Zotero.debug(`DeepTutorChatBox: Shortened length: ${lenCurSearchString}, Original length: ${originalLength}`);
 				
 				try {
-					// Get text of original length from current position
-					const fullContextText = await getPageTextAroundPosition(
-						reader, 
-						source.page - 1, 
-						null, 
-						originalLength
-					);
-
-					if (fullContextText && fullContextText.length > lenCurSearchString) {
-						Zotero.debug(`DeepTutorChatBox: Got full context of length: ${fullContextText.length}`);
-						Zotero.debug(`DeepTutorChatBox: Full context preview: "${fullContextText.substring(0, 100)}..."`);
+					// Get the starting index from the successful partial search result
+					const findState = reader._internalReader._state.primaryViewFindState;
+					if (findState.result && findState.result.total > 0) {
+						const matchResult = findState.result;
+						const startingIndex = matchResult.currentOffsetStart || 0;
+						const pageIndex = matchResult.pageIndex || (source.page - 1);
 						
-						// Search again with the full context text
-						reader._internalReader.setFindQuery(fullContextText, {
-							primary: true,
-							openPopup: false,
-							activateSearch: true
-						});
+						Zotero.debug(`DeepTutorChatBox: Partial search found at page ${pageIndex}, starting index: ${startingIndex}`);
+						Zotero.debug(`DeepTutorChatBox: Creating custom highlight from index ${startingIndex} to ${startingIndex + originalLength}`);
 						
-						// Wait for final search to complete
-						const finalSearchSuccessful = await waitForSearchResult(reader);
-						Zotero.debug(`DeepTutorChatBox: Final search with full context completed - success: ${finalSearchSuccessful}`);
+						// Wait 1.5 seconds before applying custom highlighting to ensure PDF viewer is ready
+						Zotero.debug('DeepTutorChatBox: Waiting 1.5 seconds before applying custom highlighting...');
+						await new Promise(resolve => setTimeout(resolve, 1500));
+						
+						// Create custom highlight with starting index + original length
+						const customHighlightSuccess = await createCustomSearchResult(
+							reader,
+							pageIndex,
+							startingIndex,
+							originalFullText,
+							originalLength
+						);
+						
+						if (customHighlightSuccess) {
+							Zotero.debug('DeepTutorChatBox: Custom full-length highlighting successful');
+							return; // Success - exit the function
+						} else {
+							Zotero.debug('DeepTutorChatBox: Custom highlighting failed, falling back to normal search');
+						}
 					} else {
-						Zotero.debug('DeepTutorChatBox: Could not get full context, keeping current search');
-						Zotero.debug(`DeepTutorChatBox: Context text length: ${fullContextText?.length || 0}, expected: > ${lenCurSearchString}`);
+						Zotero.debug('DeepTutorChatBox: No search result available for custom highlighting');
 					}
+					
+					// Fallback: Search with the original full text if custom highlighting failed
+					reader._internalReader.setFindQuery(originalFullText, {
+						primary: true,
+						openPopup: false,
+						activateSearch: true
+					});
+					
+					// Wait for final search to complete
+					const finalSearchSuccessful = await waitForSearchResult(reader);
+					Zotero.debug(`DeepTutorChatBox: Fallback search with original text completed - success: ${finalSearchSuccessful}`);
 				} catch (error) {
-					Zotero.debug(`DeepTutorChatBox: Error getting full context: ${error.message}`);
+					Zotero.debug(`DeepTutorChatBox: Error in custom highlighting: ${error.message}`);
 					Zotero.debug(`DeepTutorChatBox: Error stack: ${error.stack}`);
 				}
 				
@@ -847,7 +1044,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 
 			Zotero.debug('DeepTutorChatBox: Reader instance found, starting improved search');
 			// Implement improved source searching algorithm
-			await performImprovedSearch(reader, source);
+			await performImprovedSearch(reader, source, item);
 		}
 		catch (error) {
 			Zotero.debug(`DeepTutorChatBox: Error in handleSourceClick: ${error.message}`);
