@@ -604,7 +604,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		// We note that the actual search time varies due to app performance, computer performance, and other factors
 		// Which a search can take more or less than 4 seconds regardless of its status. 
 		// 4 sound waiting time in my perspective is a reasonable tradeoff between the two factors, but this can be adjusted
-		await new Promise(resolve => setTimeout(resolve, 4000));
+		await new Promise(resolve => setTimeout(resolve, 500));
 		const findState = reader._internalReader._state.primaryViewFindState;
 		const hasResults = findState.result && findState.result.total > 0;
 		Zotero.debug(`DeepTutorChatBox: Search result check - hasResults: ${hasResults}, total: ${findState.result?.total || 0}`);
@@ -915,11 +915,35 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		// Step 2: Store original text and length before starting search
 		const originalFullText = source.referenceString;
 		const originalLength = originalFullText.length;
-		let curSearchString = originalFullText;
-		let lenCurSearchString = originalLength;
+		
+		// Normalize the search string: normalize spacing and special characters
+		const normalizeSearchString = (text) => {
+			return text
+				// Normalize whitespace: replace multiple spaces/tabs/newlines with single space
+				.replace(/\s+/g, ' ')
+				// Trim leading and trailing whitespace
+				.trim()
+				// Normalize special characters: convert to basic ASCII equivalents
+				.normalize('NFD') // Decompose characters
+				.replace(/[\u0300-\u036f]/g, '') // Remove diacritical marks
+				// Replace common special characters with ASCII equivalents
+				.replace(/[""]/g, '"') // Smart quotes to regular quotes
+				.replace(/['']/g, "'") // Smart apostrophes to regular apostrophes
+				.replace(/[–—]/g, '-') // En dash and em dash to hyphen
+				.replace(/…/g, '...') // Ellipsis to three dots
+				.replace(/[^\x00-\x7F]/g, '') // Remove any remaining non-ASCII characters
+				// Clean up any double spaces that might have been created
+				.replace(/\s+/g, ' ')
+				.trim();
+		};
+		
+		let curSearchString = normalizeSearchString(originalFullText);
+		let lenCurSearchString = curSearchString.length;
 
 		Zotero.debug(`DeepTutorChatBox: Starting search with original text length: ${originalLength}`);
 		Zotero.debug(`DeepTutorChatBox: Original referenceString preview: "${originalFullText.substring(0, 100)}..."`);
+		Zotero.debug(`DeepTutorChatBox: Normalized search string length: ${lenCurSearchString}`);
+		Zotero.debug(`DeepTutorChatBox: Normalized search string preview: "${curSearchString.substring(0, 100)}..."`);
 
 		// Step 3: while loop that search the first half of the search string until we hit lower bound of search
 		let iterationCount = 0;
@@ -996,12 +1020,23 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 				return; // Exit after handling successful search
 			}
 
-			// Step 4: Search not successful, make curSearchString the front half
+			// Step 4: Search not successful, make curSearchString shorter
 			Zotero.debug(`DeepTutorChatBox: Search failed with length: ${lenCurSearchString}, trying shorter string`);
 			const previousLength = lenCurSearchString;
-			curSearchString = curSearchString.substring(0, Math.floor(lenCurSearchString / 2));
+			
+			// For first iteration with very long strings, divide by 16 if length/16 > 160, otherwise divide by 2
+			let divisor;
+			if (iterationCount === 1 && Math.floor(lenCurSearchString / 16) > 160) {
+				divisor = 16;
+				Zotero.debug(`DeepTutorChatBox: First iteration with very long string, dividing by 16`);
+			} else {
+				divisor = 2;
+				Zotero.debug(`DeepTutorChatBox: Using standard division by 2`);
+			}
+			
+			curSearchString = curSearchString.substring(0, Math.floor(lenCurSearchString / divisor));
 			lenCurSearchString = curSearchString.length;
-			Zotero.debug(`DeepTutorChatBox: Shortened from ${previousLength} to ${lenCurSearchString} characters`);
+			Zotero.debug(`DeepTutorChatBox: Shortened from ${previousLength} to ${lenCurSearchString} characters using divisor ${divisor}`);
 		}
 
 		// Last fallback: currently, we choose to search with the remaining search string (in between 40-80 characters)
@@ -1019,6 +1054,49 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			});
 			const finalResult = await waitForSearchResult(reader);
 			Zotero.debug(`DeepTutorChatBox: Final search result: ${finalResult}`);
+			
+			// If final search is successful and we have shortened text, attempt custom highlighting
+			if (finalResult && lenCurSearchString < originalLength) {
+				Zotero.debug('DeepTutorChatBox: Final search successful with shortened text, attempting custom full-length highlighting');
+				Zotero.debug(`DeepTutorChatBox: Final shortened length: ${lenCurSearchString}, Original length: ${originalLength}`);
+				
+				try {
+					// Get the starting index from the successful final search result
+					const findState = reader._internalReader._state.primaryViewFindState;
+					if (findState.result && findState.result.total > 0) {
+						const matchResult = findState.result;
+						const startingIndex = matchResult.currentOffsetStart || 0;
+						const pageIndex = matchResult.pageIndex || (source.page - 1);
+						
+						Zotero.debug(`DeepTutorChatBox: Final search found at page ${pageIndex}, starting index: ${startingIndex}`);
+						Zotero.debug(`DeepTutorChatBox: Creating custom highlight from index ${startingIndex} to ${startingIndex + originalLength}`);
+						
+						// Wait 0.5 seconds before applying custom highlighting to ensure PDF viewer is ready
+						Zotero.debug('DeepTutorChatBox: Waiting 0.5 seconds before applying custom highlighting...');
+						await new Promise(resolve => setTimeout(resolve, 500));
+						
+						// Create custom highlight with starting index + original length
+						const customHighlightSuccess = await createCustomSearchResult(
+							reader,
+							pageIndex,
+							startingIndex,
+							originalFullText,
+							originalLength
+						);
+						
+						if (customHighlightSuccess) {
+							Zotero.debug('DeepTutorChatBox: Final search custom full-length highlighting successful');
+						} else {
+							Zotero.debug('DeepTutorChatBox: Final search custom highlighting failed, but partial search result is still visible');
+						}
+					} else {
+						Zotero.debug('DeepTutorChatBox: No final search result available for custom highlighting');
+					}
+				} catch (error) {
+					Zotero.debug(`DeepTutorChatBox: Error in final search custom highlighting: ${error.message}`);
+					Zotero.debug(`DeepTutorChatBox: Error stack: ${error.stack}`);
+				}
+			}
 		} else {
 			Zotero.debug('DeepTutorChatBox: No searchable text remaining - all attempts exhausted');
 		}
