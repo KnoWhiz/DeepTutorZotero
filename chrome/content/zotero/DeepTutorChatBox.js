@@ -684,36 +684,60 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			// Update the find state to trigger highlighting
 			reader._internalReader._updateState({ primaryViewFindState: customFindState });
 			
+			// Wait for state to settle, then manipulate find controller
+			await new Promise(resolve => setTimeout(resolve, 200));
+			
 			// Now directly manipulate the find controller to use our custom offsets
-			setTimeout(() => {
-				const findController = reader._internalReader._primaryView?._findController;
-				if (findController) {
-					// Store the original state
-					const originalPageMatches = findController._pageMatches;
-					const originalPageMatchesLength = findController._pageMatchesLength;
-					
-					// Force update the current match to our custom offsets
-					findController._selected.pageIdx = customResult.pageIndex;
-					findController._selected.matchIdx = 0; // First match
-					
-					// Update the page matches with our custom offsets
-					if (!findController._pageMatches[customResult.pageIndex]) {
-						findController._pageMatches[customResult.pageIndex] = [];
-						findController._pageMatchesLength[customResult.pageIndex] = [];
+			const findController = reader._internalReader._primaryView?._findController;
+			if (findController) {
+				Zotero.debug(`DeepTutorChatBox: Find controller found, updating with custom offsets`);
+				
+				// Ensure we're on the correct page first
+				if (customResult.pageIndex !== undefined && customResult.pageIndex >= 0) {
+					// Navigate to the correct page if needed
+					const currentPage = reader._internalReader._state.pageIndex || 0;
+					if (currentPage !== customResult.pageIndex) {
+						Zotero.debug(`DeepTutorChatBox: Navigating from page ${currentPage} to page ${customResult.pageIndex}`);
+						reader._internalReader._updateState({ pageIndex: customResult.pageIndex });
+						// Wait for page navigation to complete
+						await new Promise(resolve => setTimeout(resolve, 300));
 					}
-					findController._pageMatches[customResult.pageIndex][0] = customResult.currentOffsetStart;
-					findController._pageMatchesLength[customResult.pageIndex][0] = customResult.currentOffsetEnd - customResult.currentOffsetStart;
-					
-					// Update the total count
-					findController._matchesCountTotal = 1;
-					findController._matchesCount = 1;
-					
-					// Trigger the highlighting update
-					findController._updateMatch(true);
-					
-					Zotero.debug(`DeepTutorChatBox: Directly updated find controller with custom offsets`);
 				}
-			}, 50);
+				
+				// Force update the current match to our custom offsets
+				findController._selected.pageIdx = customResult.pageIndex;
+				findController._selected.matchIdx = 0; // First match
+				
+				// Update the page matches with our custom offsets
+				if (!findController._pageMatches[customResult.pageIndex]) {
+					findController._pageMatches[customResult.pageIndex] = [];
+					findController._pageMatchesLength[customResult.pageIndex] = [];
+				}
+				findController._pageMatches[customResult.pageIndex][0] = customResult.currentOffsetStart;
+				findController._pageMatchesLength[customResult.pageIndex][0] = customResult.currentOffsetEnd - customResult.currentOffsetStart;
+				
+				// Update the total count
+				findController._matchesCountTotal = 1;
+				findController._matchesCount = 1;
+				
+				// Trigger the highlighting update
+				findController._updateMatch(true);
+				
+				Zotero.debug(`DeepTutorChatBox: Directly updated find controller with custom offsets`);
+				
+				// Additional verification - check if highlighting actually worked
+				setTimeout(() => {
+					const currentState = reader._internalReader._state.primaryViewFindState;
+					Zotero.debug(`DeepTutorChatBox: Verification - current find state:`, currentState);
+					if (currentState.result && currentState.result.total > 0) {
+						Zotero.debug(`DeepTutorChatBox: Highlighting verification successful`);
+					} else {
+						Zotero.debug(`DeepTutorChatBox: Highlighting verification failed - no result found`);
+					}
+				}, 100);
+			} else {
+				Zotero.debug(`DeepTutorChatBox: Find controller not found - highlighting may fail`);
+			}
 			
 			Zotero.debug('DeepTutorChatBox: Custom highlighting triggered through search system');
 			return true;
