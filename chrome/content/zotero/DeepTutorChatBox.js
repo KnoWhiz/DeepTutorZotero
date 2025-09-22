@@ -882,7 +882,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 
 	// Improved search algorithm (finished in 2025-09-20);
 	// Objective: increase the success rate of searching the large-size source text of deeptutor session
-	// Approach 1: if the search failed, repetitively search with the front half of the search string, and highlight the 
+	// Approach 1: if the search failed, repetitively search with part of the current search string, and highlight the 
 	// text of original length at the end
 	// Approach 2 (abandoned): use partial, successful search result to recover the full search text from the original document, instead
 	// of the output from deeptutor agent, and use the original text to search again; failed because even the search text from original document can fail the search
@@ -890,10 +890,10 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 	// 1. Check if source.referenceString exists
 	// Where this is called: handleSourceClick
 	// What does this call: waitForSearchResult, createCustomSearchResult, highlightCustomResult
-	// structure 
+	// Structure of the code:
 	// 1. Check if source.referenceString exists
 	// 2. Store original text and length before starting search
-	// 3. Repetitive while loop that search with the original text length
+	// 3. Repetitive while loop that search with the part of the current search string (divisor: 16 for first iteration, 2 for subsequent iterations)
 	// 3a. if successful and current search text has the same length as original length, exit
 	// 3b. if successful and current search text has less than original length, use custom highlighting
 	// 3c. if not successful, make search string the front half and search again, until we hit lower bound of search
@@ -916,7 +916,8 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 		const originalFullText = source.referenceString;
 		const originalLength = originalFullText.length;
 		
-		// Normalize the search string: normalize spacing and special characters
+		// Normalize the search string: normalize spacing and special characters to target search issues that are resulted from 
+		// special characters or spacing issue imposed by deeptutor agent
 		const normalizeSearchString = (text) => {
 			return text
 				// Normalize whitespace: replace multiple spaces/tabs/newlines with single space
