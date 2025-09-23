@@ -986,28 +986,45 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 						const pageIndex = matchResult.pageIndex || (source.page - 1);
 						
 						Zotero.debug(`DeepTutorChatBox: Partial search found at page ${pageIndex}, starting index: ${startingIndex}`);
-						Zotero.debug(`DeepTutorChatBox: Creating custom highlight from index ${startingIndex} to ${startingIndex + originalLength}`);
 						
-						// Wait 0.5 seconds before applying custom highlighting to ensure PDF viewer is ready
-						// The timing can be adjusted in the future and might be unnecessary, as we simply do not wish that the customized highlighting get blocked by other operations
-						Zotero.debug('DeepTutorChatBox: Waiting 0.5 seconds before applying custom highlighting...');
-						await new Promise(resolve => setTimeout(resolve, 500));
-						
-						// Create custom highlight with starting index + original length
-						const customHighlightSuccess = await createCustomSearchResult(
-							reader,
-							pageIndex,
-							startingIndex,
-							originalFullText,
-							originalLength
-						);
-						
-						if (customHighlightSuccess) {
-							Zotero.debug('DeepTutorChatBox: Custom full-length highlighting successful');
-							return; // Success - exit the function
+						// Check if currentOffsetStart is 0 (starting index might be wrong)
+						if (startingIndex === 0) {
+							Zotero.debug('DeepTutorChatBox: currentOffsetStart is 0, starting index might be wrong. Only changing page view without custom highlight.');
+							// Clear search state to remove partial highlights
+							reader._internalReader.setFindQuery("", {
+								primary: true,
+								openPopup: false
+							});
+							// Only change page view to the page relative to pageIndex, don't use custom highlight
+							await Zotero.FileHandlers.open(pdfItem, {
+								location: { pageIndex: pageIndex }
+							});
+							return; // Exit without custom highlighting
 						} else {
-							Zotero.debug('DeepTutorChatBox: Custom highlighting failed, but partial search result is still visible');
-							return; // Exit with partial highlighting (better than nothing)
+							Zotero.debug(`DeepTutorChatBox: currentOffsetStart is ${startingIndex}, performing custom highlight as usual.`);
+							Zotero.debug(`DeepTutorChatBox: Creating custom highlight from index ${startingIndex} to ${startingIndex + originalLength}`);
+							
+							// Wait 0.5 seconds before applying custom highlighting to ensure PDF viewer is ready
+							// The timing can be adjusted in the future and might be unnecessary, as we simply do not wish that the customized highlighting get blocked by other operations
+							Zotero.debug('DeepTutorChatBox: Waiting 0.5 seconds before applying custom highlighting...');
+							await new Promise(resolve => setTimeout(resolve, 500));
+							
+							// Create custom highlight with starting index + original length
+							const customHighlightSuccess = await createCustomSearchResult(
+								reader,
+								pageIndex,
+								startingIndex,
+								originalFullText,
+								originalLength
+							);
+							
+							if (customHighlightSuccess) {
+								Zotero.debug('DeepTutorChatBox: Custom full-length highlighting successful');
+								return; // Success - exit the function
+							} else {
+								Zotero.debug('DeepTutorChatBox: Custom highlighting failed, but partial search result is still visible');
+								return; // Exit with partial highlighting (better than nothing)
+							}
 						}
 					} else {
 						Zotero.debug('DeepTutorChatBox: No search result available for custom highlighting');
@@ -1070,25 +1087,41 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 						const pageIndex = matchResult.pageIndex || (source.page - 1);
 						
 						Zotero.debug(`DeepTutorChatBox: Final search found at page ${pageIndex}, starting index: ${startingIndex}`);
-						Zotero.debug(`DeepTutorChatBox: Creating custom highlight from index ${startingIndex} to ${startingIndex + originalLength}`);
 						
-						// Wait 0.5 seconds before applying custom highlighting to ensure PDF viewer is ready
-						Zotero.debug('DeepTutorChatBox: Waiting 0.5 seconds before applying custom highlighting...');
-						await new Promise(resolve => setTimeout(resolve, 500));
-						
-						// Create custom highlight with starting index + original length
-						const customHighlightSuccess = await createCustomSearchResult(
-							reader,
-							pageIndex,
-							startingIndex,
-							originalFullText,
-							originalLength
-						);
-						
-						if (customHighlightSuccess) {
-							Zotero.debug('DeepTutorChatBox: Final search custom full-length highlighting successful');
+						// Check if currentOffsetStart is 0 (starting index might be wrong)
+						if (startingIndex === 0) {
+							Zotero.debug('DeepTutorChatBox: Final search currentOffsetStart is 0, starting index might be wrong. Only changing page view without custom highlight.');
+							// Clear search state to remove partial highlights
+							reader._internalReader.setFindQuery("", {
+								primary: true,
+								openPopup: false
+							});
+							// Only change page view to the page relative to pageIndex, don't use custom highlight
+							await Zotero.FileHandlers.open(pdfItem, {
+								location: { pageIndex: pageIndex }
+							});
 						} else {
-							Zotero.debug('DeepTutorChatBox: Final search custom highlighting failed, but partial search result is still visible');
+							Zotero.debug(`DeepTutorChatBox: Final search currentOffsetStart is ${startingIndex}, performing custom highlight as usual.`);
+							Zotero.debug(`DeepTutorChatBox: Creating custom highlight from index ${startingIndex} to ${startingIndex + originalLength}`);
+							
+							// Wait 0.5 seconds before applying custom highlighting to ensure PDF viewer is ready
+							Zotero.debug('DeepTutorChatBox: Waiting 0.5 seconds before applying custom highlighting...');
+							await new Promise(resolve => setTimeout(resolve, 500));
+							
+							// Create custom highlight with starting index + original length
+							const customHighlightSuccess = await createCustomSearchResult(
+								reader,
+								pageIndex,
+								startingIndex,
+								originalFullText,
+								originalLength
+							);
+							
+							if (customHighlightSuccess) {
+								Zotero.debug('DeepTutorChatBox: Final search custom full-length highlighting successful');
+							} else {
+								Zotero.debug('DeepTutorChatBox: Final search custom highlighting failed, but partial search result is still visible');
+							}
 						}
 					} else {
 						Zotero.debug('DeepTutorChatBox: No final search result available for custom highlighting');
