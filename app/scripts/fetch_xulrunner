@@ -485,7 +485,7 @@ modules/addons/AddonUpdateChecker.sys.mjs
 	cd ..
 	python3 "$APP_ROOT_DIR/scripts/optimizejars.py" --optimize ./ ./ ./
 	# FIXME
-	rm -rf omni
+	# rm -rf omni
 
 	# Unzip browser/omni.ja and leave unzipped
 	cd browser
