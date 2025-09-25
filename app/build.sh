@@ -388,6 +388,8 @@ fi
 
 # 5.0.96.3 / 5.0.97-beta.37+ddc7be75c
 VERSION=`cat version`
+# Remove .SOURCE suffix for release builds to ensure clean version numbers
+VERSION_CLEAN=`echo "$VERSION" | sed 's/\.SOURCE$//'`
 # 5.0.96 / 5.0.97
 VERSION_NUMERIC=`perl -ne 'print and last if s/^(\d+\.\d+(\.\d+)?).*/\1/;' version`
 if [ -z "$VERSION" ]; then
@@ -530,7 +532,7 @@ cp "$CALLDIR/assets/updater.ini" "$base_dir"
 
 # Copy application.ini and modify
 cp "$CALLDIR/assets/application.ini" "$app_dir/application.ini"
-perl -pi -e "s/\{\{VERSION}}/$VERSION/" "$app_dir/application.ini"
+perl -pi -e "s/\{\{VERSION}}/$VERSION_CLEAN/" "$app_dir/application.ini"
 perl -pi -e "s/\{\{BUILDID}}/$BUILD_ID/" "$app_dir/application.ini"
 
 # Remove unnecessary files

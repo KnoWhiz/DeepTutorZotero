@@ -59,10 +59,18 @@ def main():
         # Extract version number from version file
         with open('version') as f:
             rdf = f.read()
+        # Try to match version with .SOURCE suffix first, then without
         m = re.search('([0-9].+)\\.SOURCE', rdf)
-        if not m:
-            raise Exception("Version number not found in version file")
-        version = m.group(1)
+        if m:
+            version = m.group(1)
+        else:
+            # Try to match version without .SOURCE suffix
+            m = re.search('^([0-9]+\\.[0-9]+(?:\\.[0-9]+)?)', rdf.strip())
+            if m:
+                version = m.group(1)
+            else:
+                raise Exception("Version number not found in version file")
+        
         
         # Remove tmp build directory if it already exists
         if os.path.exists(tmp_dir):
