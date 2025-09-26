@@ -264,6 +264,14 @@ modules/addons/XPIInstall.sys.mjs
         logger.warn(`Compat override applied for ${this.id}: app ${aAppVersion}, min=${minVersion}, max=${maxVersion}, result=${minOk}`);
         return minOk;
       }
+
+      \/\/ Wildcard max version within same major (e.g., "8.*", "8.0.*"): only check minVersion.
+      const endsWithWildcard = String(maxVersion).trim().endsWith('\''*'\'');
+      if (Number.isFinite(appMajor) && Number.isFinite(maxMajor) && appMajor === maxMajor && endsWithWildcard) {
+        const minOk = Services.vc.compare(aAppVersion, minVersion) >= 0;
+        logger.warn("Compat wildcard satisfied for same-major maxVersion wildcard");
+        return minOk;
+      }
     } catch (e) {
       logger.warn(`Compat override check failed for ${this.id}`);' modules/addons/XPIDatabase.sys.mjs
 
@@ -296,6 +304,14 @@ modules/addons/AddonUpdateChecker.sys.mjs
           if (relax) {
             let ok = Services.vc.compare(aAppVersion, app.minVersion) >= 0;
             logger.warn(`Update compat override for ${aUpdate.id}@${aUpdate.version}: host=${aAppVersion}, min=${app.minVersion}, max=${app.maxVersion}, result=${ok}`);
+            return ok;
+          }
+
+          \/\/ Wildcard max version within same major (e.g., "8.*", "8.0.*"): only check minVersion.
+          const endsWithWildcard = String(app.maxVersion).trim().endsWith('\''*'\'');
+          if (Number.isFinite(hostMajor) && Number.isFinite(maxMajor) && hostMajor === maxMajor && endsWithWildcard) {
+            let ok = Services.vc.compare(aAppVersion, app.minVersion) >= 0;
+            logger.warn("Update compat wildcard satisfied for same-major maxVersion wildcard");
             return ok;
           }
         } catch (e) {
@@ -485,7 +501,7 @@ modules/addons/AddonUpdateChecker.sys.mjs
 	cd ..
 	python3 "$APP_ROOT_DIR/scripts/optimizejars.py" --optimize ./ ./ ./
 	# FIXME
-	# rm -rf omni
+	rm -rf omni
 
 	# Unzip browser/omni.ja and leave unzipped
 	cd browser
