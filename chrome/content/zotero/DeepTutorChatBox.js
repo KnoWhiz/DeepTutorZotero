@@ -427,6 +427,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 			display: 'flex',
 			alignItems: 'center',
 			justifyContent: 'flex-start',
+			textAlign: 'left',
 			transition: 'background-color 0.2s',
 			boxSizing: 'border-box',
 			whiteSpace: 'nowrap',
@@ -2434,8 +2435,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 										lineHeight: "180%",
 										overflow: "hidden",
 										textOverflow: "ellipsis",
-										whiteSpace: "nowrap",
-										width: "100%"
+									
 									}}>
 										{contextDoc.name}
 									</div>
@@ -2447,8 +2447,7 @@ const DeepTutorChatBox = ({ currentSession, onInitWaitChange, handleShowNoteSave
 											lineHeight: "135%",
 											overflow: "hidden",
 											textOverflow: "ellipsis",
-											whiteSpace: "nowrap",
-											width: "100%",
+										
 											fontStyle: "italic"
 										}}>
 											{contextDoc.filePath}
