@@ -482,10 +482,10 @@ class DeepTutorLocalhostServer {
 							padding: 25px;
 							box-shadow: 0 4px 20px rgba(0,0,0,0.3);
 							z-index: 10000;
-							width: 500px;
-							max-width: 90vw;
-							max-height: 80vh;
+							width: min(500px, 90vw);
+							max-height: min(80svh, 600px);
 							overflow: auto;
+							box-sizing: border-box;
 							font-family: Arial, sans-serif;
 						">
 							<div style="
@@ -520,7 +520,7 @@ class DeepTutorLocalhostServer {
 								line-height: 1.5;
 								white-space: pre-wrap;
 								word-wrap: break-word;
-								font-size: 16px;
+								font-size: clamp(14px, 1.6vw, 16px);
 							">${this.escapeHtml(text)}</div>
 							<div style="
 								text-align: center;
@@ -672,10 +672,10 @@ class DeepTutorLocalhostServer {
 							padding: 25px;
 							box-shadow: 0 4px 20px rgba(0,0,0,0.3);
 							z-index: 10000;
-							width: 500px;
-							max-width: 90vw;
-							max-height: 80vh;
+							width: min(500px, 90vw);
+							max-height: min(80svh, 600px);
 							overflow: auto;
+							box-sizing: border-box;
 							font-family: Arial, sans-serif;
 						">
 							<div style="
@@ -715,7 +715,7 @@ class DeepTutorLocalhostServer {
 								padding: 15px;
 								border-radius: 5px;
 								border: 1px solid #ddd;
-								font-size: 16px;
+								font-size: clamp(14px, 1.6vw, 16px);
 							">
 								Signed in as: <b>${user.username}</b><br/>
 								Name: ${user.attributes.name}
@@ -785,10 +785,10 @@ class DeepTutorLocalhostServer {
 							padding: 25px;
 							box-shadow: 0 4px 20px rgba(0,0,0,0.3);
 							z-index: 10000;
-							width: 500px;
-							max-width: 90vw;
-							max-height: 80vh;
+							width: min(500px, 90vw);
+							max-height: min(80svh, 600px);
 							overflow: auto;
+							box-sizing: border-box;
 							font-family: Arial, sans-serif;
 						">
 							<div style="
@@ -828,7 +828,7 @@ class DeepTutorLocalhostServer {
 								padding: 15px;
 								border-radius: 5px;
 								border: 1px solid #ddd;
-								font-size: 16px;
+								font-size: clamp(14px, 1.6vw, 16px);
 							">
 								Error: ${errorMsg}
 							</div>
@@ -929,16 +929,17 @@ class DeepTutorLocalhostServer {
 				}
 			},
 			_renderHtmlPage: function (message) {
-				return (
+					return (
 					"<html><head><meta charset=\"utf-8\"/>"
 					+ "<title>DeepTutor Sign-In</title>"
 					+ "<style>"
-					+ "body{font-family:Arial,Helvetica,sans-serif;margin:0;color:#333;background:#f5f7fa;min-height:100vh;display:flex;align-items:center;justify-content:center;}"
-					+ ".card{border:2px solid #0687E5;border-radius:10px;padding:30px;width:600px;max-width:90vw;background:white;box-shadow:0 4px 20px rgba(0,0,0,0.2);text-align:center;}"
-					+ ".title{color:#0687E5;margin:0 0 25px 0;font-size:28px;font-weight:bold;}"
-					+ ".message{font-size:18px;line-height:1.5;margin:20px 0;padding:20px;background:#f8f9fa;border-radius:8px;border:1px solid #e9ecef;color:#333;}"
+						+ "body{font-family:Arial,Helvetica,sans-serif;margin:0;color:#333;background:#f5f7fa;min-height:100svh;display:flex;align-items:center;justify-content:center;}"
+						+ ".card{border:2px solid #0687E5;border-radius:10px;padding:clamp(16px,2.5vw,30px);width:min(600px,92vw);background:white;box-shadow:0 4px 20px rgba(0,0,0,0.2);text-align:center;box-sizing:border-box;}"
+						+ ".title{color:#0687E5;margin:0 0 clamp(16px,2vw,25px) 0;font-size:clamp(20px,3.2vw,28px);font-weight:bold;}"
+						+ ".message{font-size:clamp(14px,2.1vw,18px);line-height:1.5;margin:clamp(12px,2vw,20px) 0;padding:clamp(12px,2vw,20px);background:#f8f9fa;border-radius:8px;border:1px solid #e9ecef;color:#333;}"
 					+ ".hint{color:#666;font-size:14px;margin-top:20px;padding-top:15px;border-top:1px solid #eee;}"
 					+ "</style>"
+						+ "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">"
 					+ "</head><body>"
 					+ "<div class='card'>"
 					+ "<h2 class='title'>DeepTutor Google Sign-In</h2>"
